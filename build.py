@@ -61,6 +61,7 @@ def generate_html_structure(content):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>CINEMA EM POA</title>
+            <meta name="description" content="Filmes em cartaz nas salas CineBancários, Cinemateca Paulo Amorim, Cinemateca Capitólio e Sala Redenção de Porto Alegre." />
             <style>
                 img {{ float: left; max-height: 325px; object-fit: contain; margin-right: 15px; }}
                 ul {{ list-style: none; }}
