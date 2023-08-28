@@ -78,8 +78,17 @@ def generate_html_structure(content):
                 {"".join(content)}
             </main>
             <footer>
-                <p>Feito com ♥ por Porto Alegre. <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a>.</p>
+                <p>Feito com ♥ por Porto Alegre | <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a> | <a href="https://cinemaempoa.goatcounter.com/">Acessos: <span id="stats"></span></a></p>
             </footer>
+
+            <script>
+                var r = new XMLHttpRequest();
+                r.addEventListener('load', function() {{
+                    document.querySelector('#stats').innerText = JSON.parse(this.responseText).count
+                }})
+                r.open('GET', 'https://cinemaempoa.goatcounter.com/counter/' + encodeURIComponent(location.pathname.replace(/\/$/, '')) + '.json')
+                r.send()
+            </script>
             <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
         </body>
         </html>"""
