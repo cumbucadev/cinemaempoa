@@ -295,7 +295,11 @@ class CineBancarios:
                     p_tag_content,
                     re.IGNORECASE,
                 ):
-                    movie["time"].append(p_tag_content)
+                    movie["time"].append(
+                        p_tag_content.replace(f": {movie['title']}", "")
+                    )
+        for movie in movie_blocks:
+            movie["time"] = " / ".join(movie["time"])
         return movie_blocks
 
     def get_daily_features_json(self):
@@ -404,7 +408,7 @@ class SalaRedencao:
 
                 feature = {
                     "poster": "",
-                    "time": time,
+                    "time": "\n".join(time),
                     "title": title,
                     "original_title": "",
                     "price": "",
