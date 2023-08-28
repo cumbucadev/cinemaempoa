@@ -73,7 +73,12 @@ def generate_html_structure(content):
                 <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
                 <p>Mostrando filmes para <strong>{datetime.now().strftime("%d/%m/%Y")}</strong></p>
             </header>
-            {"".join(content)}
+            <main>
+                {"".join(content)}
+            </main>
+            <footer>
+                <p>Feito com ♥ por Porto Alegre. <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a>.</p>
+            </footer>
         </body>
         </html>"""
     return html
