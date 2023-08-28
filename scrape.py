@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, ResultSet
-from datetime import datetime
+from datetime import date, datetime
 
 
 def string_is_current_day(date_string: str) -> bool:
@@ -49,6 +49,10 @@ def string_is_current_day(date_string: str) -> bool:
 
     # Check if the parsed date is the current date
     return parsed_date == current_date
+
+
+def is_monday():
+    return date.today().weekday() == 0
 
 
 def dump_utf8_json(jsonable_object) -> str:
@@ -308,7 +312,12 @@ class CineBancarios:
         current_movie_blocks = self._get_movies_show_time(
             current_post_soup, current_movie_blocks
         )
-        return current_movie_blocks
+        return {
+            "url": "http://cinebancarios.blogspot.com",
+            "cinema": "CineBancários",
+            "warning": "Não há sessões nas segundas-feiras" if is_monday() else False,
+            "features": current_movie_blocks,
+        }
 
 
 class CinematecaPauloAmorim:
@@ -523,6 +532,7 @@ class Capitolio:
                 "http://www.capitolio.org.br" + read_more["href"]
             )
             features.append(feature_film)
+
         return features
 
 
@@ -568,10 +578,5 @@ if __name__ == "__main__":
             features.append(feature)
         if "cinebancarios" in args.rooms:
             cineBancarios = CineBancarios()
-            feature = {
-                "url": "http://cinebancarios.blogspot.com",
-                "cinema": "CineBancários",
-            }
-            feature["features"] = cineBancarios.get_daily_features_json()
-            features.append(feature)
+            features.append(cineBancarios.get_daily_features_json())
         print(dump_utf8_json(features))
