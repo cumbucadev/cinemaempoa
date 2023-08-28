@@ -80,6 +80,7 @@ def generate_html_structure(content):
             <footer>
                 <p>Feito com ♥ por Porto Alegre. <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a>.</p>
             </footer>
+            <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
         </body>
         </html>"""
     return html
