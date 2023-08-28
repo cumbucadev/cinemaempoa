@@ -5,6 +5,7 @@
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>CINEMA EM POA</title>
+            <meta name="description" content="Filmes em cartaz nas salas CineBancários, Cinemateca Paulo Amorim, Cinemateca Capitólio e Sala Redenção de Porto Alegre." />
             <style>
                 img { float: left; max-height: 325px; object-fit: contain; margin-right: 15px; }
                 ul { list-style: none; }
@@ -17,7 +18,8 @@
                 <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
                 <p>Mostrando filmes para <strong>28/08/2023</strong></p>
             </header>
-            
+            <main>
+                
         <article>
             <header>
                 <h2>
@@ -112,5 +114,19 @@ iniciante.
                 </ul>
             </main>
         </article>
+            </main>
+            <footer>
+                <p>Feito com ♥ por Porto Alegre | <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a> | <a href="https://cinemaempoa.goatcounter.com/">Número de visitantes: <span id="stats"></span></a></p>
+            </footer>
+
+            <script>
+                var r = new XMLHttpRequest();
+                r.addEventListener('load', function() {
+                    document.querySelector('#stats').innerText = JSON.parse(this.responseText).count
+                })
+                r.open('GET', 'https://cinemaempoa.goatcounter.com/counter/' + encodeURIComponent(location.pathname) + '.json')
+                r.send()
+            </script>
+            <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
         </body>
         </html>
