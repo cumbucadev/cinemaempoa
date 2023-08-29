@@ -97,7 +97,7 @@ def generate_html_structure(content):
                 }}
                 img {{ float: left; max-width: 100%; object-fit: contain; margin-right: 15px; }}
                 ul {{ list-style: none; }}
-                li, p {{ font-size: 1.25rem; }}
+                li, p {{ font-size: 1.05rem; }}
                 .cinema-url {{ font-weight: normal; font-size: 1rem; }}
             </style>
         </head>
