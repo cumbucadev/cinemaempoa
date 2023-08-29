@@ -4,7 +4,7 @@ This project scrapes a few movie theater websites and compiles the results into 
 
 Featured movie theaters:
 - [CineBancários](http://cinebancarios.blogspot.com/?view=classic)
-- [Cinemateca Paulo Amorim](https://www.cinematecapauloamorim.com.br) \(WIP\)
+- [Cinemateca Paulo Amorim](https://www.cinematecapauloamorim.com.br)
 - [Cinemateca Capitólio](http://www.capitolio.org.br)
 - [Sala Redenção](https://www.ufrgs.br/difusaocultural/salaredencao/)
 
@@ -37,7 +37,7 @@ Dependencies:
 
 An example on how to trigger the scrapper and pipe the output to the buid script, while saving the resulting JSON and HTML files is
 
-    TODAY=$(date +%F); ./scrape.py -r capitolio sala-redencao cinebancarios | tee "$TODAY.json" | ./build.py > "$TODAY.html"
+    TODAY=$(date +%F); ./scrape.py -r capitolio sala-redencao cinebancarios paulo-amorim | tee "$TODAY.json" | ./build.py > "$TODAY.html"
 
 You can then inspect the resulting json and open the html file on your browser ♥‿♥
 
