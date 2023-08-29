@@ -93,6 +93,7 @@ def generate_html_structure(content):
             <style>
                 body {{
                     max-width: 960px;
+                    line-height: 1.5;
                 }}
                 img {{ float: left; max-width: 100%; object-fit: contain; margin-right: 15px; }}
                 ul {{ list-style: none; }}
