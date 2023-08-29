@@ -28,11 +28,6 @@ This was developed on Python 3.10.9
     source .venv/bin/activate
     pip3 install -r requirements.txt
 
-Dependencies:
-
-    - [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
-    - [Requests](https://requests.readthedocs.io/en/latest/)
-
 ## Running the project
 
 An example on how to trigger the scrapper and pipe the output to the buid script, while saving the resulting JSON and HTML files is
