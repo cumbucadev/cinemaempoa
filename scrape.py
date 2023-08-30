@@ -527,25 +527,57 @@ class SalaRedencao:
 
             if event_inner_url and event_inner_url not in self.events:
                 self.events.append(event_inner_url)
+    
+    def _parse_blog_post_with_regex(self, event_soup, event_url):
+        event_content_inner = event_soup.css.select_one("div.content-inner")
+        # pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]"
+        pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)((?:\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]\s*)+)"
+        matches = re.findall(pattern, event_content_inner.text, re.DOTALL)
+        feats = []
+        for movie in matches:
+            screening_dates = re.findall(
+                r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", movie[6]
+            )
+            time = []
+            for date in screening_dates:
+                if not string_is_current_day(date):
+                    continue
+                time.append(date)
 
-    def _get_events_blog_post_html(self):
-        events_html_dir = os.path.join(self.todays_dir, "events")
-        if not os.path.isdir(events_html_dir):
-            os.mkdir(events_html_dir)
-        features = []
-        for event_url in self.events:
-            event_url_stripped = event_url.rstrip("/")
-            event_slug = f"{event_url_stripped.split('/')[-1]}.html"
-            event_file = os.path.join(events_html_dir, event_slug)
-            event_html = self._get_page_html(event_file, event_url)
+            if len(time) == 0:
+                # no screenings today!
+                continue
 
-            event_soup = BeautifulSoup(event_html, "html.parser")
+            title = movie[0].strip()
+            director = movie[1].strip()
+            countries = movie[2].strip()
+            year = movie[3]
+            duration = movie[4].strip()
+            excerpt = movie[5].strip()
 
-            event_content_inner = event_soup.css.select_one("div.content-inner")
-            # pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]"
-            pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)((?:\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]\s*)+)"
-            matches = re.findall(pattern, event_content_inner.text, re.DOTALL)
+            feature = {
+                "poster": "",
+                "time": "\n".join(time),
+                "title": title,
+                "original_title": "",
+                "price": "",
+                "director": director,
+                "classification": "",
+                "general_info": countries + " / " + year + " / " + duration,
+                "excerpt": excerpt,
+                "read_more": event_url,
+            }
 
+            feats.append(feature)
+        return feats
+
+    def _parse_blog_post_by_html(self, blog_post_soup, blog_post_url):
+        content_inner = blog_post_soup.find("div", class_="content-inner")
+        p_tags = content_inner.find_all("p")
+        feats = []
+        pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)((?:\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]\s*)+)"
+        for p_tag in p_tags:
+            matches = re.findall(pattern, p_tag.text, re.DOTALL)
             for movie in matches:
                 screening_dates = re.findall(
                     r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", movie[6]
@@ -577,11 +609,27 @@ class SalaRedencao:
                     "classification": "",
                     "general_info": countries + " / " + year + " / " + duration,
                     "excerpt": excerpt,
-                    "read_more": event_url,
+                    "read_more": blog_post_url,
                 }
+                feats.append(feature)
+        return feats
 
-                features.append(feature)
 
+
+    def _get_events_blog_post_html(self):
+        events_html_dir = os.path.join(self.todays_dir, "events")
+        if not os.path.isdir(events_html_dir):
+            os.mkdir(events_html_dir)
+        features = []
+        for event_url in self.events:
+            event_url_stripped = event_url.rstrip("/")
+            event_slug = f"{event_url_stripped.split('/')[-1]}.html"
+            event_file = os.path.join(events_html_dir, event_slug)
+            event_html = self._get_page_html(event_file, event_url)
+
+            event_soup = BeautifulSoup(event_html, "html.parser")
+            blog_features = self._parse_blog_post_by_html(event_soup, event_url)
+            features = features + blog_features
         return features
 
     def get_daily_features_json(self) -> str:
