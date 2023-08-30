@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, ResultSet
-from datetime import date, datetime
+from datetime import date, datetime, time as dt_time
 
 
 def string_is_current_day(date_string: str) -> bool:
@@ -385,7 +385,7 @@ class CinematecaPauloAmorim:
                 .text.strip("\n")
                 .replace("\n", " "),
                 "excerpt": "",
-                "time": "",
+                "time": [],
                 "read_more": f"{self.url}/{ticket_link.parent['href']}",
                 "genre": ticket_link.css.select_one(".ticket-foto")
                 .css.select_one(".generos")
@@ -455,7 +455,7 @@ class CinematecaPauloAmorim:
                     # Movie will be featured today
                     # Lines are in the format
                     # 14h30 EH: Retratos Fantasmas, Kleber Mendonça Filho
-                    time = (
+                    time_str = (
                         unicodedata.normalize(
                             "NFKC", strong.find_previous_sibling(string=True)
                         )
@@ -463,13 +463,18 @@ class CinematecaPauloAmorim:
                         .strip()
                         .split(" ")[0]
                     )
-                    movie["time"] += time + " / "
-        features = []
-        for movie in self.movies:
-            if movie["time"] != "":
-                movie["time"] = movie["time"].rstrip(" / ")
-            features.append(movie)
-        return features
+                    hour_str, min_str = time_str.split("h")
+                    if min_str:
+                        parsed_time = dt_time(int(hour_str), int(min_str))
+                    else:
+                        parsed_time = dt_time(int(hour_str))
+
+                    movie["time"].append(parsed_time)
+        features = [movie for movie in self.movies if len(movie["time"]) > 0]
+        sorted_features = sorted(features, key=lambda feature: feature['time'][0])
+        for feature in sorted_features:
+            feature["time"] = "/ ".join([parsed_time.strftime("%Hh%M") for parsed_time in feature["time"]])
+        return sorted_features
 
     def get_daily_features_json(self):
         self._get_movies_on_programacao()
