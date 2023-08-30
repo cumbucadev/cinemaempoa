@@ -2,7 +2,9 @@ beautifulsoup4==4.12.2
 certifi==2023.7.22
 charset-normalizer==3.2.0
 idna==3.4
+Levenshtein==0.21.1
 Pillow==10.0.0
+rapidfuzz==3.2.0
 requests==2.31.0
 soupsieve==2.4.1
 urllib3==2.0.4

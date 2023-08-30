@@ -11,37 +11,50 @@ from datetime import datetime
 from io import BytesIO
 from PIL import Image
 
+from services.imdb import IMDBScrapper
+
+
+def download_img_from_url(img_url):
+    if img_url is None:
+        return None, None
+    file_extension = img_url.split(".")[-1]
+    file_name = hashlib.md5(img_url.encode("utf-8")).hexdigest() + "." + file_extension
+    file_path = os.path.join("images", file_name)
+    os.makedirs("images", exist_ok=True)
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            return Image.open(f), file_path
+
+    r = requests.get(img_url)
+    with open(file_path, "wb") as f:
+        file_content = r.content
+        f.write(file_content)
+        return Image.open(BytesIO(file_content)), file_path
+
 
 def generate_movie_grid(cinema):
     movies_list = ""
     for item in cinema["features"]:
+        img = None
         if "poster" in item and item["poster"] != "":
             # attempt to download file locally
-            file_extension = item["poster"].split(".")[-1]
-            file_name = (
-                hashlib.md5(item["poster"].encode("utf-8")).hexdigest()
-                + "."
-                + file_extension
-            )
-            if os.path.exists(file_name):
-                with open(file_name, "rb") as f:
-                    img = Image.open(f)
-            else:
-                r = requests.get(item["poster"])
-                with open(file_name, "wb") as f:
-                    file_content = r.content
-                    f.write(file_content)
-                    img = Image.open(BytesIO(file_content))
+            img, file_path = download_img_from_url(item["poster"])
+        else:
+            imdb_scrapper = IMDBScrapper()
+            poster_url = imdb_scrapper.get_image(item["title"])
+            img, file_path = download_img_from_url(poster_url)
 
+        if img:
             width = img.width
             height = img.height
 
             imgDisplayWidth = 325
             minHeight = math.ceil(imgDisplayWidth / width * height)
             movies_list += f"<li style='min-height: {minHeight}px;'>"
-            movies_list += f"<img src=\"{file_name}\" width={imgDisplayWidth} loading=\"lazy\" alt=\"{item['title']}\">"
+            movies_list += f"<img src=\"{file_path}\" width={imgDisplayWidth} loading=\"lazy\" alt=\"{item['title']}\">"
         else:
             movies_list += "<li>"
+
         movies_list += f"""
                 <h3>{item['title']}</h3>
                 <p>{item['general_info']}</p>
