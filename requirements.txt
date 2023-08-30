@@ -1,6 +1,7 @@
 beautifulsoup4==4.12.2
 certifi==2023.7.22
 charset-normalizer==3.2.0
+country-list==1.0.0
 idna==3.4
 Levenshtein==0.21.1
 Pillow==10.0.0
