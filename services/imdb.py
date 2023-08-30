@@ -32,12 +32,11 @@ class IMDBScrapper:
             movie_item_name = movie_item.find("a").text
             distance_value = distance(movie_name, movie_item_name)
 
-            if smallest_distance == None or distance_value < smallest_distance:
+            if smallest_distance is None or distance_value < smallest_distance:
                 smallest_distance = distance_value
                 selected_movie_index = index
 
         selected_movie = movie_list[selected_movie_index]
-        selected_movie_name = selected_movie.find("a").text
 
         movie_link = f"https://www.imdb.com/{selected_movie.find('a')['href']}"
 

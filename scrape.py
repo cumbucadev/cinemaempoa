@@ -193,7 +193,8 @@ class CineBancarios:
                 # gets split into two text nodes, for example
                 #   Brasil/Documentário/2023/
                 #   102min.
-                # so whenever the regex above matches the duration, we need to check if the previous node has information divided by slashes
+                # so whenever the regex above matches the duration, we need to check if
+                # the previous node has information divided by slashes
                 previous_node = self._get_previous_node(nodes, node)
                 slash_check = len(previous_node.split("/")) > 1
                 if slash_check:
@@ -498,7 +499,7 @@ class SalaRedencao:
         return self.url
 
     def _get_todays_lp_file(self):
-        return os.path.join(self.todays_dir, f"landing.html")
+        return os.path.join(self.todays_dir, "landing.html")
 
     def _get_todays_landing_page_html(self) -> str:
         return self._get_page_html(self._get_todays_lp_file(), self.url)
