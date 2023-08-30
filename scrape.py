@@ -318,6 +318,7 @@ class CineBancarios:
         return {
             "url": "http://cinebancarios.blogspot.com",
             "cinema": "CineBancários",
+            "slug": "cinebancarios",
             "warning": "Não há sessões nas segundas-feiras" if is_monday() else False,
             "features": current_movie_blocks,
         }
@@ -769,6 +770,7 @@ if __name__ == "__main__":
             feature = {
                 "url": "http://www.capitolio.org.br",
                 "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio"
             }
             cap = Capitolio()
             feature["features"] = cap.get_daily_features_json()
@@ -777,6 +779,7 @@ if __name__ == "__main__":
             feature = {
                 "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
                 "cinema": "Sala Redenção",
+                "slug": "sala-redencao",
             }
             redencao = SalaRedencao()
             feature["features"] = redencao.get_daily_features_json()
@@ -788,6 +791,7 @@ if __name__ == "__main__":
             feature = {
                 "url": "https://www.cinematecapauloamorim.com.br",
                 "cinema": "Cinemateca Paulo Amorim",
+                "slug": "paulo-amorim"
             }
             pauloAmorim = CinematecaPauloAmorim()
             feature["features"] = pauloAmorim.get_daily_features_json()

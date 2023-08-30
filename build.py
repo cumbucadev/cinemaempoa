@@ -76,7 +76,7 @@ def generate_movie_grid(cinema):
     html = f"""
         <article>
             <header>
-                <h2>
+                <h2 id="{cinema['slug']}">
                     {cinema['cinema']}
                     <small class='cinema-url'>
                         <a href="{cinema['url']}">visitar</a>
@@ -94,7 +94,7 @@ def generate_movie_grid(cinema):
     return html
 
 
-def generate_html_structure(content):
+def generate_html_structure(main_content, header_content):
     html = f"""
         <!DOCTYPE html>
         <html lang="pt-br">
@@ -119,9 +119,10 @@ def generate_html_structure(content):
                 <h1>CINEMA EM POA</h1>
                 <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
                 <p>Mostrando filmes para <strong>{datetime.now().strftime("%d/%m/%Y")}</strong></p>
+                { "".join(header_content) }
             </header>
             <main>
-                {"".join(content)}
+                {"".join(main_content)}
             </main>
             <footer>
                 <p>Feito com ♥ por Porto Alegre | <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a> | <a href="https://cinemaempoa.goatcounter.com/">Acessos: <span id="stats"></span></a></p>
@@ -146,9 +147,11 @@ json_data = json.loads(incoming_data)
 
 
 movie_grids = []
+header_content = ['<aside><nav><ul>']
 for cinema in json_data:
     movie_grid = generate_movie_grid(cinema)
     movie_grids.append(movie_grid)
-
-page_html = generate_html_structure(movie_grids)
+    header_content.append(f"<li><a href='#{cinema['slug']}'>{cinema['cinema']}</a></li>")
+header_content.append("</ul></nav></aside>")
+page_html = generate_html_structure(movie_grids, header_content)
 print(page_html)
