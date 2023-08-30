@@ -105,7 +105,7 @@ class CineBancarios:
 
         if movie_block["director"] == "":
             if tag.text.startswith("Direção:"):
-                movie_block["director"] = tag.text
+                movie_block["director"] = tag.text.replace("Direção:", "").strip()
                 return self._match_info_on_tags(
                     movie_block, tag.find_previous_sibling("p")
                 )
@@ -179,7 +179,7 @@ class CineBancarios:
 
         if movie_block["director"] == "":
             if node.text.startswith("Direção:"):
-                movie_block["director"] = node.text
+                movie_block["director"] = node.text.replace("Direção:", "").strip()
                 return self._match_info_on_text_nodes(
                     movie_block, nodes, self._get_previous_node(nodes, node)
                 )
@@ -722,7 +722,7 @@ class Capitolio:
                 if len(line) == 0:
                     continue
                 if line.startswith("Direção"):
-                    feature_film["director"] = line
+                    feature_film["director"] = line.replace("Direção", "").strip()
                 elif line.startswith("Classificação"):
                     feature_film["classification"] = line
                 else:

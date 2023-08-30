@@ -41,7 +41,7 @@ def generate_movie_grid(cinema):
             img, file_path = download_img_from_url(item["poster"])
         else:
             imdb_scrapper = IMDBScrapper()
-            poster_url = imdb_scrapper.get_image(item["title"])
+            poster_url = imdb_scrapper.get_image(item)
             img, file_path = download_img_from_url(poster_url)
 
         if img:

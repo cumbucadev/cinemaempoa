@@ -1,8 +1,22 @@
 import requests
 
 from bs4 import BeautifulSoup
+from country_list import countries_for_language
 from Levenshtein import distance
 
+
+def infer_movie_country(general_info):
+    country_names_pt_br = {code: name for code, name in countries_for_language('pt-br')}
+    country_names_eng = {code: name for code, name in countries_for_language('en')}
+    
+    movie_country_code = False
+    for code in country_names_pt_br:
+        if country_names_pt_br[code] in general_info:
+            movie_country_code = code
+            break
+    if movie_country_code is False:
+        return None
+    return country_names_eng[movie_country_code]
 
 class IMDBScrapper:
     """Taken from https://github.com/D3C0RU5/web-scraping-movie/blob/9a408e34688bf6d0f25be41df142efdaf83ab3f9/services/scrap.py"""
@@ -14,7 +28,9 @@ class IMDBScrapper:
             "server": "server",
         }
 
-    def get_image(self, movie_name):
+    def get_image(self, movie):
+        movie_name = movie["title"]
+        director = movie["director"]
         search_request = requests.get(
             f"https://www.imdb.com/find/?q={movie_name}", headers=self.headers
         )
@@ -43,6 +59,20 @@ class IMDBScrapper:
         movie_request = requests.get(movie_link, headers=self.headers)
         movie_html = movie_request.text
         movie_soup = BeautifulSoup(movie_html, "html.parser")
+        
+        if director is not False:
+            director_span = movie_soup.find("span", string="Director")
+            imdb_movie_director = director_span.find_next_sibling("div").text
+            if imdb_movie_director.lower() != director.lower():
+                return None
+        else:
+            country = infer_movie_country(movie["general_info"])
+            if country is None:
+                return None
+            country_span = movie_soup.find("span", string="Country of origin")
+            imdb_movie_country = country_span.find_next_sibling("div").text
+            if imdb_movie_country.lower() != country.lower():
+                return None
 
         image_poster_link = movie_soup.find(class_="hero-media__watchlist").findNext(
             "a"
