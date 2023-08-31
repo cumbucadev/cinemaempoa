@@ -5,6 +5,8 @@ import unicodedata
 
 from bs4 import BeautifulSoup
 from datetime import date, datetime, time as dt_time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class CinematecaPauloAmorim:
@@ -33,7 +35,14 @@ class CinematecaPauloAmorim:
         if os.path.exists(file):
             with open(file, "r") as f:
                 return f.read()
-        r = requests.get(
+
+        session = requests.Session()
+        retry = Retry(connect=3, backoff_factor=0.5)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+
+        r = session.get(
             url,
             headers={
                 "Host": "www.cinematecapauloamorim.com.br",
@@ -45,6 +54,7 @@ class CinematecaPauloAmorim:
                 "Cache-Control": "no-cache",
             },
         )
+
         r.raise_for_status()
         with open(file, "w") as f:
             f.write(r.text)
