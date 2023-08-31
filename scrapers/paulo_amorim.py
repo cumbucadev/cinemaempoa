@@ -33,7 +33,18 @@ class CinematecaPauloAmorim:
         if os.path.exists(file):
             with open(file, "r") as f:
                 return f.read()
-        r = requests.get(url)
+        r = requests.get(
+            url,
+            headers={
+                "Host": "www.cinematecapauloamorim.com.br",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/116.0",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3",
+                "Accept-Encoding": "gzip, deflate",
+                "Pragma": "no-cache",
+                "Cache-Control": "no-cache",
+            },
+        )
         r.raise_for_status()
         with open(file, "w") as f:
             f.write(r.text)
