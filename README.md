@@ -12,13 +12,11 @@ The resulting page is updated every day at <https://guites.github.io/cinemaempoa
 
 ## Development
 
-The project is currently composed of two main files, `scrape.py` and `build.py`.
+The project is composed of a main file, `cinemaempoa.py`.
 
-`scrape.py` implements the scrapping logic: accessing each website, parsing the html or xml and formatting the values into a json string.
+The `scrapers` directory holds implementations that access each of the tracked websites, parses their html or xml and formats the values into a json string.
 
-`build.py` receives the json string from stdin and generates the HTML.
-
-The generated files are then moved into the docs/ directory in the gh_pages repository, which deploys the website on every push.
+The cli program accepts a `--build` flag which prompts it into turning that json string into valid html and moving it into the docs/ directory, which can trigger deployment of the website when pushed to the `gh_pages` branch.
 
 ## Installation
 
@@ -30,9 +28,9 @@ This was developed on Python 3.10.9
 
 ## Running the project
 
-An example on how to trigger the scrapper and pipe the output to the buid script, while saving the resulting JSON and HTML files is
+An example on how to trigger the scrapper and save the resulting JSON and HTML files is
 
-    TODAY=$(date +%F); ./scrape.py -r capitolio sala-redencao cinebancarios paulo-amorim | tee "$TODAY.json" | ./build.py > "$TODAY.html"
+    ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim -b
 
 You can then inspect the resulting json and open the html file on your browser ♥‿♥
 
