@@ -2,7 +2,13 @@ on:
   # schedule:
   # - cron: 01 * * * *
   workflow_dispatch:
-  
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   daily_deployment:
     name: Daily Deployment
@@ -10,6 +16,12 @@ jobs:
     permissions:
       # gives write permission to github-actions[bot]
       contents: write
+      # gives permission for gh pages deployment
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
     - name: Set pt_BR locale
       run: |
@@ -27,7 +39,17 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: Update website index
-        branch: test-action-123
-        create_branch: true
+        branch: gh_pages
         file_pattern: docs/*
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        # Upload docs repository
+        path: './docs'
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+
         
