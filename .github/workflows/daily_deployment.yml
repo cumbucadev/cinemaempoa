@@ -1,0 +1,16 @@
+on:
+  # schedule:
+  # - cron: 01 * * * *
+  workflow_dispatch:
+  
+jobs:
+  daily_deployment:
+    name: Daily Deployment
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: daily_deployment
+      run: |
+        pip3 install -r requirements.txt
+        ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim
+        
