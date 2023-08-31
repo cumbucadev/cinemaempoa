@@ -7,10 +7,27 @@ jobs:
   daily_deployment:
     name: Daily Deployment
     runs-on: ubuntu-latest
+    permissions:
+      # gives write permission to github-actions[bot]
+      contents: write
     steps:
-
-    - name: daily_deployment
+    - name: Set pt_BR locale
       run: |
-        pip3 install -r requirements.txt
-        ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim
+        sudo locale-gen pt_BR.UTF-8
+        sudo update-locale LANG=pt_BR.UTF-8
+    - name: Checkout repo
+      uses: actions/checkout@v2
+    - name: Display Python version
+      run: python3 --version
+    - name: Install Dependencies
+      run: pip3 install -r requirements.txt
+    - name: Generate daily index file
+      run: ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim -b
+    - name: Commit files back to repo
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: Update website index
+        branch: test-action-123
+        create_branch: true
+        file_pattern: docs/*
         
