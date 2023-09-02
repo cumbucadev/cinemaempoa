@@ -40,6 +40,38 @@ class CineBancarios:
         return cur_date
 
     def _match_info_on_tags(self, movie_block: dict, tag):
+        # always check if there is an image inside our tag
+        if movie_block["poster"] == "":
+            nested_img = tag.find("img")
+            if nested_img:
+                # check if there is an srcset attribute
+                if "srcset" in nested_img.attrs:
+                    # srcset is a comma separated string in format
+                    # "https://... 204w, https://... 545w, ..."
+                    srcset = nested_img["srcset"]
+                    # create a list in the format
+                    # [{"url": "https://...", "width": 325}, ...]
+                    srcset_list = []
+                    for img_option in srcset.split(", "):
+                        url, width = img_option.split(" ")
+                        srcset_list.append(
+                            {"url": url, "width": int(width.replace("w", ""))}
+                        )
+                    # sort srcset_list by width, largest first
+                    sorted_srcset_list = sorted(
+                        srcset_list,
+                        key=lambda srcset_option: srcset_option["width"],
+                        reverse=True,
+                    )
+                    movie_block["poster"] = sorted_srcset_list[0]["url"]
+                else:
+                    # no srcset, grab ye olde src attribute
+                    movie_block["poster"] = tag.find("img")["src"]
+
+                # after getting the img, continue with the previous tag
+                return self._match_info_on_tags(
+                    movie_block, tag.find_previous_sibling("p")
+                )
         if movie_block["classification"] == "":
             if tag.text.lower().startswith("classificação indicativa:"):
                 movie_block["classification"] = tag.text
