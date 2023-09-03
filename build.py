@@ -65,9 +65,10 @@ class HtmlBuilder:
                     <p>{item['general_info']}</p>
                     <p>{item['time']}</p>
             """
-            if "direction" in item and item["director"] is not False:
-                movies_list += f"<p>{item['director']}</p>"
-
+            if "director" in item and item["director"] is not False:
+                movies_list += f"<p><strong>Direção</strong>: {item['director']}</p>"
+            if "classification" in item and item["classification"] is not False:
+                movies_list += f"<p>{item['classification']}</p>"
             movies_list += f"""
                     <p>{item['excerpt']}</p>
                     <a href="{item['read_more']}">Mais informações</a>
