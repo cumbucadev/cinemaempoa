@@ -86,7 +86,14 @@ class Capitolio:
                 if len(line) == 0:
                     continue
                 if line.startswith("Direção"):
-                    feature_film["director"] = line.replace("Direção", "").strip()
+                    feature_film["director"] = (
+                        line.replace(
+                            "Direção:",
+                            "",
+                        )
+                        .replace("Direção", "")
+                        .strip()
+                    )
                 elif line.startswith("Classificação"):
                     feature_film["classification"] = line
                 else:
