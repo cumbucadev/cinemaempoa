@@ -133,24 +133,28 @@ class CinematecaPauloAmorim:
 
     def _get_today_str(self):
         """returns de current day in
-        {XX de mês} format"""
+        {XX de mês} format, with and without a leading zero
+        on the day. ex
+            03 de setembro, 3 de setembro"""
         locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
         today_str = date.today().strftime("%d de %B")
+        today_str_no_leading_zero = date.today().strftime("%-d de %B")
         locale.setlocale(locale.LC_ALL, locale.getdefaultlocale())
-        return today_str.lower()
+        return today_str.lower(), today_str_no_leading_zero.lower()
 
     def _get_todays_features(self):
         grade_html = self._get_page_html(
             os.path.join(self.todays_dir, "grade.html"), self.grade_url
         )
         grade_soup = BeautifulSoup(grade_html, "html.parser")
-        today_str = self._get_today_str()
+        today_str, today_str_no_leading_zero = self._get_today_str()
         for p_tag in grade_soup.find_all("p"):
             strong_tag = p_tag.find("strong")
             if strong_tag is None:
                 continue
             strong_text = unicodedata.normalize("NFKC", strong_tag.text)
-            if not strong_text.lower().startswith(today_str):
+            movie_matches_today = strong_text.lower().startswith(today_str) or strong_text.lower().startswith(today_str_no_leading_zero) 
+            if not movie_matches_today:
                 continue
 
             for strong in p_tag.find_all("strong"):
