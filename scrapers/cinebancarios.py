@@ -40,9 +40,61 @@ class CineBancarios:
         return cur_date
 
     def _match_info_on_tags(self, movie_block: dict, tag):
+        # always check if there is an image inside our tag
+        if movie_block["poster"] == "":
+            nested_img = tag.find("img")
+            if nested_img:
+                # check if there is an srcset attribute
+                if "srcset" in nested_img.attrs:
+                    # srcset is a comma separated string in format
+                    # "https://... 204w, https://... 545w, ..."
+                    srcset = nested_img["srcset"]
+                    # create a list in the format
+                    # [{"url": "https://...", "width": 325}, ...]
+                    srcset_list = []
+                    for img_option in srcset.split(", "):
+                        url, width = img_option.split(" ")
+                        srcset_list.append(
+                            {"url": url, "width": int(width.replace("w", ""))}
+                        )
+                    # sort srcset_list by width, largest first
+                    sorted_srcset_list = sorted(
+                        srcset_list,
+                        key=lambda srcset_option: srcset_option["width"],
+                        reverse=True,
+                    )
+                    movie_block["poster"] = sorted_srcset_list[0]["url"]
+                else:
+                    # no srcset, grab ye olde src attribute
+                    movie_block["poster"] = tag.find("img")["src"]
+
+                # after getting the img, continue with the previous tag
+                return self._match_info_on_tags(
+                    movie_block, tag.find_previous_sibling("p")
+                )
+        # check if the current <p> tag has multiple nodes inside it, for ex.
+        # <p>
+        #   <span>PARA ONDE VOAM AS FEITICEIRAS<br /></span>
+        #   Brasil/ Documentário/ 2020/ 89min<br/>
+        #   Direção: Eliane Caffé, Carla Caffé e Beto Amaral
+        # </p>
+        # tag.contents would return the following list:
+        # [
+        #   0: <span>PARA ONDE VOAM AS FEITICEIRAS<br /></span>
+        #   1: Brasil/ Documentário/ 2020/ 89min
+        #   2: <br/>
+        #   3: Direção: Eliane Caffé, Carla Caffé e Beto Amaral
+        # ]
+        if len(tag.contents) > 1:
+            # filter out empty nodes (such as <br/>s, etc)
+            non_empty_nodes = [node for node in tag.contents if node.text != ""]
+            return self._match_info_on_text_nodes(
+                movie_block, non_empty_nodes, non_empty_nodes[-1]
+            )
+
         if movie_block["classification"] == "":
             if tag.text.lower().startswith("classificação indicativa:"):
-                movie_block["classification"] = tag.text
+                movie_block["classification"] = tag.text.strip()
                 return self._match_info_on_tags(
                     movie_block, tag.find_previous_sibling("p")
                 )
@@ -62,7 +114,7 @@ class CineBancarios:
 
         if movie_block["general_info"] == "":
             if re.search(r"\d{2,3}\s?min\.?", tag.text):
-                movie_block["general_info"] = tag.text
+                movie_block["general_info"] = tag.text.strip()
                 return self._match_info_on_tags(
                     movie_block, tag.find_previous_sibling("p")
                 )
@@ -98,7 +150,7 @@ class CineBancarios:
             "read_more": "http://cinebancarios.blogspot.com/?view=classic",
         }
 
-        movie_block["excerpt"] = p_tag.text
+        movie_block["excerpt"] = p_tag.text.replace("\n", " ").strip()
 
         movie_block = self._match_info_on_tags(
             movie_block, p_tag.find_previous_sibling("p")
@@ -114,6 +166,11 @@ class CineBancarios:
     def _match_info_on_text_nodes(
         self, movie_block: dict, nodes: ResultSet, node: NavigableString
     ):
+        # handle empty nodes by skipping to the one above
+        if node.text == "":
+            return self._match_info_on_text_nodes(
+                movie_block, nodes, self._get_previous_node(nodes, node)
+            )
         if movie_block["classification"] == "":
             if node.text.lower().startswith("classificação indicativa:"):
                 movie_block["classification"] = node.text
@@ -143,7 +200,7 @@ class CineBancarios:
                 # so whenever the regex above matches the duration, we need to check if
                 # the previous node has information divided by slashes
                 previous_node = self._get_previous_node(nodes, node)
-                slash_check = len(previous_node.split("/")) > 1
+                slash_check = len(previous_node.text.split("/")) > 1
                 if slash_check:
                     # previous node has the rest of the general information
                     movie_block["general_info"] = previous_node.text + node.text

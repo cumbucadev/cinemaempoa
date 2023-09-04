@@ -6,9 +6,9 @@ from Levenshtein import distance
 
 
 def infer_movie_country(general_info):
-    country_names_pt_br = {code: name for code, name in countries_for_language('pt-br')}
-    country_names_eng = {code: name for code, name in countries_for_language('en')}
-    
+    country_names_pt_br = {code: name for code, name in countries_for_language("pt-br")}
+    country_names_eng = {code: name for code, name in countries_for_language("en")}
+
     movie_country_code = False
     for code in country_names_pt_br:
         if country_names_pt_br[code] in general_info:
@@ -18,8 +18,9 @@ def infer_movie_country(general_info):
         return None
     return country_names_eng[movie_country_code]
 
+
 class IMDBScrapper:
-    """Taken from https://github.com/D3C0RU5/web-scraping-movie/blob/9a408e34688bf6d0f25be41df142efdaf83ab3f9/services/scrap.py"""
+    """Adapted from https://github.com/D3C0RU5/web-scraping-movie"""
 
     def __init__(self):
         self.headers = {
@@ -27,6 +28,32 @@ class IMDBScrapper:
             "content-type": "text/html; charset=utf-8",
             "server": "server",
         }
+
+    def _get_imdb_directors(self, movie_soup):
+        """IMDB will list directors differently when it's a single director or multiple directors. ex:
+        1. Single director
+        <span ...>Director</span>
+        <div ...><ul ...><li ...><a ...>ronald mcguffyn</a></li></ul></div>
+        2. Multiple directors
+        <span ...>Directors</span>
+        <div ...>
+            <ul ...>
+                <li ...>
+                    <a ...>ronald mcguffyn</a>
+                </li>
+                <li ...>
+                    <a ...>dude mcguy</a>
+                </li>
+            </ul>
+        </div>"""
+        director_span = movie_soup.find("span", string="Director")
+        if director_span is None:
+            director_span = movie_soup.find("span", string="Directors")
+        if director_span is None:
+            return ""
+        # TODO: parse multiple director names correctly,
+        # currently we would return something like "ronald mcguffyndude mcguy"
+        return director_span.find_next_sibling("div").text
 
     def get_image(self, movie):
         movie_name = movie["title"]
@@ -41,39 +68,64 @@ class IMDBScrapper:
         if len(movie_list) == 0:
             return None
 
-        selected_movie_index = 0
-        smallest_distance = None
+        # will hold data in format {"imdb_movie_url": "https://...", "levenshtein_distance": "20"}
+        imdb_search_result_movies = []
 
         for index, movie_item in enumerate(movie_list):
             movie_item_name = movie_item.find("a").text
             distance_value = distance(movie_name, movie_item_name)
+            movie_a_tag = movie_item.find("a")
+            # skip if link isn't well formated
+            if not movie_a_tag:
+                continue
+            imdb_search_result_movies.append(
+                {
+                    "imdb_movie_url": f"https://www.imdb.com{movie_a_tag['href']}",
+                    "levenshtein_distance": distance_value,
+                }
+            )
 
-            if smallest_distance is None or distance_value < smallest_distance:
-                smallest_distance = distance_value
-                selected_movie_index = index
+        sorted_imdb_results = sorted(
+            imdb_search_result_movies,
+            key=lambda search_result: search_result["levenshtein_distance"],
+        )
 
-        selected_movie = movie_list[selected_movie_index]
+        matching_result_soup = False
+        for imdb_result in sorted_imdb_results:
+            movie_link = imdb_result["imdb_movie_url"]
 
-        movie_link = f"https://www.imdb.com/{selected_movie.find('a')['href']}"
+            movie_request = requests.get(movie_link, headers=self.headers)
+            movie_html = movie_request.text
+            movie_soup = BeautifulSoup(movie_html, "html.parser")
 
-        movie_request = requests.get(movie_link, headers=self.headers)
-        movie_html = movie_request.text
-        movie_soup = BeautifulSoup(movie_html, "html.parser")
-        
-        if director is not False:
-            director_span = movie_soup.find("span", string="Director")
-            imdb_movie_director = director_span.find_next_sibling("div").text
-            if imdb_movie_director.lower() != director.lower():
-                return None
-        else:
-            country = infer_movie_country(movie["general_info"])
-            if country is None:
-                return None
-            country_span = movie_soup.find("span", string="Country of origin")
-            imdb_movie_country = country_span.find_next_sibling("div").text
-            if imdb_movie_country.lower() != country.lower():
-                return None
+            if director is not False:
+                imdb_movie_director = self._get_imdb_directors(movie_soup)
+                if imdb_movie_director.lower() != director.lower():
+                    # director doesn't match, try next movie in result list
+                    continue
+            else:
+                country = infer_movie_country(movie["general_info"])
+                if country is None:
+                    # scrapped movie has no defined director,
+                    # no point in trying all movies in the imbd result list
+                    # as we have no parameter for comparison
+                    break
+                country_span = movie_soup.find("span", string="Country of origin")
+                imdb_movie_country = country_span.find_next_sibling("div").text
+                if imdb_movie_country.lower() != country.lower():
+                    # country doesn't match, try next in movie in result list
+                    continue
 
+            # if we got here, it's a match!
+            matching_result_soup = movie_soup
+            break
+
+        if not matching_result_soup:
+            return None
+
+        # TODO: attempt to get movie featured poster first,
+        # sometimes images listed here are random stills
+        # from the movie
         image_poster_link = movie_soup.find(class_="hero-media__watchlist").findNext(
             "a"
         )["href"]
