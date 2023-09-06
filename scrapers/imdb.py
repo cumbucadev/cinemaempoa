@@ -29,7 +29,7 @@ class IMDBScrapper:
             "server": "server",
         }
 
-    def _get_imdb_directors(self, movie_soup):
+    def _get_imdb_directors(self, movie_soup) -> list[str]:
         """IMDB will list directors differently when it's a single director or multiple directors. ex:
         1. Single director
         <span ...>Director</span>
@@ -45,15 +45,24 @@ class IMDBScrapper:
                     <a ...>dude mcguy</a>
                 </li>
             </ul>
-        </div>"""
+        </div>
+
+        Return:
+            list[str]: list of lowercased director names. Empty if none found"""
         director_span = movie_soup.find("span", string="Director")
-        if director_span is None:
-            director_span = movie_soup.find("span", string="Directors")
-        if director_span is None:
-            return ""
-        # TODO: parse multiple director names correctly,
-        # currently we would return something like "ronald mcguffyndude mcguy"
-        return director_span.find_next_sibling("div").text
+        if director_span is not None:
+            # movie has a single credited director
+            return [director_span.find_next_sibling("div").text.lower()]
+        director_span = movie_soup.find("span", string="Directors")
+        if director_span is not None:
+            # movie has multiple credited directors,
+            # expect names to be in list items
+            return [
+                director_li.text.lower()
+                for director_li in director_span.find_next_sibling("div").find_all("li")
+            ]
+        # couldn't find anything :^/
+        return []
 
     def get_image(self, movie):
         movie_name = movie["title"]
@@ -99,8 +108,8 @@ class IMDBScrapper:
             movie_soup = BeautifulSoup(movie_html, "html.parser")
 
             if director is not False:
-                imdb_movie_director = self._get_imdb_directors(movie_soup)
-                if imdb_movie_director.lower() != director.lower():
+                imdb_movie_directors = self._get_imdb_directors(movie_soup)
+                if director.lower() not in imdb_movie_directors:
                     # director doesn't match, try next movie in result list
                     continue
             else:
