@@ -30,7 +30,7 @@ This was developed on Python 3.10.9
 
 An example on how to trigger the scrapper and save the resulting JSON and HTML files is
 
-    ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim -b
+    ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim -b --deploy
 
 You can then inspect the resulting json and open the html file on your browser ♥‿♥
 
