@@ -86,6 +86,15 @@ if __name__ == "__main__":
             pauloAmorim = CinematecaPauloAmorim()
             feature["features"] = pauloAmorim.get_daily_features_json()
             features.append(feature)
+
+        json_filename = os.path.join(
+            "json", f"{datetime.now().strftime('%Y-%m-%d')}.json"
+        )
+        os.makedirs("json", exist_ok=True)
+
+        with open(json_filename, "w") as json_file:
+            json_file.write(dump_utf8_json(features))
+
     if args.file:
         if not os.path.exists(args.file):
             parser.error(f"File {args.file} not found.")
@@ -93,12 +102,6 @@ if __name__ == "__main__":
             features = json.load(json_file)
 
     json_string = dump_utf8_json(features)
-
-    json_filename = os.path.join("json", f"{datetime.now().strftime('%Y-%m-%d')}.json")
-    os.makedirs("json", exist_ok=True)
-
-    with open(json_filename, "w") as json_file:
-        json_file.write(json_string)
 
     if args.build:
         html_builder = HtmlBuilder(json_string)
