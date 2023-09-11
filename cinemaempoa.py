@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -25,21 +26,29 @@ if __name__ == "__main__":
     allowed_rooms = ["capitolio", "sala-redencao", "cinebancarios", "paulo-amorim"]
 
     parser.add_argument(
-        "-r",
-        "--rooms",
-        nargs="+",
-        help=f"Filter specific rooms. Available: {', '.join(allowed_rooms)}",
-        required=True,
-    )
-
-    parser.add_argument(
         "-b",
         "--build",
         help="Builds the newest scrapped json as docs/index.html - saves the old index file in YYYY-MM-DD.html format",
         action="store_true",
     )
 
+    group = parser.add_mutually_exclusive_group()
+
+    group.add_argument(
+        "-r",
+        "--rooms",
+        nargs="+",
+        help=f"Filter specific rooms. Available: {', '.join(allowed_rooms)}",
+        required=False,
+    )
+    group.add_argument(
+        "-f", "--file", help="JSON filepath to build index.html from", required=False
+    )
+
     args = parser.parse_args()
+
+    if not args.rooms and not args.file:
+        parser.error("Define build input with either --rooms or --file")
 
     if args.rooms:
         if not all(room in allowed_rooms for room in args.rooms):
@@ -77,6 +86,11 @@ if __name__ == "__main__":
             pauloAmorim = CinematecaPauloAmorim()
             feature["features"] = pauloAmorim.get_daily_features_json()
             features.append(feature)
+    if args.file:
+        if not os.path.exists(args.file):
+            parser.error(f"File {args.file} not found.")
+        with open(args.file, "r") as json_file:
+            features = json.load(json_file)
 
     json_string = dump_utf8_json(features)
 
