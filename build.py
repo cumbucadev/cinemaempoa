@@ -146,7 +146,7 @@ class HtmlBuilder:
             </html>"""
         return html
 
-    def create_page_from_json(self):
+    def create_page_from_json(self) -> str:
         movie_grids = []
         header_content = ["<aside><nav><ul>"]
         for cinema in self.json_data:

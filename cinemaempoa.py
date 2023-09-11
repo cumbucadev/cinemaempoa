@@ -28,7 +28,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-b",
         "--build",
-        help="Builds the newest scrapped json as docs/index.html - saves the old index file in YYYY-MM-DD.html format",
+        help="Builds scrapped json as an html file",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "-d",
+        "--deploy",
+        help="Saves generated html at docs/index.html - saves the old index file in YYYY-MM-DD.html format",
         action="store_true",
     )
 
@@ -48,7 +55,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.rooms and not args.file:
-        parser.error("Define build input with either --rooms or --file")
+        parser.error("Define program input with either --rooms or --file")
+
+    if args.deploy and not args.build:
+        parser.error("You need --build in order to deploy.")
 
     if args.rooms:
         if not all(room in allowed_rooms for room in args.rooms):
@@ -103,10 +113,16 @@ if __name__ == "__main__":
 
     json_string = dump_utf8_json(features)
 
+    page_html = None
     if args.build:
         html_builder = HtmlBuilder(json_string)
         page_html = html_builder.create_page_from_json()
+        if not args.deploy:
+            print(page_html)
+    else:
+        print(json_string)
 
+    if args.deploy:
         os.makedirs("docs", exist_ok=True)
         with open("docs/index.html", "r") as index:
             index_soup = BeautifulSoup(index, "html.parser")
@@ -120,5 +136,3 @@ if __name__ == "__main__":
         shutil.move("docs/index.html", f"docs/{datetime_match[0]}.html")
         with open("docs/index.html", "w") as new_index:
             new_index.write(page_html)
-    else:
-        print(json_string)
