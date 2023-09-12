@@ -40,6 +40,9 @@ class CineBancarios:
         return cur_date
 
     def _match_info_on_tags(self, movie_block: dict, tag):
+        if tag is None:
+            # break recursion if we attempt to access a non existing tag
+            return movie_block
         # always check if there is an image inside our tag
         if movie_block["poster"] == "":
             nested_img = tag.find("img")
@@ -72,6 +75,11 @@ class CineBancarios:
                 return self._match_info_on_tags(
                     movie_block, tag.find_previous_sibling("p")
                 )
+
+        # handle empty tags by skipping to the one above
+        if tag.text == "":
+            return self._match_info_on_tags(movie_block, tag.find_previous_sibling("p"))
+
         # check if the current <p> tag has multiple nodes inside it, for ex.
         # <p>
         #   <span>PARA ONDE VOAM AS FEITICEIRAS<br /></span>
@@ -283,6 +291,9 @@ class CineBancarios:
             if p_tag.text.startswith("Sinopse:"):
                 # Found a movie block
                 movie_block = self._parse_p_tag_movie_block(p_tag)
+                if movie_block["title"] == "":
+                    # couldn't parse the movie correctly, do not add to the list
+                    continue
                 movie_blocks.append(movie_block)
         if len(movie_blocks) == 0:
             # Couldn't find any movie blocks with proper <p> tags
