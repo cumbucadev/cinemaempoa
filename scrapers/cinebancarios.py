@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import unicodedata
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup
@@ -158,7 +159,9 @@ class CineBancarios:
             "read_more": "http://cinebancarios.blogspot.com/?view=classic",
         }
 
-        movie_block["excerpt"] = p_tag.text.replace("\n", " ").strip()
+        movie_block["excerpt"] = unicodedata.normalize(
+            "NFKD", p_tag.text.replace("\n", " ").strip()
+        )
 
         movie_block = self._match_info_on_tags(
             movie_block, p_tag.find_previous_sibling("p")
@@ -265,7 +268,7 @@ class CineBancarios:
             "time": [],
             "read_more": "http://cinebancarios.blogspot.com/?view=classic",
         }
-        movie_block["excerpt"] = node.text
+        movie_block["excerpt"] = unicodedata.normalize("NFKD", node.text)
         movie_block = self._match_info_on_text_nodes(
             movie_block, nodes, self._get_previous_node(nodes, node)
         )
