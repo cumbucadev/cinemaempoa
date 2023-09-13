@@ -311,17 +311,24 @@ class CineBancarios:
         return movie_blocks
 
     def _get_movies_show_time(self, soup, movie_blocks):
-        p_tags = soup.find_all("p")
-        for p_tag in p_tags:
-            p_tag_content = p_tag.text.replace("\n", " ")
+        text_nodes = soup.find_all(string=True)
+        for text_node in text_nodes:
+            # .normalize removes unwanted html artifacts, ex.
+            # '17h:\xa0\xa0PARA ONDE VOAM AS FEITICEIRAS'
+            text_node_content = unicodedata.normalize(
+                "NFKD", text_node.text.replace("\n", " ")
+            )
             for movie in movie_blocks:
+                # sometimes the time block will have more than a single whitespace
+                # between the screening time and the movie title
+                # ex. "17h:   PARA ONDE VOAM AS FEITICEIRAS"
                 if re.match(
-                    rf"\d{{2}}h: {movie['title']}",
-                    p_tag_content,
+                    rf"\d{{2}}h:\s+{movie['title']}",
+                    text_node_content,
                     re.IGNORECASE,
                 ):
                     movie["time"].append(
-                        p_tag_content.replace(f": {movie['title']}", "")
+                        re.sub(rf":\s+{movie['title']}", "", text_node_content)
                     )
         for movie in movie_blocks:
             movie["time"] = " / ".join(movie["time"])
