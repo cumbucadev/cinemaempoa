@@ -5,21 +5,24 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 
-from utils import get_formatted_day_str, string_is_current_day
+from utils import get_formatted_day_str, string_is_current_day, string_is_day
 
 
 class SalaRedencao:
-    def __init__(self):
+    def __init__(self, date: str | None = None):
+        if date:
+            self.date = date
+        else:
+            self.date = self._get_today_ymd()
+
         self.url = "https://www.ufrgs.br/difusaocultural/salaredencao/"
-        self.dir = os.path.join("sala-redencao")
         self.events = []
 
-        if not os.path.exists(self.dir):
-            os.mkdir(self.dir)
+        self.dir = os.path.join("sala-redencao")
+        os.makedirs(self.dir, exist_ok=True)
 
-        self.todays_dir = os.path.join(self.dir, self._get_today_ymd())
-        if not os.path.exists(self.todays_dir):
-            os.mkdir(self.todays_dir)
+        self.scrape_dir = os.path.join(self.dir, self.date)
+        os.makedirs(self.scrape_dir, exist_ok=True)
 
     def _get_today_ymd(self):
         cur_datetime = datetime.now()
@@ -29,11 +32,11 @@ class SalaRedencao:
     def _get_todays_lp_url(self):
         return self.url
 
-    def _get_todays_lp_file(self):
-        return os.path.join(self.todays_dir, "landing.html")
+    def _get_lp_file(self):
+        return os.path.join(self.scrape_dir, "landing.html")
 
-    def _get_todays_landing_page_html(self) -> str:
-        return self._get_page_html(self._get_todays_lp_file(), self.url)
+    def _get_landing_page_html(self) -> str:
+        return self._get_page_html(self._get_lp_file(), self.url)
 
     def _get_page_html(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
@@ -47,15 +50,12 @@ class SalaRedencao:
         return r.text
 
     def _get_events_blog_post_url(self):
-        landing_page_soup = BeautifulSoup(
-            self._get_todays_landing_page_html(), "html.parser"
-        )
+        landing_page_soup = BeautifulSoup(self._get_landing_page_html(), "html.parser")
         events_post_anchor_tag = landing_page_soup.css.select(
             "a.evcal_evdata_row.evo_clik_row"
         )
         for event_post_anchor_tag in events_post_anchor_tag:
             event_inner_url = event_post_anchor_tag["href"]
-
             if event_inner_url and event_inner_url not in self.events:
                 self.events.append(event_inner_url)
 
@@ -126,7 +126,7 @@ class SalaRedencao:
                 )
                 time = []
                 for date in screening_dates:
-                    if not string_is_current_day(date):
+                    if not string_is_day(date, self.date):
                         continue
                     time.append(date)
 
@@ -179,7 +179,7 @@ class SalaRedencao:
 
         Returns the first parsed match."""
         p_tags = blog_post_soup.find("div", class_="content-inner").find_all("p")
-        current_day_str = get_formatted_day_str()
+        current_day_str = get_formatted_day_str(self.date)
         for p_tag in p_tags:
             if not p_tag.text.startswith(current_day_str):
                 continue
@@ -236,9 +236,8 @@ class SalaRedencao:
         return None
 
     def _get_events_blog_post_html(self):
-        events_html_dir = os.path.join(self.todays_dir, "events")
-        if not os.path.isdir(events_html_dir):
-            os.mkdir(events_html_dir)
+        events_html_dir = os.path.join(self.scrape_dir, "events")
+        os.makedirs(events_html_dir, exist_ok=True)
         features = []
         for event_url in self.events:
             event_url_stripped = event_url.rstrip("/")
