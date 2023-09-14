@@ -3,13 +3,37 @@ import json
 from datetime import date, datetime
 
 
+def get_formatted_day_str() -> str:
+    """Returns the current day in format XX de XXXXX"""
+    # Get current date
+    current_date = datetime.now().date()
+    day = current_date.day
+    month_number = current_date.month
+    # Convert month name to month number
+    month_mapping = {
+        1: "janeiro",
+        2: "fevereiro",
+        3: "março",
+        4: "abril",
+        5: "maio",
+        6: "junho",
+        7: "julho",
+        8: "agosto",
+        9: "setembro",
+        10: "outubro",
+        11: "novembro",
+        12: "dezembro",
+    }
+    month_name = month_mapping[month_number]
+    return f"{day} de {month_name}"
+
+
 def string_is_current_day(date_string: str) -> bool:
     """Checks whether a date string in the format
 
     24 de agosto | quinta-feira | 16h
 
     matches the current day."""
-
     # Convert month name to month number
     month_mapping = {
         "janeiro": 1,
