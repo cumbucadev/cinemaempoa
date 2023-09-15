@@ -59,7 +59,6 @@ class SalaRedencao:
             if event_inner_url and event_inner_url not in self.events:
                 self.events.append(event_inner_url)
 
-    # deprecated, do not use pls
     def _parse_blog_post_with_regex(self, event_soup, event_url):
         event_content_inner = event_soup.css.select_one("div.content-inner")
         # pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]"
@@ -72,7 +71,7 @@ class SalaRedencao:
             )
             time = []
             for date in screening_dates:
-                if not string_is_current_day(date):
+                if not string_is_day(date, self.date):
                     continue
                 time.append(date)
 
@@ -158,6 +157,9 @@ class SalaRedencao:
 
     def _get_next_sibling_with_content(self, tag):
         next_sibling = tag.next_sibling
+        if next_sibling is None:
+            # bail early if there are no more tags to parse
+            return
         if next_sibling.text.strip() != "":
             return next_sibling
         return self._get_next_sibling_with_content(next_sibling)
@@ -187,6 +189,8 @@ class SalaRedencao:
 
             # next tag with content is the title
             title_tag = self._get_next_sibling_with_content(p_tag)
+            if title_tag is None:
+                continue
             title = title_tag.text
 
             # next tag should be movie release info in format
@@ -253,6 +257,11 @@ class SalaRedencao:
                 feature = self._parse_blog_post_alternate_format(event_soup, event_url)
                 if feature is not None:
                     blog_features.append(feature)
+
+            if len(blog_features) == 0:
+                # try to parse raw text content from the html
+                blog_features = self._parse_blog_post_with_regex(event_soup, event_url)
+
             features = features + blog_features
         return features
 
