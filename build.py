@@ -55,10 +55,10 @@ class HtmlBuilder:
 
                 imgDisplayWidth = 325
                 minHeight = math.ceil(imgDisplayWidth / width * height)
-                movies_list += f"<li style='min-height: {minHeight}px;'>"
-                movies_list += f"<img src=\"{file_path}\" width={imgDisplayWidth} loading=\"lazy\" alt=\"{item['title']}\">"
+                movies_list += f"<li class='mb-5' style='min-height: {minHeight}px;'>"
+                movies_list += f"<img src=\"{file_path}\" width={imgDisplayWidth} loading=\"lazy\" alt=\"{item['title']}\" class='img fluid rounded float-sm-start mb-3 mb-sm-0'>"
             else:
-                movies_list += "<li>"
+                movies_list += "<li class='mb-5'>"
 
             movies_list += f"""
                     <h3>{item['title']}</h3>
@@ -84,14 +84,14 @@ class HtmlBuilder:
                 <header>
                     <h2 id="{cinema['slug']}">
                         {cinema['cinema']}
-                        <small class='cinema-url'>
-                            <a href="{cinema['url']}">visitar</a>
-                        </small>
                     </h2>
+                    <p>
+                        <a href="{cinema['url']}">Visite o site</a> do cinema.
+                    </p>
                     {warnings}
                 </header>
                 <main>
-                    <ul>
+                    <ul class="list-unstyled">
                         {movies_list}
                     </ul>
                 </main>
@@ -102,45 +102,62 @@ class HtmlBuilder:
     def _generate_html_structure(self, main_content, header_content):
         html = f"""
             <!DOCTYPE html>
-            <html lang="pt-br">
+            <html lang="pt-br" data-bs-theme="dark">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>CINEMA EM POA</title>
                 <meta name="description" content="Filmes em cartaz nas salas CineBancários, Cinemateca Paulo Amorim, Cinemateca Capitólio e Sala Redenção de Porto Alegre." />
                 <style>
-                    body {{
-                        max-width: 960px;
-                        line-height: 1.5;
-                    }}
-                    img {{ float: left; max-width: 100%; object-fit: contain; margin-right: 15px; }}
-                    ul {{ list-style: none; }}
-                    li, p {{ font-size: 1.05rem; }}
-                    .cinema-url {{ font-weight: normal; font-size: 1rem; }}
+                    img {{ max-width: 100%; object-fit: contain; margin-right: 15px; }}
                 </style>
+                <!-- Halfmoon CSS -->
+                <link href="assets/halfmoon.min.css" rel="stylesheet">
             </head>
             <body>
                 <header>
-                    <h1>CINEMA EM POA</h1>
-                    <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
-                    <p>Mostrando filmes para <strong><time datetime="{datetime.now().strftime("%Y-%m-%d")}">{datetime.now().strftime("%d/%m/%Y")}</time></strong></p>
-                    { "".join(header_content) }
+                    <nav class="navbar mb-5" style="background-color: var(--bs-content-bg); border-bottom: var(--bs-border-width) solid var(--bs-content-border-color);">
+                        <div class="container-fluid">
+                            <a class="navbar-brand" href="#">
+                            <img id="logo-black" src="assets/cinema.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                            <img id="logo-white" src="assets/cinema-white.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                            Cinema em POA
+                            </a>
+                            <span class="navbar-text">
+                            Filmes em cartaz <strong><time datetime="{datetime.now().strftime("%Y-%m-%d")}">{datetime.now().strftime("%d/%m/%Y")}</time></strong>
+                            </span>
+                        </div>
+                    </nav>
+                    <script>
+                        const html = document.querySelector('html');
+                        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {{
+                            html.setAttribute('data-bs-theme', 'dark')
+                            document.getElementById('logo-black').remove()
+                        }} else {{
+                            html.setAttribute('data-bs-theme', 'light')
+                            document.getElementById('logo-white').remove()
+                        }}
+                    </script>
+                    <div class="container">
+                        <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
+                        <p>Mostrando filmes para <strong><time datetime="2023-09-28">28/09/2023</time></strong>.</p>
+                        <aside>
+                            <nav>
+                                { "".join(header_content) }
+                            </nav>
+                        </aside>
+                    </div>
                 </header>
-                <main>
+                <main class="container">
                     {"".join(main_content)}
                 </main>
-                <footer>
-                    <p>Feito com ♥ por Porto Alegre | <a href="https://github.com/guites/cinemaempoa">Ver código fonte</a> | <a href="https://cinemaempoa.goatcounter.com/">Acessos: <span id="stats"></span></a></p>
+                <footer class="py-3 my-4">
+                    <ul class="nav justify-content-center border-bottom pb-3 mb-3">
+                    <li class="nav-item"><a href="https://github.com/guites/cinemaempoa" class="nav-link px-2 text-muted">código fonte</a></li>
+                    <li class="nav-item"><a href="https://cinemaempoa.goatcounter.com/" class="nav-link px-2 text-muted">analytics</a></li>
+                    </ul>
+                    <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
                 </footer>
-
-                <script>
-                    var r = new XMLHttpRequest();
-                    r.addEventListener('load', function() {{
-                        document.querySelector('#stats').innerText = JSON.parse(this.responseText).count
-                    }})
-                    r.open('GET', 'https://cinemaempoa.goatcounter.com/counter/' + encodeURIComponent(location.pathname.replace(/\/$/, '')) + '.json')
-                    r.send()
-                </script>
                 <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
             </body>
             </html>"""
