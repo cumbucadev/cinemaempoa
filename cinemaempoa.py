@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import argparse
 import json
 import os
@@ -78,7 +77,6 @@ if __name__ == "__main__":
         if scrape_date:
             if args.rooms != ["sala-redencao"]:
                 parser.error("Only sala-redencao implements custom date scraping.")
-
         features = []
         if "capitolio" in args.rooms:
             feature = {
