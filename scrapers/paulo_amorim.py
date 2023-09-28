@@ -70,6 +70,12 @@ class CinematecaPauloAmorim:
         ticket_links = programacao_soup.css.select("a.link-default > .ticket")
         movies = []
         for ticket_link in ticket_links:
+            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
+                ".generos"
+            )
+            if genre is not None:
+                genre = genre.text.strip("\n")
+
             movie = {
                 "poster": ticket_link.css.select_one(".ticket-foto")["style"]
                 .replace(
@@ -92,9 +98,7 @@ class CinematecaPauloAmorim:
                 "excerpt": "",
                 "time": [],
                 "read_more": f"{self.url}/{ticket_link.parent['href']}",
-                "genre": ticket_link.css.select_one(".ticket-foto")
-                .css.select_one(".generos")
-                .text.strip("\n"),
+                "genre": genre,
                 "room": ticket_link.css.select_one("h5")
                 .parent.find_next_sibling()
                 .find_next_sibling()
@@ -112,18 +116,26 @@ class CinematecaPauloAmorim:
                 movie["read_more"],
             )
             movie_soup = BeautifulSoup(movie_html, "html.parser")
-            movie["general_info"] = (
-                (
-                    movie_soup.css.select_one("#mainbar h2")
-                    .find_next_sibling()
-                    .css.select_one("strong em")
-                    .text
-                )
-                + " | "
-                + movie["room"]
-                + " | "
-                + movie["genre"]
+
+            movie["general_info"] = []
+
+            info = (
+                movie_soup.css.select_one("#mainbar h2")
+                .find_next_sibling()
+                .css.select_one("strong em")
             )
+
+            if info is not None:
+                movie["general_info"].append(info.text)
+
+            if movie["room"] is not None:
+                movie["general_info"].append(movie["room"])
+
+            if movie["genre"] is not None:
+                movie["general_info"].append(movie["genre"])
+
+            movie["general_info"] = " | ".join(movie["general_info"])
+
             movie["excerpt"] = (
                 movie_soup.css.select_one("#mainbar h2")
                 .find_next_sibling()
@@ -153,7 +165,9 @@ class CinematecaPauloAmorim:
             if strong_tag is None:
                 continue
             strong_text = unicodedata.normalize("NFKC", strong_tag.text)
-            movie_matches_today = strong_text.lower().startswith(today_str) or strong_text.lower().startswith(today_str_no_leading_zero) 
+            movie_matches_today = strong_text.lower().startswith(
+                today_str
+            ) or strong_text.lower().startswith(today_str_no_leading_zero)
             if not movie_matches_today:
                 continue
 
@@ -191,7 +205,3 @@ class CinematecaPauloAmorim:
         self._get_movies_on_programacao()
         self._get_movie_excerpt()
         return self._get_todays_features()
-
-
-pauloAmorim = CinematecaPauloAmorim()
-pauloAmorim.get_daily_features_json()
