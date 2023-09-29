@@ -140,7 +140,7 @@ class HtmlBuilder:
                     </script>
                     <div class="container">
                         <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
-                        <p>Mostrando filmes para <strong><time datetime="2023-09-28">28/09/2023</time></strong>.</p>
+                        <p>Mostrando filmes para <strong><time datetime="{datetime.now().strftime("%Y-%m-%d")}">{datetime.now().strftime("%d/%m/%Y")}</time></strong>.</p>
                         <aside>
                             <nav>
                                 { "".join(header_content) }

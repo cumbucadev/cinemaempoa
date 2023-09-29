@@ -15,15 +15,25 @@
             <body>
                 <header>
                     <nav class="navbar mb-5" style="background-color: var(--bs-content-bg); border-bottom: var(--bs-border-width) solid var(--bs-content-border-color);">
-                        <div class="container-fluid">
+                        <div class="container-fluid container align-items-center">
                             <a class="navbar-brand" href="#">
-                            <img id="logo-black" src="assets/cinema.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
-                            <img id="logo-white" src="assets/cinema-white.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
-                            Cinema em POA
+                                <img id="logo-black" src="assets/cinema.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                                <img id="logo-white" src="assets/cinema-white.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                                Cinema em POA
                             </a>
-                            <span class="navbar-text">
-                            Filmes em cartaz <strong><time datetime="2023-09-29">29/09/2023</time></strong>
-                            </span>
+                            <button class="navbar-toggler d-block d-sm-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-collapse-9" aria-controls="navbar-collapse-9" aria-expanded="false" aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"></span>
+                            </button>
+                            <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
+                                <ul class="navbar-nav">
+                                    <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="nav-link">Acessar</a>
+                                    <li class="nav-item"><a href="{{ url_for('auth.login') }}" class="nav-link">Criar conta</a>
+                                </ul>
+                            </div>
+                            <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
+                                <li class="nav-item pr-2"><a href="{{ url_for('auth.register') }}" style="margin-right: 0.5rem !important;" class="nav-link pr-1">Acessar</a>
+                                <li class="nav-item"><a href="{{ url_for('auth.login') }}" class="nav-link">Criar conta</a>
+                            </ul>
                         </div>
                     </nav>
                     <script>
@@ -37,8 +47,8 @@
                         }
                     </script>
                     <div class="container">
-                        <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
-                        <p>Mostrando filmes para <strong><time datetime="2023-09-29">29/09/2023</time></strong>.</p>
+                        <h1>Filmes em cartaz <time datetime="2023-09-28">28/09/2023</time></h1>
+                        <p>Veja os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
                         <aside>
                             <nav>
                                 <aside><nav><ul><li><a href='#capitolio'>Cinemateca Capitólio</a></li><li><a href='#sala-redencao'>Sala Redenção</a></li><li><a href='#cinebancarios'>CineBancários</a></li><li><a href='#paulo-amorim'>Cinemateca Paulo Amorim</a></li></ul></nav></aside>
@@ -263,6 +273,6 @@ Sala de Cinema
                     </ul>
                     <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
                 </footer>
-                <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+                <script src="assets/bootstrap.bundle.js"></script>
             </body>
             </html>
