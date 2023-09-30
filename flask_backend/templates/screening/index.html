@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <h1>{% block title %}Filmes em Porto Alegre{% endblock %}</h1>
+    <p>Filmes em cartaz hoje, <time><strong>{{ today }}</strong></time>.</p>
+    <ul class="nav flex-column mb-5">
+        <p>Acesso rápido:</p>
+        {% for link in quicklinks %}
+            <li class="nav-item">
+                <a class="nav-link" href="#{{ link[0] }}">{{ link[1] }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
+
+{% block content %}
+    {% for cinema in cinemas_with_screenings %}
+        <article>
+            <header>
+                <h2 id="{{ cinema.slug }}">
+                    {{ cinema.name }}
+                </h2>
+                <p>
+                    <a href="{{ cinema.url }}">Visite o site</a> do cinema.
+                </p>
+                <!-- warnings go here -->
+            </header>
+            <main>
+                {% if cinema['screenings'] %}
+                    <ul class="list-unstyled">
+                        {% for screening in cinema['screenings'] %}
+                            <li class="mb-5">
+                                {% if screening['image'] %}
+                                    <img src="/screening/assets/{{ screening['image'] }}" width="325" loading="lazy"/>
+                                {% endif %}
+                                <h3>{{ screening['movie_title'] }}</h3>
+                                <p style="white-space: break-spaces;">{{ screening['description']|safe }}</p>
+                                <p><a href="{{ screening['screening_url'] }}">Mais informações</a></p>
+                                <small class="text-muted">
+                                    Achou um erro?
+                                    {% if g.user %}
+                                        <a class="action" href="{{ url_for('screening.update', id=screening['id']) }}">Edite!</a>
+                                    {% else %}
+                                        <a class="action" href="{{ url_for('screening.update', id=screening['id']) }}">Ajude a corrigir!</a>
+                                    {% endif %}
+                                </small>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <strong class="text-danger">Não há sessões hoje.</strong>
+                {% endif %}
+            </main>
+        </article>
+        {% if not loop.last %}
+            <hr/>
+        {% endif %}
+    {% endfor %}
+{% endblock %}

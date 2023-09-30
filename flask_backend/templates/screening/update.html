@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Editar <strong>"{{ screening['movie_title'] }}"</strong>{% endblock %}</h1>
+  <p></p>
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label class="form-label" for="title">Title</label>
+    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] or screening['movie_title'] }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="movie_poster" class="form-label">Imagem do filme</label>
+    <input class="form-control" name="movie_poster" type="file" id="movie_poster">
+  </div>
+  <div class="mb-3">
+    <label class="form-label" for="screening-description">Body</label>
+    <div class="grow-wrap">
+      <textarea
+        class="form-control"
+        name="description"
+        id="screening-description"
+        >{{ request.form['description'] or screening['description'] }}</textarea>
+    </div>
+  </div>
+  <div class="mb-3 pb-3">
+    <input class="btn btn-primary" type="submit" value="Save">
+  </div>
+</form>
+<script>
+  window.onload = () => {
+    const description = document.getElementById("screening-description");
+    description.style.height = `${description.scrollHeight}px`;
+  };
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Acessar{% endblock %}</h1>
+  <p>Faça Login no site pra editar e comentar as postagens.</p>
+{% endblock %}
+
+{% block content %}
+<div class="w-100" style="max-width: 479px;">
+    <form method="post">
+        <div class="form-group mb-3">
+            <label class="form-label" for="username">Nome de usuário</label>
+            <input type="text" class="form-control" name="username" id="username" placeholder="Nome de usuário" required>
+        </div>
+        <div class="form-group mb-3">
+            <label for="password">Senha</label>
+            <input type="password" class="form-control" name="password" id="password" placeholder="senha-super-secreta" required>
+        </div>
+        <div class="mb-3 pb-3 border-bottom">
+            <input type="submit" value="Acessar" class="btn btn-primary w-100">
+        </div>
+        <div class="text-body-secondary">
+            Não tem conta? <a href="{{ url_for('auth.register') }}">Cadastre-se</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
