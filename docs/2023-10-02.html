@@ -1,0 +1,125 @@
+
+            <!DOCTYPE html>
+            <html lang="pt-br" data-bs-theme="dark">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>CINEMA EM POA</title>
+                <meta name="description" content="Filmes em cartaz nas salas CineBancários, Cinemateca Paulo Amorim, Cinemateca Capitólio e Sala Redenção de Porto Alegre." />
+                <style>
+                    img { max-width: 100%; object-fit: contain; margin-right: 15px; }
+                </style>
+                <!-- Halfmoon CSS -->
+                <link href="assets/halfmoon.min.css" rel="stylesheet">
+            </head>
+            <body>
+                <header>
+                    <nav class="navbar mb-5" style="background-color: var(--bs-content-bg); border-bottom: var(--bs-border-width) solid var(--bs-content-border-color);">
+                        <div class="container-fluid">
+                            <a class="navbar-brand" href="#">
+                            <img id="logo-black" src="assets/cinema.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                            <img id="logo-white" src="assets/cinema-white.png" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                            Cinema em POA
+                            </a>
+                            <span class="navbar-text">
+                            Filmes em cartaz <strong><time datetime="2023-10-02">02/10/2023</time></strong>
+                            </span>
+                        </div>
+                    </nav>
+                    <script>
+                        const html = document.querySelector('html');
+                        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                            html.setAttribute('data-bs-theme', 'dark')
+                            document.getElementById('logo-black').remove()
+                        } else {
+                            html.setAttribute('data-bs-theme', 'light')
+                            document.getElementById('logo-white').remove()
+                        }
+                    </script>
+                    <div class="container">
+                        <p>Este site mostra os filmes em cartaz em algumas das diversas salas de cinema de Porto Alegre.</p>
+                        <p>Mostrando filmes para <strong><time datetime="2023-10-02">02/10/2023</time></strong>.</p>
+                        <aside>
+                            <nav>
+                                <aside><nav><ul><li><a href='#capitolio'>Cinemateca Capitólio</a></li><li><a href='#sala-redencao'>Sala Redenção</a></li><li><a href='#cinebancarios'>CineBancários</a></li><li><a href='#paulo-amorim'>Cinemateca Paulo Amorim</a></li></ul></nav></aside>
+                            </nav>
+                        </aside>
+                    </div>
+                </header>
+                <main class="container">
+                    
+            <article>
+                <header>
+                    <h2 id="capitolio">
+                        Cinemateca Capitólio
+                    </h2>
+                    <p>
+                        <a href="http://www.capitolio.org.br">Visite o site</a> do cinema.
+                    </p>
+                    <strong style='color: red;'>Não há sessões hoje</strong><br/>
+                </header>
+                <main>
+                    <ul class="list-unstyled">
+                        
+                    </ul>
+                </main>
+            </article>
+            <article>
+                <header>
+                    <h2 id="sala-redencao">
+                        Sala Redenção
+                    </h2>
+                    <p>
+                        <a href="https://www.ufrgs.br/difusaocultural/salaredencao/">Visite o site</a> do cinema.
+                    </p>
+                    <strong style='color: red;'>Não há sessões hoje</strong><br/>
+                </header>
+                <main>
+                    <ul class="list-unstyled">
+                        
+                    </ul>
+                </main>
+            </article>
+            <article>
+                <header>
+                    <h2 id="cinebancarios">
+                        CineBancários
+                    </h2>
+                    <p>
+                        <a href="http://cinebancarios.blogspot.com">Visite o site</a> do cinema.
+                    </p>
+                    <strong style='color: red;'>Não há sessões nas segundas-feiras</strong>
+                </header>
+                <main>
+                    <ul class="list-unstyled">
+                        
+                    </ul>
+                </main>
+            </article>
+            <article>
+                <header>
+                    <h2 id="paulo-amorim">
+                        Cinemateca Paulo Amorim
+                    </h2>
+                    <p>
+                        <a href="https://www.cinematecapauloamorim.com.br">Visite o site</a> do cinema.
+                    </p>
+                    <strong style='color: red;'>Não há sessões hoje</strong><br/>
+                </header>
+                <main>
+                    <ul class="list-unstyled">
+                        
+                    </ul>
+                </main>
+            </article>
+                </main>
+                <footer class="py-3 my-4">
+                    <ul class="nav justify-content-center border-bottom pb-3 mb-3">
+                    <li class="nav-item"><a href="https://github.com/guites/cinemaempoa" class="nav-link px-2 text-muted">código fonte</a></li>
+                    <li class="nav-item"><a href="https://cinemaempoa.goatcounter.com/" class="nav-link px-2 text-muted">analytics</a></li>
+                    </ul>
+                    <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
+                </footer>
+                <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+            </body>
+            </html>
