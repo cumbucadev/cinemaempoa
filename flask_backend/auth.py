@@ -39,9 +39,20 @@ def register():
                 )
                 db.commit()
             except db.IntegrityError:
-                error = f"User {username} is already registered."
+                error = f"Usuário {username} já existe no sistema."
             else:
-                return redirect(url_for("auth.login"))
+                user = db.execute(
+                    "SELECT * FROM user WHERE username = ?", (username,)
+                ).fetchone()
+
+                welcome_message = Markup(
+                    f"Boas vindas, <strong>{user['username']}</strong>!"
+                )
+
+                flash(welcome_message, "success")
+
+                session["user_id"] = user["id"]
+                return redirect(url_for("screening.index"))
 
         flash(error, "danger")
     return render_template("auth/register.html")
