@@ -22,7 +22,10 @@
                 <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
                     <ul class="navbar-nav">
                         {% if g.user %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{url_for('screening.create')}}">Nova sessão</a>
+                            <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
+                        </li>
                         {% else %}
                             <li class="nav-item"><a href="{{ url_for('auth.login') }}" class="nav-link">Acessar</a>
                             <li class="nav-item"><a href="{{ url_for('auth.register')}}" class="nav-link">Criar conta</a>
@@ -31,7 +34,10 @@
                 </div>
                 <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
                     {% if g.user %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{url_for('screening.create')}}">Nova sessão</a>
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
+                    </li>
                     {% else %}
                         <li class="nav-item pr-2"><a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important;" class="nav-link pr-1">Acessar</a>
                         <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="nav-link">Criar conta</a>

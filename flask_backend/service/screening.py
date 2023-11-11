@@ -31,6 +31,8 @@ def validate_image(file) -> tuple[bool, str]:
     return True, None
 
 
-def save_image(file, app) -> None:
+def save_image(file, app) -> str:
     filename = secure_filename(file.filename)
-    file.save(os.path.join(app.config.get("UPLOAD_FOLDER"), filename))
+    img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
+    file.save(img_savepath)
+    return filename

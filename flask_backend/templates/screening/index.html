@@ -3,14 +3,17 @@
 {% block header %}
     <h1>{% block title %}Filmes em Porto Alegre{% endblock %}</h1>
     <p>Filmes em cartaz hoje, <time><strong>{{ today }}</strong></time>.</p>
-    <ul class="nav flex-column mb-5">
-        <p>Acesso rápido:</p>
-        {% for link in quicklinks %}
-            <li class="nav-item">
-                <a class="nav-link" href="#{{ link[0] }}">{{ link[1] }}</a>
-            </li>
-        {% endfor %}
-    </ul>
+    <div class="dropdown mb-5">
+        <a href="#" class="btn btn-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Acesso rápido
+        </a>
+        <ul class="dropdown-menu">
+            <li><h6 class="dropdown-header">Ir para...</h6></li>
+            {% for link in quicklinks %}
+                <li><a href="#{{ link[0] }}" class="dropdown-item">{{ link[1] }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
 {% endblock %}
 
 {% block content %}

@@ -21,7 +21,7 @@ def get_screening_by_id(screening_id: int) -> Row | None:
     screening = (
         get_db()
         .execute(
-            "SELECT cinema_id, screening_date, screening_time, movie_title, screening_url, description FROM screening WHERE id = ?",
+            "SELECT cinema_id, screening_date, screening_time, movie_title, screening_url, description, image FROM screening WHERE id = ?",
             (screening_id,),
         )
         .fetchone()

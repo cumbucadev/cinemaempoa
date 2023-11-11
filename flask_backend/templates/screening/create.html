@@ -1,15 +1,28 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <h1>{% block title %}Editar "{{ screening['movie_title'] }}"{% endblock %}</h1>
+  <h1>{% block title %}Criar sessão{% endblock %}</h1>
   <p></p>
 {% endblock %}
 
 {% block content %}
 <form method="post" enctype="multipart/form-data">
   <div class="mb-3">
+    <label class="form-label" for="title">Cinema</label>
+    <select class="form-select" id="cinema_id" name="cinema_id">
+      <option {% if not request.form['cinema_id'] %} selected {% endif %}>Selecione uma sala</option>
+      {% for cinema in cinemas %}
+        <option value="{{ cinema.id }}"{% if request.form['cinema_id'] == cinema.id|string %} selected {% endif %}>{{ cinema.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label class="form-label" for="screening_date">Data de exibição:</label>
+    <input class="form-control" type="date" id="screening_date" name="screening_date" value="{{current_date}}" min="2023-01-01" max="2023-12-31" />
+  </div>
+  <div class="mb-3">
     <label class="form-label" for="title">Title</label>
-    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] or screening['movie_title'] }}" required>
+    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" required>
   </div>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
@@ -22,7 +35,7 @@
         class="form-control"
         name="description"
         id="screening-description"
-        >{{ request.form['description'] or screening['description'] }}</textarea>
+        >{{ request.form['description'] }}</textarea>
     </div>
   </div>
   <div class="container mb-3 pb-3">

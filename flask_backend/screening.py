@@ -1,6 +1,6 @@
 import os
 
-from datetime import datetime
+from datetime import date, datetime
 from flask import (
     Blueprint,
     current_app,
@@ -53,6 +53,54 @@ def upload(filename):
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
 
 
+@bp.route("/screening/new", methods=("GET", "POST"))
+@login_required
+def create():
+    if request.method == "POST":
+        movie_title = request.form.get("movie_title")
+        description = request.form.get("description")
+        cinema_id = request.form.get("cinema_id")
+        screening_date = request.form.get("screening_date")
+        error = None
+
+        if not movie_title:
+            error = "O título do filme é obrigatório."
+        if not description:
+            error = "O campo descrição é obrigatório."
+        if not cinema_id:
+            error = "Selecione o cinema que irá passar essa sessão."
+        if not screening_date:
+            error = "Selecione a data de exibição da sessão."
+
+        movie_poster = request.files.get("movie_poster", None)
+        image = None
+
+        if movie_poster and movie_poster.filename:
+            img_is_valid, message = validate_image(movie_poster)
+            if img_is_valid:
+                image = save_image(movie_poster, current_app)
+            else:
+                error = message
+
+        if error is not None:
+            flash(error, "danger")
+        else:
+            db = get_db()
+            db.execute(
+                "INSERT INTO screening (movie_title, description, cinema_id, screening_date, image) VALUES (?, ?, ?, ?, ?)",
+                (movie_title, description, cinema_id, screening_date, image),
+            )
+            db.commit()
+            flash(f"Sessão «{movie_title}» criada com sucesso!", "success")
+            return redirect(url_for("screening.index"))
+
+    current_date = date.today()
+    cinemas = get_all_cinemas()
+    return render_template(
+        "screening/create.html", cinemas=cinemas, current_date=current_date
+    )
+
+
 @bp.route("/screening/<int:id>/update", methods=("GET", "POST"))
 @login_required
 def update(id):
@@ -69,11 +117,13 @@ def update(id):
             error = "O campo descrição é obrigatório."
 
         movie_poster = request.files.get("movie_poster", None)
+        image = screening["image"]
 
         if movie_poster and movie_poster.filename:
             img_is_valid, message = validate_image(movie_poster)
             if img_is_valid:
-                save_image(movie_poster, current_app)
+                new_img = save_image(movie_poster, current_app)
+                image = new_img
             else:
                 error = message
 
@@ -82,8 +132,9 @@ def update(id):
         else:
             db = get_db()
             db.execute(
-                "UPDATE screening SET movie_title = ?, description = ?" " WHERE id = ?",
-                (movie_title, description, id),
+                "UPDATE screening SET movie_title = ?, description = ?, image = ?"
+                " WHERE id = ?",
+                (movie_title, description, image, id),
             )
             db.commit()
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
