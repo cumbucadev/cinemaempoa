@@ -1,3 +1,5 @@
+import math
+
 from datetime import date, datetime
 from flask import (
     Blueprint,
@@ -39,6 +41,9 @@ bp = Blueprint("screening", __name__)
 def index():
     cinemas = get_all_cinemas()
 
+    # limits how wide a movie image can be on the listing
+    imgDisplayWidth = 325
+
     quicklinks = []
     cinemas_with_screenings = []
 
@@ -55,11 +60,22 @@ def index():
             cinema.id
         )
         for screening_date, screening_times in screening_dates:
+            # used to set <li> styling
+            minHeight = None
+            if screening_date.screening.image:
+                minHeight = math.ceil(
+                    imgDisplayWidth
+                    / screening_date.screening.image_width
+                    * screening_date.screening.image_height
+                )
+
             parsed_screening_times = screening_times.split(",")
             cinema_obj["screening_dates"].append(
                 {
                     "times": parsed_screening_times,
                     "image": screening_date.screening.image,
+                    "min_height": minHeight,
+                    "image_display_width": imgDisplayWidth,
                     "title": screening_date.screening.movie.title,
                     "description": screening_date.screening.description,
                     "screening_url": screening_date.screening.url,
@@ -111,11 +127,12 @@ def create():
 
         movie_poster = request.files.get("movie_poster", None)
         image = None
+        image_width = None
 
         if movie_poster and movie_poster.filename:
             img_is_valid, message = validate_image(movie_poster)
             if img_is_valid:
-                image = save_image(movie_poster, current_app)
+                image, image_width, image_height = save_image(movie_poster, current_app)
             else:
                 error = message
 
@@ -124,7 +141,13 @@ def create():
         else:
             movie = get_movie_by_title_or_create(movie_title)
             create_screening(
-                movie.id, description, cinema.id, parsed_screening_dates, image
+                movie.id,
+                description,
+                cinema.id,
+                parsed_screening_dates,
+                image,
+                image_width,
+                image_height,
             )
             flash(f"Sessão «{movie_title}» criada com sucesso!", "success")
             return redirect(url_for("screening.index"))
@@ -164,11 +187,15 @@ def update(id):
 
         movie_poster = request.files.get("movie_poster", None)
         image = screening.image
+        image_width = screening.image_width
+        image_height = screening.image_height
 
         if movie_poster and movie_poster.filename:
             img_is_valid, message = validate_image(movie_poster)
             if img_is_valid:
-                new_img = save_image(movie_poster, current_app)
+                new_img, image_width, image_height = save_image(
+                    movie_poster, current_app
+                )
                 image = new_img
             else:
                 error = message
@@ -179,7 +206,9 @@ def update(id):
             update_screening_dates(screening, parsed_screening_dates)
 
             movie = get_movie_by_title_or_create(movie_title)
-            update_screening(screening, movie.id, description, image)
+            update_screening(
+                screening, movie.id, description, image, image_width, image_height
+            )
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))
 

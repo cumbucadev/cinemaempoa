@@ -2,6 +2,8 @@ import imghdr
 import os
 
 from datetime import datetime
+from io import BytesIO
+from PIL import Image
 from typing import List
 from werkzeug.utils import secure_filename
 
@@ -36,10 +38,13 @@ def validate_image(file) -> tuple[bool, str]:
 
 
 def save_image(file, app) -> str:
+    """Saves the received `file` into disk, returning the filename and image's width."""
     filename = secure_filename(file.filename)
     img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
     file.save(img_savepath)
-    return filename
+    with open(img_savepath, "rb") as f:
+        loaded_image = Image.open(f)
+    return filename, loaded_image.width, loaded_image.height
 
 
 def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:

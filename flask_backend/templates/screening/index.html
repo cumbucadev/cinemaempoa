@@ -32,17 +32,22 @@
                 {% if cinema['screening_dates'] %}
                     <ul class="list-unstyled">
                         {% for screening_date in cinema['screening_dates'] %}
-                            <li class="mb-5">
-                                {% if screening_date['image'] %}
-                                    <img src="/screening/assets/{{ screening_date['image'] }}" width="325" loading="lazy"/>
-                                {% endif %}
+                            {% if screening_date['image'] %}
+                                <li class="mb-5 clearfix" style="min-height: {{screening_date['min_height']}}px">
+                                    <img
+                                        class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0 me-sm-3"
+                                        src="/screening/assets/{{ screening_date['image'] }}"
+                                        width="{{ screening_date['image_display_width'] }}" loading="lazy"/>
+                            {% else %}
+                                <li class="mb-5">
+                            {% endif %}
                                 <h3>{{ screening_date['title'] }}</h3>
                                 {% if screening_date['times']|length %}
-                                <div class="mb-3">
-                                    <p class="lead">Horários:</p>
-                                    <ul>
+                                <div class="mb-3 d-flex align-items-center">
+                                    <strong>Horários</strong>
+                                    <ul class="list-group list-group-horizontal ms-3">
                                         {% for time in screening_date['times'] %}
-                                        <li>
+                                        <li class="list-group-item px-2 py-1">
                                             {{ time }}
                                         </li>
                                         {% endfor %}
@@ -50,7 +55,9 @@
                                 </div>
                                 {% endif %}
                                 <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>
-                                <p><a href="{{ screening_date['screening_url'] }}">Mais informações</a></p>
+                                {% if screening_date['screening_url'] %}
+                                    <p><a href="{{ screening_date['screening_url'] }}">Mais informações</a></p>
+                                {% endif %}
                                 <small class="text-muted">
                                     Achou um erro?
                                     {% if g.user %}

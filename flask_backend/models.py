@@ -42,6 +42,10 @@ class Screening(Base):
     image = Column(String, nullable=True)
     description = Column(String, nullable=False)
 
+    # TODO: maybe keep image related properties in a separate "medias" table?
+    image_width = Column(Integer, nullable=True)
+    image_height = Column(Integer, nullable=True)
+
     movie: Mapped["Movie"] = relationship(back_populates="screenings")
     cinema: Mapped["Cinema"] = relationship()
     dates: Mapped[List["ScreeningDate"]] = relationship(back_populates="screening")
