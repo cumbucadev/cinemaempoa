@@ -1,9 +1,14 @@
-from flask_backend.db import get_db
+from sqlalchemy import asc
+from typing import List, Optional
+
+from flask_backend.db import db_session
+from flask_backend.models import Cinema
 
 
-def get_all():
-    cinemas = (
-        get_db().execute("SELECT *" " FROM cinema" " ORDER BY name ASC").fetchall()
-    )
-
+def get_all() -> List[Cinema]:
+    cinemas = db_session.query(Cinema).order_by(asc(Cinema.name)).all()
     return cinemas
+
+
+def get_by_id(cinema_id: int) -> Optional[Cinema]:
+    return db_session.query(Cinema).filter(Cinema.id == cinema_id).first()

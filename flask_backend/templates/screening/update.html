@@ -1,15 +1,27 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <h1>{% block title %}Editar "{{ screening['movie_title'] }}"{% endblock %}</h1>
-  <p></p>
+  <h1>{% block title %}Editar "{{ screening.movie['title'] }}"{% endblock %}</h1>
 {% endblock %}
 
 {% block content %}
+<p>No cinema <strong>{{screening.cinema.name}}</strong></p>
 <form method="post" enctype="multipart/form-data">
+  <div class="mb-3" id="screenings">
+    <p>Exibições</p>
+    {% for screening_date in screening.dates %}
+      <div class="mb-2">
+        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{screening_date.date}}T{{screening_date.time}}" min="2023-01-01T00:00" max="2023-12-31T00:00" />
+        <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="mb-3">
+    <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
+  </div>
   <div class="mb-3">
     <label class="form-label" for="title">Title</label>
-    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] or screening['movie_title'] }}" required>
+    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] or screening.movie['title'] }}" required>
   </div>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
@@ -31,6 +43,11 @@
   </div>
 </form>
 <script>
+  function removeScreening(e) {
+    const screeningWrapper = document.getElementById("screenings");
+    if (screeningWrapper.childElementCount == 2) return;
+    e.parentElement.remove();
+  }
   window.onload = () => {
     const description = document.getElementById("screening-description");
     description.style.height = `${description.scrollHeight}px`;
@@ -43,5 +60,15 @@
       }
     });
   };
+  const addScreeningBtn = document.getElementById("add-screening-btn");
+  addScreeningBtn.addEventListener("click", (e) => {
+    const screeningWrapper = document.getElementById("screenings");
+
+    const screeningDiv = screeningWrapper.lastElementChild;
+
+    const newScreeningDiv = screeningDiv.cloneNode(true);
+
+    screeningWrapper.appendChild(newScreeningDiv);
+  });
 </script>
 {% endblock %}

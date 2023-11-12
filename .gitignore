@@ -18,3 +18,8 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+.vscode
+*.sqlite
+flask_backend/uploads/*
+!flask_backend/uploads/.gitkeep

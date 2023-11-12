@@ -29,22 +29,34 @@
                 <!-- warnings go here -->
             </header>
             <main>
-                {% if cinema['screenings'] %}
+                {% if cinema['screening_dates'] %}
                     <ul class="list-unstyled">
-                        {% for screening in cinema['screenings'] %}
+                        {% for screening_date in cinema['screening_dates'] %}
                             <li class="mb-5">
-                                {% if screening['image'] %}
-                                    <img src="/screening/assets/{{ screening['image'] }}" width="325" loading="lazy"/>
+                                {% if screening_date['image'] %}
+                                    <img src="/screening/assets/{{ screening_date['image'] }}" width="325" loading="lazy"/>
                                 {% endif %}
-                                <h3>{{ screening['movie_title'] }}</h3>
-                                <p style="white-space: break-spaces;">{{ screening['description']|safe }}</p>
-                                <p><a href="{{ screening['screening_url'] }}">Mais informações</a></p>
+                                <h3>{{ screening_date['title'] }}</h3>
+                                {% if screening_date['times']|length %}
+                                <div class="mb-3">
+                                    <p class="lead">Horários:</p>
+                                    <ul>
+                                        {% for time in screening_date['times'] %}
+                                        <li>
+                                            {{ time }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                                <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>
+                                <p><a href="{{ screening_date['screening_url'] }}">Mais informações</a></p>
                                 <small class="text-muted">
                                     Achou um erro?
                                     {% if g.user %}
-                                        <a class="action" href="{{ url_for('screening.update', id=screening['id']) }}">Edite!</a>
+                                        <a class="action" href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Edite!</a>
                                     {% else %}
-                                        <a class="action" href="{{ url_for('screening.update', id=screening['id']) }}">Ajude a corrigir!</a>
+                                        <a class="action" href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Ajude a corrigir!</a>
                                     {% endif %}
                                 </small>
                             </li>

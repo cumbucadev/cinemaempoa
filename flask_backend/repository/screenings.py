@@ -1,44 +1,73 @@
-from sqlite3 import Row
+from datetime import date
+from sqlalchemy import func
+from typing import Optional, List, Tuple
 
-from flask_backend.db import get_db
+from flask_backend.db import db_session
+from flask_backend.models import Screening, ScreeningDate
 
 
-def get_todays_screenings():
-    screenings = (
-        get_db()
-        .execute(
-            "SELECT s.id, s.screening_time, s.description, c.name, c.url"
-            " FROM screening s JOIN cinema c ON s.cinema_id = c.id"
-            " ORDER BY c.name ASC"
+def get_screening_by_id(screening_id: int) -> Optional[Screening]:
+    return db_session.query(Screening).filter(Screening.id == screening_id).first()
+
+
+def get_todays_screenings_by_cinema_id(cinema_id: int) -> Tuple[ScreeningDate, str]:
+    today = date.today()
+
+    screening_dates = (
+        db_session.query(
+            ScreeningDate,
+            func.group_concat(ScreeningDate.time),
         )
-        .fetchall()
+        .join(Screening)
+        .filter(Screening.cinema_id == cinema_id)
+        .filter(func.date(ScreeningDate.date) == today)
+        .group_by(ScreeningDate.date)
+        .all()
     )
 
-    return screenings
+    return screening_dates
 
 
-def get_screening_by_id(screening_id: int) -> Row | None:
-    screening = (
-        get_db()
-        .execute(
-            "SELECT cinema_id, screening_date, screening_time, movie_title, screening_url, description, image FROM screening WHERE id = ?",
-            (screening_id,),
-        )
-        .fetchone()
+def create(
+    movie_id: int,
+    description: str,
+    cinema_id: int,
+    screening_dates: List[ScreeningDate],
+    image: Optional[str],
+) -> Screening:
+    screening = Screening(
+        movie_id=movie_id,
+        cinema_id=cinema_id,
+        dates=screening_dates,
+        image=image,
+        description=description,
     )
+    db_session.add(screening)
+    db_session.commit()
+    db_session.refresh(screening)
     return screening
 
 
-def get_todays_screenings_by_cinema_id(cinema_id: int):
-    screenings = (
-        get_db()
-        .execute(
-            "SELECT s.id, s.screening_time, image, movie_title, description, c.name, c.url"
-            " FROM screening s JOIN cinema c ON s.cinema_id = c.id"
-            " WHERE c.id = ?",
-            (cinema_id,),
-        )
-        .fetchall()
-    )
+def update_screening_dates(
+    screening: Screening, screening_dates: List[ScreeningDate]
+) -> Screening:
+    """Deletes all existing dates for a screening and substitute for the received dates."""
+    for date in screening.dates:
+        db_session.delete(date)
 
-    return screenings
+    screening.dates = screening_dates
+    db_session.add(screening)
+    db_session.commit()
+    db_session.refresh(screening)
+    return screening
+
+
+def update(
+    screening: Screening, movie_id: int, description: str, image: Optional[str]
+) -> None:
+    screening.movie_id = movie_id
+    screening.description = description
+    if image:
+        screening.image = image
+    db_session.add(screening)
+    db_session.commit()

@@ -2,15 +2,15 @@ import os
 
 from flask import Flask
 
+from flask_backend.db import db_session
+from flask_backend.env_config import SESSION_KEY
+
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 5  # max 5mb file uploads
-    app.config.from_mapping(
-        SECRET_KEY="dev",
-        DATABASE=os.path.join(app.instance_path, "flask_backend.sqlite"),
-    )
+    app.config.from_mapping(SECRET_KEY=SESSION_KEY)
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_pyfile("config.py", silent=True)
@@ -32,11 +32,6 @@ def create_app(test_config=None):
 
     app.register_blueprint(auth.bp)
 
-    from . import blog
-
-    app.register_blueprint(blog.bp)
-    # app.add_url_rule("/blog", endpoint="blog.index")
-
     from . import screening
 
     app.register_blueprint(screening.bp)
@@ -44,5 +39,9 @@ def create_app(test_config=None):
     from . import media
 
     app.register_blueprint(media.bp)
+
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db_session.remove()
 
     return app

@@ -1,7 +1,11 @@
 import imghdr
 import os
 
+from datetime import datetime
+from typing import List
 from werkzeug.utils import secure_filename
+
+from flask_backend.models import ScreeningDate
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -36,3 +40,21 @@ def save_image(file, app) -> str:
     img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
     file.save(img_savepath)
     return filename
+
+
+def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
+    """Receives a list of datetime strings in format ['2023-11-11T19:00', '2023-11-11T19:00']
+    and returns a list of ScreeningDate objects.
+
+    Raises
+        ValueError: string elements in received list are not in %Y-%m-%dT%H:%M format"""
+    screening_date_objects = []
+    for screening_date in screening_dates:
+        parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%dT%H:%M")
+        screening_date_objects.append(
+            ScreeningDate(
+                date=parsed_screening_date.date(),
+                time=str(parsed_screening_date.time())[0:5],
+            )
+        )
+    return screening_date_objects

@@ -16,9 +16,15 @@
       {% endfor %}
     </select>
   </div>
+  <div class="mb-3" id="screenings">
+    <p>Exibições</p>
+    <div class="mb-2">
+      <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{current_date}}T19:00" min="2023-01-01T00:00" max="2023-12-31T00:00" />
+      <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+    </div>
+  </div>
   <div class="mb-3">
-    <label class="form-label" for="screening_date">Data de exibição:</label>
-    <input class="form-control" type="date" id="screening_date" name="screening_date" value="{{current_date}}" min="2023-01-01" max="2023-12-31" />
+    <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
   </div>
   <div class="mb-3">
     <label class="form-label" for="title">Title</label>
@@ -44,6 +50,11 @@
   </div>
 </form>
 <script>
+  function removeScreening(e) {
+    const screeningWrapper = document.getElementById("screenings");
+    if (screeningWrapper.childElementCount == 2) return;
+    e.parentElement.remove();
+  }
   window.onload = () => {
     const description = document.getElementById("screening-description");
     description.style.height = `${description.scrollHeight}px`;
@@ -54,6 +65,16 @@
         e.preventDefault();
         return;
       }
+    });
+    const addScreeningBtn = document.getElementById("add-screening-btn");
+    addScreeningBtn.addEventListener("click", (e) => {
+      const screeningWrapper = document.getElementById("screenings");
+
+      const screeningDiv = screeningWrapper.lastElementChild;
+
+      const newScreeningDiv = screeningDiv.cloneNode(true);
+
+      screeningWrapper.appendChild(newScreeningDiv);
     });
   };
 </script>

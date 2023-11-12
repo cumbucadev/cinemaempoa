@@ -11,9 +11,10 @@ from flask import (
     url_for,
 )
 from markupsafe import Markup
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from flask_backend.db import get_db
+from flask_backend.repository import users as users_repository
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -23,7 +24,6 @@ def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        db = get_db()
         error = None
 
         if not username:
@@ -33,25 +33,19 @@ def register():
 
         if error is None:
             try:
-                db.execute(
-                    "INSERT INTO USER (username, password) VALUES (?, ?)",
-                    (username, generate_password_hash(password)),
+                user = users_repository.create(
+                    username, generate_password_hash(password)
                 )
-                db.commit()
-            except db.IntegrityError:
-                error = f"Usuário {username} já existe no sistema."
+            except IntegrityError:
+                error = f"Nome de usuário inválido. Tente um nome diferente."
             else:
-                user = db.execute(
-                    "SELECT * FROM user WHERE username = ?", (username,)
-                ).fetchone()
-
                 welcome_message = Markup(
-                    f"Boas vindas, <strong>{user['username']}</strong>!"
+                    f"Boas vindas, <strong>{user.username}</strong>!"
                 )
 
                 flash(welcome_message, "success")
 
-                session["user_id"] = user["id"]
+                session["user_id"] = user.id
                 return redirect(url_for("screening.index"))
 
         flash(error, "danger")
@@ -63,22 +57,17 @@ def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        db = get_db()
         error = None
-        user = db.execute(
-            "SELECT * FROM user WHERE username = ?", (username,)
-        ).fetchone()
+        user = users_repository.get_by_username(username)
 
-        if user is None or not check_password_hash(user["password"], password):
+        if user is None or not check_password_hash(user.password, password):
             error = "Usuário ou senha incorretos."
 
         if error is None:
             session.clear()
-            welcome_message = Markup(
-                f"Boas vindas, <strong>{user['username']}</strong>!"
-            )
+            welcome_message = Markup(f"Boas vindas, <strong>{user.username}</strong>!")
             flash(welcome_message, "success")
-            session["user_id"] = user["id"]
+            session["user_id"] = user.id
             return redirect(url_for("screening.index"))
 
         flash(error, "danger")
@@ -99,9 +88,7 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = (
-            get_db().execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
-        )
+        g.user = users_repository.get_by_id(user_id)
 
 
 def login_required(view):
