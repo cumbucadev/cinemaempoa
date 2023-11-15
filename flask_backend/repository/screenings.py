@@ -10,18 +10,14 @@ def get_screening_by_id(screening_id: int) -> Optional[Screening]:
     return db_session.query(Screening).filter(Screening.id == screening_id).first()
 
 
-def get_todays_screenings_by_cinema_id(cinema_id: int) -> Tuple[ScreeningDate, str]:
-    today = date.today()
-
+def get_days_screenings_by_cinema_id(
+    cinema_id: int, day: date
+) -> Tuple[ScreeningDate, str]:
     screening_dates = (
-        db_session.query(
-            ScreeningDate,
-            func.group_concat(ScreeningDate.time),
-        )
-        .join(Screening)
+        db_session.query(Screening)
+        .join(ScreeningDate)
         .filter(Screening.cinema_id == cinema_id)
-        .filter(func.date(ScreeningDate.date) == today)
-        .group_by(ScreeningDate.date)
+        .filter(func.date(ScreeningDate.date) == day)
         .all()
     )
 

@@ -18,10 +18,19 @@
   </div>
   <div class="mb-3" id="screenings">
     <p>Exibições</p>
-    <div class="mb-2">
-      <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{current_date}}T19:00" min="2023-01-01T00:00" max="2023-12-31T00:00" />
-      <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
-    </div>
+    {% if received_dates|length %}
+      {% for received_date in received_dates %}
+        <div class="mb-2">
+          <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{received_date}}" min="2023-01-01T00:00" max="2023-12-31T00:00" />
+          <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="mb-2">
+        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{current_date}}T19:00" min="2023-01-01T00:00" max="2023-12-31T00:00" />
+        <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+      </div>
+    {% endif %}
   </div>
   <div class="mb-3">
     <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>

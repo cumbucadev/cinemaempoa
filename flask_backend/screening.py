@@ -11,20 +11,19 @@ from flask import (
     send_from_directory,
     url_for,
 )
-from typing import Tuple
+from typing import List
 from werkzeug.exceptions import abort
 
 
 from flask_backend.auth import login_required
-from flask_backend.db import db_session
-from flask_backend.models import ScreeningDate
+from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
     get_by_id as get_cinema_by_id,
 )
 from flask_backend.repository.screenings import (
+    get_days_screenings_by_cinema_id,
     get_screening_by_id,
-    get_todays_screenings_by_cinema_id,
     create as create_screening,
     update_screening_dates,
     update as update_screening,
@@ -40,7 +39,7 @@ bp = Blueprint("screening", __name__)
 @bp.route("/")
 def index():
     cinemas = get_all_cinemas()
-
+    today = date.today()
     # limits how wide a movie image can be on the listing
     imgDisplayWidth = 325
 
@@ -56,34 +55,32 @@ def index():
             "url": cinema.url,
             "screening_dates": [],
         }
-        screening_dates: Tuple[ScreeningDate, str] = get_todays_screenings_by_cinema_id(
-            cinema.id
-        )
-        for screening_date, screening_times in screening_dates:
+        screenings: List[Screening] = get_days_screenings_by_cinema_id(cinema.id, today)
+        for screening in screenings:
             # used to set <li> styling
             minHeight = None
-            if screening_date.screening.image:
+            if screening.image:
                 minHeight = math.ceil(
-                    imgDisplayWidth
-                    / screening_date.screening.image_width
-                    * screening_date.screening.image_height
+                    imgDisplayWidth / screening.image_width * screening.image_height
                 )
-
-            parsed_screening_times = screening_times.split(",")
+            screening_times = [
+                screening_date.time
+                for screening_date in screening.dates
+                if screening_date.date == today
+            ]
             cinema_obj["screening_dates"].append(
                 {
-                    "times": parsed_screening_times,
-                    "image": screening_date.screening.image,
+                    "times": screening_times,
+                    "image": screening.image,
                     "min_height": minHeight,
                     "image_display_width": imgDisplayWidth,
-                    "title": screening_date.screening.movie.title,
-                    "description": screening_date.screening.description,
-                    "screening_url": screening_date.screening.url,
-                    "screening_id": screening_date.screening.id,
+                    "title": screening.movie.title,
+                    "description": screening.description,
+                    "screening_url": screening.url,
+                    "screening_id": screening.id,
                 }
             )
         cinemas_with_screenings.append(cinema_obj)
-
     return render_template(
         "screening/index.html",
         cinemas_with_screenings=cinemas_with_screenings,
@@ -128,6 +125,7 @@ def create():
         movie_poster = request.files.get("movie_poster", None)
         image = None
         image_width = None
+        image_height = None
 
         if movie_poster and movie_poster.filename:
             img_is_valid, message = validate_image(movie_poster)
@@ -154,8 +152,20 @@ def create():
 
     current_date = date.today()
     cinemas = get_all_cinemas()
+
+    valid_dates = []
+    for received_date in screening_dates:
+        try:
+            parsed_date = datetime.strptime(received_date, "%Y-%m-%dT%H:%M")
+            valid_dates.append(f"{parsed_date.date()}T{str(parsed_date.time())[0:5]}")
+        except ValueError:
+            pass
+
     return render_template(
-        "screening/create.html", cinemas=cinemas, current_date=current_date
+        "screening/create.html",
+        cinemas=cinemas,
+        current_date=current_date,
+        received_dates=valid_dates,
     )
 
 

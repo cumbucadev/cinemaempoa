@@ -2,7 +2,6 @@ import imghdr
 import os
 
 from datetime import datetime
-from io import BytesIO
 from PIL import Image
 from typing import List
 from werkzeug.utils import secure_filename

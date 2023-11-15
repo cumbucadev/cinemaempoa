@@ -36,11 +36,15 @@
                     {% if g.user %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{url_for('screening.create')}}">Nova sessão</a>
+                    </li>
+                    <div class="vr mx-3"></div>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
                     </li>
                     {% else %}
-                        <li class="nav-item pr-2"><a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important;" class="nav-link pr-1">Acessar</a>
-                        <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="nav-link">Criar conta</a>
+                        <li class="nav-item"><a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important;" class="nav-link pr-1">Acessar</a></li>
+                        <div class="vr mx-3"></div>
+                        <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="nav-link">Criar conta</a></li>
                     {% endif %}
                 </ul>
             </div>
