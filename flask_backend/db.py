@@ -1,6 +1,5 @@
 import click
 
-from flask import g
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 
@@ -22,9 +21,17 @@ def init_db():
 
 
 def seed_db():
-    from flask_backend.seeds import cinema_seeds
+    from flask_backend.seeds import (
+        cinema_seeds,
+        movie_seeds,
+        screening_seeds,
+        user_seeds,
+    )
 
     cinema_seeds.create_cinemas(db_session)
+    movie_seeds.create_movies(db_session)
+    screening_seeds.create_screenings(db_session)
+    user_seeds.create_user(db_session)
 
 
 def init_app(app):
