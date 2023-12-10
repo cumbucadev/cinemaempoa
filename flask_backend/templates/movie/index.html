@@ -1,0 +1,42 @@
+{% extends 'base.html' %} {% block header %}
+<h1>{% block title %}Filmes{% endblock %}</h1>
+<p>
+  Filmes que estão ou já estiveram em cartaz nas cinematecas de Porto Alegre.
+</p>
+{% endblock %} {% block content %} {% for movie in movies %}
+<article>
+  <header>
+    <h2>{{movie.title}}</h2>
+  </header>
+  <main>
+    {% for screening in movie.screenings %} {% if not screening.draft or
+    screening.draft and show_drafts %}
+    <p>
+      Exibições em <strong>{{screening.cinema.name}}</strong>
+      {% if screening.draft %}
+      <span
+        class="badge text-bg-warning ms-3"
+        data-bs-toggle="tooltip"
+        data-bs-title="Visível apenas para usuários logados"
+        aria-label="Visível apenas para usuários logados"
+        >Rascunho</span
+      >
+    </p>
+    {% endif %}
+    <ul>
+      {% for date in screening.dates %}
+      <li>{{date.date.strftime("%d/%m/%Y")}} - {{date.time}}</li>
+      {% endfor %}
+    </ul>
+    {% endif %} {% else %}
+    <p>Nenhuma exibição registrada!</p>
+    {% endfor %}
+  </main>
+</article>
+{% else %}
+<article>
+  <header>
+    <p>Nenhum filme registrado. Volte em breve!</p>
+  </header>
+</article>
+{% endfor %} {% endblock %}

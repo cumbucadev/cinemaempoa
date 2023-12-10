@@ -28,17 +28,17 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
-    from . import auth
+    from .routes import auth
 
     app.register_blueprint(auth.bp)
 
-    from . import screening
+    from .routes import screening
 
     app.register_blueprint(screening.bp)
 
-    from . import media
+    from .routes import movie
 
-    app.register_blueprint(media.bp)
+    app.register_blueprint(movie.bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

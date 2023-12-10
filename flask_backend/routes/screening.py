@@ -17,7 +17,7 @@ from typing import List
 from werkzeug.exceptions import abort
 
 
-from flask_backend.auth import login_required
+from flask_backend.routes.auth import login_required
 from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
