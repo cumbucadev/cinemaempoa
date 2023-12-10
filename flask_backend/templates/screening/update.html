@@ -1,32 +1,69 @@
-{% extends 'base.html' %}
-
-{% block header %}
-  <h1>{% block title %}Editar "{{ screening.movie['title'] }}"{% endblock %}</h1>
-{% endblock %}
-
-{% block content %}
+{% extends 'base.html' %} {% block header %}
+<h1>{% block title %}Editar "{{ screening.movie['title'] }}"{% endblock %}</h1>
+{% endblock %} {% block content %}
 <p>No cinema <strong>{{screening.cinema.name}}</strong></p>
 <form method="post" enctype="multipart/form-data">
   <div class="mb-3" id="screenings">
     <p>Exibições</p>
     {% for screening_date in screening.dates %}
-      <div class="mb-2">
-        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{screening_date.date}}T{{screening_date.time}}" min="2023-01-01T00:00" max="2023-12-31T00:00" />
-        <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
-      </div>
+    <div class="mb-2">
+      <input
+        class="form-control mb-1"
+        type="datetime-local"
+        name="screening_dates"
+        value="{{screening_date.date}}T{{screening_date.time}}"
+        min="2023-01-01T00:00"
+        max="2023-12-31T00:00"
+      />
+      <button onclick="removeScreening(this)" type="button" class="btn btn-sm">
+        Remover
+      </button>
+    </div>
     {% endfor %}
   </div>
   <div class="mb-3">
-    <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
+    <button type="button" id="add-screening-btn" class="btn btn-secondary">
+      Outra exibição
+    </button>
   </div>
   <div class="mb-3">
     <label class="form-label" for="title">Title</label>
-    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] or screening.movie['title'] }}" required>
+    <input
+      class="form-control"
+      name="movie_title"
+      id="title"
+      value="{{ request.form['movie_title'] or screening.movie['title'] }}"
+      required
+    />
   </div>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
-    <input class="form-control" name="movie_poster" type="file" id="movie_poster">
+    <input
+      class="form-control"
+      name="movie_poster"
+      type="file"
+      id="movie_poster"
+    />
   </div>
+
+  <div class="mb-3">
+    <label class="form-label">Status do cadastro</label>
+    <div class="form-check">
+      <input class="form-check-input" type="radio" value="draft" name="status"
+      id="status-draft" {{ "checked" if request.form['status'] == 'draft' or
+      screening.draft }}>
+      <label class="form-check-label" for="status-draft">
+        Salvar rascunho
+      </label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="radio" value="published"
+      name="status" id="status-published" {{ "checked" if request.form['status']
+      == 'published' or not screening.draft }} />
+      <label class="form-check-label" for="status-published"> Publicar </label>
+    </div>
+  </div>
+
   <div class="mb-3">
     <label class="form-label" for="screening-description">Body</label>
     <div class="grow-wrap">
@@ -34,12 +71,19 @@
         class="form-control"
         name="description"
         id="screening-description"
-        >{{ request.form['description'] or screening['description'] }}</textarea>
+      >
+{{ request.form['description'] or screening['description'] }}</textarea
+      >
     </div>
   </div>
   <div class="container mb-3 pb-3">
-    <input class="btn btn-primary" type="submit" value="Save">
-    <a id="back-btn" class="btn btn-secondary" href="{{ url_for('screening.index') }}">Voltar</a>
+    <input class="btn btn-primary" type="submit" value="Save" />
+    <a
+      id="back-btn"
+      class="btn btn-secondary"
+      href="{{ url_for('screening.index') }}"
+      >Voltar</a
+    >
   </div>
 </form>
 <script>
@@ -51,9 +95,11 @@
   window.onload = () => {
     const description = document.getElementById("screening-description");
     description.style.height = `${description.scrollHeight}px`;
-    const backBtn = document.getElementById('back-btn');
+    const backBtn = document.getElementById("back-btn");
     backBtn.addEventListener("click", (e) => {
-      const proceed = confirm("Alterações não salvas serão perdidas. Prosseguir?");
+      const proceed = confirm(
+        "Alterações não salvas serão perdidas. Prosseguir?"
+      );
       if (!proceed) {
         e.preventDefault();
         return;

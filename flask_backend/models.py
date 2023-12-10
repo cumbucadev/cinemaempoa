@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import Mapped, relationship
 from typing import List
 
@@ -41,6 +41,8 @@ class Screening(Base):
     # TODO: should image and description belong to the movie?
     image = Column(String, nullable=True)
     description = Column(String, nullable=False)
+    # TODO: maybe change this to a _status_ enum?
+    draft = Column(Boolean, nullable=False, default=False)
 
     # TODO: maybe keep image related properties in a separate "medias" table?
     image_width = Column(Integer, nullable=True)

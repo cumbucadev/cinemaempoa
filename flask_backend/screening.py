@@ -5,6 +5,7 @@ from flask import (
     Blueprint,
     current_app,
     flash,
+    g,
     redirect,
     render_template,
     request,
@@ -46,6 +47,8 @@ def index():
     quicklinks = []
     cinemas_with_screenings = []
 
+    user_logged_in = g.user is not None
+
     for cinema in cinemas:
         quicklinks.append((cinema.slug, cinema.name))
 
@@ -57,6 +60,8 @@ def index():
         }
         screenings: List[Screening] = get_days_screenings_by_cinema_id(cinema.id, today)
         for screening in screenings:
+            if screening.draft and not user_logged_in:
+                continue
             # used to set <li> styling
             minHeight = None
             if screening.image:
@@ -78,6 +83,7 @@ def index():
                     "description": screening.description,
                     "screening_url": screening.url,
                     "screening_id": screening.id,
+                    "draft": screening.draft,
                 }
             )
         cinemas_with_screenings.append(cinema_obj)
@@ -97,11 +103,13 @@ def upload(filename):
 @bp.route("/screening/new", methods=("GET", "POST"))
 @login_required
 def create():
+    screening_dates = []
     if request.method == "POST":
         movie_title = request.form.get("movie_title")
         description = request.form.get("description")
         cinema_id = request.form.get("cinema_id")
         screening_dates = request.form.getlist("screening_dates")
+        status = request.form.get("status")
         error = None
 
         if not movie_title:
@@ -112,6 +120,8 @@ def create():
             error = "Selecione o cinema que irá passar essa sessão."
         if not screening_dates:
             error = "Selecione ao menos uma data de exibição."
+        if not status:
+            error = "Selecione o status do cadastro."
 
         try:
             parsed_screening_dates = build_dates(screening_dates)
@@ -146,6 +156,7 @@ def create():
                 image,
                 image_width,
                 image_height,
+                status == "draft",
             )
             flash(f"Sessão «{movie_title}» criada com sucesso!", "success")
             return redirect(url_for("screening.index"))
@@ -181,6 +192,7 @@ def update(id):
         movie_title = request.form.get("movie_title")
         description = request.form.get("description")
         screening_dates = request.form.getlist("screening_dates")
+        status = request.form.get("status")
         error = None
 
         if not movie_title:
@@ -189,6 +201,8 @@ def update(id):
             error = "O campo descrição é obrigatório."
         if not screening_dates:
             error = "Selecione ao menos uma data de exibição."
+        if not status:
+            error = "Selecione o status do cadastro."
 
         try:
             parsed_screening_dates = build_dates(screening_dates)
@@ -217,7 +231,13 @@ def update(id):
 
             movie = get_movie_by_title_or_create(movie_title)
             update_screening(
-                screening, movie.id, description, image, image_width, image_height
+                screening,
+                movie.id,
+                description,
+                image,
+                image_width,
+                image_height,
+                status == "draft",
             )
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))

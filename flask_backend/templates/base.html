@@ -1,84 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}{% endblock %} - Cinema em POA</title>
     <!-- halfmoon css file -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='halfmoon.min.css') }}">
-</head>
-<body class="d-flex flex-column min-vh-100">
-     <header>
-        <nav class="navbar mb-5" style="background-color: var(--bs-content-bg); border-bottom: var(--bs-border-width) solid var(--bs-content-border-color);">
-            <div class="container-fluid container align-items-center">
-                <a class="navbar-brand" href="{{ url_for('screening.index') }}">
-                <img id="logo-black" src="{{ url_for('static', filename='cinema.png') }}" alt="Logo" width="24" height="24" class="d-inline-block align-text-top mr-1">
-                <img id="logo-white" src="{{ url_for('static', filename='cinema-white.png') }}" alt="Logo" width="24" height="24" class="d-inline-block align-text-top mr-1">
-                Cinema em POA
-                </a>
-                <button class="navbar-toggler d-block d-sm-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-collapse-9" aria-controls="navbar-collapse-9" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
-                    <ul class="navbar-nav">
-                        {% if g.user %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{url_for('screening.create')}}">Nova sessão</a>
-                            <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
-                        </li>
-                        {% else %}
-                            <li class="nav-item"><a href="{{ url_for('auth.login') }}" class="nav-link">Acessar</a>
-                            <li class="nav-item"><a href="{{ url_for('auth.register')}}" class="nav-link">Criar conta</a>
-                        {% endif %}
-                    </ul>
-                </div>
-                <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
-                    {% if g.user %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{url_for('screening.create')}}">Nova sessão</a>
-                    </li>
-                    <div class="vr mx-3"></div>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
-                    </li>
-                    {% else %}
-                        <li class="nav-item"><a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important;" class="nav-link pr-1">Acessar</a></li>
-                        <div class="vr mx-3"></div>
-                        <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="nav-link">Criar conta</a></li>
-                    {% endif %}
-                </ul>
-            </div>
-        </nav>
-        <script>
-            const html = document.querySelector('html');
-            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                html.setAttribute('data-bs-theme', 'dark')
-                document.getElementById('logo-black').remove()
-            } else {
-                html.setAttribute('data-bs-theme', 'light')
-                document.getElementById('logo-white').remove()
-            }
-        </script>
-        <div class="container">
-            {% block header %}{% endblock %}
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='halfmoon.min.css') }}"
+    />
+  </head>
+  <body class="d-flex flex-column min-vh-100">
+    <header>
+      <nav
+        class="navbar mb-5"
+        style="
+          background-color: var(--bs-content-bg);
+          border-bottom: var(--bs-border-width) solid
+            var(--bs-content-border-color);
+        "
+      >
+        <div class="container-fluid container align-items-center">
+          <a class="navbar-brand" href="{{ url_for('screening.index') }}">
+            <img
+              id="logo-black"
+              src="{{ url_for('static', filename='cinema.png') }}"
+              alt="Logo"
+              width="24"
+              height="24"
+              class="d-inline-block align-text-top mr-1"
+            />
+            <img
+              id="logo-white"
+              src="{{ url_for('static', filename='cinema-white.png') }}"
+              alt="Logo"
+              width="24"
+              height="24"
+              class="d-inline-block align-text-top mr-1"
+            />
+            Cinema em POA
+          </a>
+          <button
+            class="navbar-toggler d-block d-sm-none"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbar-collapse-9"
+            aria-controls="navbar-collapse-9"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div
+            class="collapse navbar-collapse d-sm-none"
+            id="navbar-collapse-9"
+          >
+            <ul class="navbar-nav">
+              {% if g.user %}
+              <li class="nav-item">
+                <a
+                  class="nav-link"
+                  href="{{url_for('screening.import_screenings')}}"
+                  >Importar sessões</a
+                >
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{url_for('screening.create')}}"
+                  >Nova sessão</a
+                >
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
+              </li>
+              {% else %}
+              <li class="nav-item">
+                <a href="{{ url_for('auth.login') }}" class="nav-link"
+                  >Acessar</a
+                >
+              </li>
+              <li class="nav-item">
+                <a href="{{ url_for('auth.register')}}" class="nav-link"
+                  >Criar conta</a
+                >
+              </li>
+              {% endif %}
+            </ul>
+          </div>
+          <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
+            {% if g.user %}
+            <li class="nav-item">
+              <a
+                class="nav-link"
+                href="{{url_for('screening.import_screenings')}}"
+                >Importar sessões</a
+              >
+            </li>
+            <div class="vr mx-3"></div>
+            <li class="nav-item">
+              <a class="nav-link" href="{{url_for('screening.create')}}"
+                >Nova sessão</a
+              >
+            </li>
+            <div class="vr mx-3"></div>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a
+                href="{{ url_for('auth.login') }}"
+                style="margin-right: 0.5rem !important"
+                class="nav-link pr-1"
+                >Acessar</a
+              >
+            </li>
+            <div class="vr mx-3"></div>
+            <li class="nav-item">
+              <a href="{{ url_for('auth.register') }}" class="nav-link"
+                >Criar conta</a
+              >
+            </li>
+            {% endif %}
+          </ul>
         </div>
+      </nav>
+      <script>
+        const html = document.querySelector("html");
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          html.setAttribute("data-bs-theme", "dark");
+          document.getElementById("logo-black").remove();
+        } else {
+          html.setAttribute("data-bs-theme", "light");
+          document.getElementById("logo-white").remove();
+        }
+      </script>
+      <div class="container">{% block header %}{% endblock %}</div>
     </header>
     <main class="container">
-        {% for category, message in get_flashed_messages(with_categories=true) %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-        {% block content %}{% endblock %}
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+      <div
+        class="alert alert-{{ category }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      {% endfor %} {% block content %}{% endblock %}
     </main>
     <footer class="py-3 my-4 mt-auto">
-        <ul class="nav justify-content-center border-bottom pb-3 mb-3">
-        <li class="nav-item"><a href="https://github.com/guites/cinemaempoa" class="nav-link px-2 text-muted">código fonte</a></li>
-        <li class="nav-item"><a href="https://cinemaempoa.goatcounter.com/" class="nav-link px-2 text-muted">analytics</a></li>
-        </ul>
-        <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
+      <ul class="nav justify-content-center border-bottom pb-3 mb-3">
+        <li class="nav-item">
+          <a
+            href="https://github.com/guites/cinemaempoa"
+            class="nav-link px-2 text-muted"
+            >código fonte</a
+          >
+        </li>
+        <li class="nav-item">
+          <a
+            href="https://cinemaempoa.goatcounter.com/"
+            class="nav-link px-2 text-muted"
+            >analytics</a
+          >
+        </li>
+      </ul>
+      <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
     </footer>
     <script src="{{ url_for('static', filename='bootstrap.bundle.js') }}"></script>
-</body>
+    <script>
+      const tooltipTriggerList = document.querySelectorAll(
+        "[data-bs-toggle='tooltip']"
+      );
+      const tooltipList = [...tooltipTriggerList].map(
+        (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+      );
+    </script>
+  </body>
 </html>

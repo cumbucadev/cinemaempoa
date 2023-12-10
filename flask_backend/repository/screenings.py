@@ -32,6 +32,7 @@ def create(
     image: Optional[str],
     image_width: Optional[int],
     image_height: Optional[int],
+    is_draft: Optional[bool] = False,
 ) -> Screening:
     screening = Screening(
         movie_id=movie_id,
@@ -41,6 +42,7 @@ def create(
         image_width=image_width,
         image_height=image_height,
         description=description,
+        draft=is_draft,
     )
     db_session.add(screening)
     db_session.commit()
@@ -69,9 +71,11 @@ def update(
     image: Optional[str],
     image_width: Optional[int],
     image_height: Optional[int],
+    is_draft: Optional[bool] = False,
 ) -> None:
     screening.movie_id = movie_id
     screening.description = description
+    screening.draft = is_draft
     if image:
         screening.image = image
         screening.image_width = image_width

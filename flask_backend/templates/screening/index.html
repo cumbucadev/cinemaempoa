@@ -1,81 +1,106 @@
-{% extends 'base.html' %}
-
-{% block header %}
-    <h1>{% block title %}Filmes em Porto Alegre{% endblock %}</h1>
-    <p>Filmes em cartaz hoje, <time><strong>{{ today }}</strong></time>.</p>
-    <div class="dropdown mb-5">
-        <a href="#" class="btn btn-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Acesso rápido
-        </a>
-        <ul class="dropdown-menu">
-            <li><h6 class="dropdown-header">Ir para...</h6></li>
-            {% for link in quicklinks %}
-                <li><a href="#{{ link[0] }}" class="dropdown-item">{{ link[1] }}</a></li>
-            {% endfor %}
-        </ul>
-    </div>
-{% endblock %}
-
-{% block content %}
-    {% for cinema in cinemas_with_screenings %}
-        <article>
-            <header>
-                <h2 id="{{ cinema.slug }}">
-                    {{ cinema.name }}
-                </h2>
-                <p>
-                    <a href="{{ cinema.url }}">Visite o site</a> do cinema.
-                </p>
-                <!-- warnings go here -->
-            </header>
-            <main>
-                {% if cinema['screening_dates'] %}
-                    <ul class="list-unstyled">
-                        {% for screening_date in cinema['screening_dates'] %}
-                            {% if screening_date['image'] %}
-                                <li class="mb-5 clearfix" style="min-height: {{screening_date['min_height']}}px">
-                                    <img
-                                        class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0 me-sm-3"
-                                        src="/screening/assets/{{ screening_date['image'] }}"
-                                        width="{{ screening_date['image_display_width'] }}" loading="lazy"/>
-                            {% else %}
-                                <li class="mb-5">
-                            {% endif %}
-                                <h3>{{ screening_date['title'] }}</h3>
-                                {% if screening_date['times']|length %}
-                                <div class="mb-3 d-flex align-items-center">
-                                    <strong>Horários</strong>
-                                    <ul class="list-group list-group-horizontal ms-3">
-                                        {% for time in screening_date['times'] %}
-                                        <li class="list-group-item px-2 py-1">
-                                            {{ time }}
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                                {% endif %}
-                                <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>
-                                {% if screening_date['screening_url'] %}
-                                    <p><a href="{{ screening_date['screening_url'] }}">Mais informações</a></p>
-                                {% endif %}
-                                <small class="text-muted">
-                                    Achou um erro?
-                                    {% if g.user %}
-                                        <a class="action" href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Edite!</a>
-                                    {% else %}
-                                        <a class="action" href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Ajude a corrigir!</a>
-                                    {% endif %}
-                                </small>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <strong class="text-danger">Não há sessões hoje.</strong>
-                {% endif %}
-            </main>
-        </article>
-        {% if not loop.last %}
-            <hr/>
-        {% endif %}
+{% extends 'base.html' %} {% block header %}
+<h1>{% block title %}Filmes em Porto Alegre{% endblock %}</h1>
+<p>
+  Filmes em cartaz hoje, <time><strong>{{ today }}</strong></time
+  >.
+</p>
+<div class="dropdown mb-5">
+  <a
+    href="#"
+    class="btn btn-link dropdown-toggle"
+    role="button"
+    data-bs-toggle="dropdown"
+    aria-expanded="false"
+  >
+    Acesso rápido
+  </a>
+  <ul class="dropdown-menu">
+    <li><h6 class="dropdown-header">Ir para...</h6></li>
+    {% for link in quicklinks %}
+    <li><a href="#{{ link[0] }}" class="dropdown-item">{{ link[1] }}</a></li>
     {% endfor %}
-{% endblock %}
+  </ul>
+</div>
+{% endblock %} {% block content %} {% for cinema in cinemas_with_screenings %}
+<article>
+  <header>
+    <h2 id="{{ cinema.slug }}">{{ cinema.name }}</h2>
+    <p><a href="{{ cinema.url }}">Visite o site</a> do cinema.</p>
+    <!-- warnings go here -->
+  </header>
+  <main>
+    {% if cinema['screening_dates'] %}
+    <ul class="list-unstyled">
+      {% for screening_date in cinema['screening_dates'] %} {% if
+      screening_date['image'] %}
+      <li
+        class="mb-5 clearfix"
+        style="min-height: {{screening_date['min_height']}}px"
+      >
+        <img
+          class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0 me-sm-3"
+          src="/screening/assets/{{ screening_date['image'] }}"
+          width="{{ screening_date['image_display_width'] }}"
+          loading="lazy"
+        />
+        {% else %}
+      </li>
+
+      <li class="mb-5">
+        {% endif %}
+        <div class="d-flex align-items-center">
+          <h3>{{ screening_date['title'] }}</h3>
+          {% if screening_date['draft'] %}
+          <span
+            class="badge text-bg-warning ms-3"
+            data-bs-toggle="tooltip"
+            data-bs-title="Visível apenas para usuários logados"
+            aria-label="Visível apenas para usuários logados"
+            >Rascunho</span
+          >
+          {% endif %}
+        </div>
+        {% if screening_date['times']|length %}
+        <div class="mb-3 d-flex align-items-center">
+          <strong>Horários</strong>
+          <ul class="list-group list-group-horizontal ms-3">
+            {% for time in screening_date['times'] %}
+            <li class="list-group-item px-2 py-1">{{ time }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+        <p style="white-space: break-spaces">
+          {{ screening_date['description']|safe }}
+        </p>
+        {% if screening_date['screening_url'] %}
+        <p>
+          <a href="{{ screening_date['screening_url'] }}">Mais informações</a>
+        </p>
+        {% endif %}
+        <small class="text-muted">
+          Achou um erro? {% if g.user %}
+          <a
+            class="action"
+            href="{{ url_for('screening.update', id=screening_date['screening_id']) }}"
+            >Edite!</a
+          >
+          {% else %}
+          <a
+            class="action"
+            href="{{ url_for('screening.update', id=screening_date['screening_id']) }}"
+            >Ajude a corrigir!</a
+          >
+          {% endif %}
+        </small>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <strong class="text-danger">Não há sessões hoje.</strong>
+    {% endif %}
+  </main>
+</article>
+{% if not loop.last %}
+<hr />
+{% endif %} {% endfor %} {% endblock %}

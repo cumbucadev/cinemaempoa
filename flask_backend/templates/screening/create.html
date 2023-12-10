@@ -43,6 +43,23 @@
     <label for="movie_poster" class="form-label">Imagem do filme</label>
     <input class="form-control" name="movie_poster" type="file" id="movie_poster">
   </div>
+
+  <div class="mb-3">
+    <label class="form-label">Status do cadastro</label>
+    <div class="form-check">
+      <input class="form-check-input" type="radio" value="draft" name="status" id="status-draft">
+      <label class="form-check-label" for="status-draft">
+        Salvar rascunho
+      </label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="radio" value="published" name="status" id="status-published" checked>
+      <label class="form-check-label" for="status-published">
+        Publicar
+      </label>
+    </div>
+  </div>
+  
   <div class="mb-3">
     <label class="form-label" for="screening-description">Body</label>
     <div class="grow-wrap">
