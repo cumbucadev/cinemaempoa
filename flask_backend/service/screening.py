@@ -1,9 +1,12 @@
+import hashlib
 import imghdr
 import os
+import requests
 
 from datetime import datetime
+from io import BytesIO
 from PIL import Image
-from typing import List
+from typing import List, Optional, Tuple
 from werkzeug.utils import secure_filename
 
 from flask_backend.models import ScreeningDate
@@ -36,9 +39,12 @@ def validate_image(file) -> tuple[bool, str]:
     return True, None
 
 
-def save_image(file, app) -> str:
+def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
     """Saves the received `file` into disk, returning the filename and image's width."""
-    filename = secure_filename(file.filename)
+    if filename:
+        filename = secure_filename(filename)
+    else:
+        filename = secure_filename(file.filename)
     img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
     file.save(img_savepath)
     with open(img_savepath, "rb") as f:
@@ -62,3 +68,14 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
             )
         )
     return screening_date_objects
+
+
+def download_image_from_url(image_url):
+    if image_url is None:
+        return None, None
+    file_extension = image_url.split(".")[-1]
+    file_name = (
+        hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
+    )
+    r = requests.get(image_url)
+    return Image.open(BytesIO(r.content)), file_name

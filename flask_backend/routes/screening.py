@@ -34,7 +34,12 @@ from flask_backend.repository.screenings import (
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
-from flask_backend.service.screening import build_dates, validate_image, save_image
+from flask_backend.service.screening import (
+    build_dates,
+    download_image_from_url,
+    validate_image,
+    save_image,
+)
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 
 
@@ -302,14 +307,22 @@ def import_screenings():
                 parsed_screening_dates = build_dates(
                     [datetime.now().strftime("%Y-%m-%dT%H:%M")]
                 )
+                image, image_width, image_height = None, None, None
+                if scrapped_feature.poster:
+                    img, filename = download_image_from_url(scrapped_feature.poster)
+                    # if we fail to download or validate the image, just ignore it for now
+                    image, image_width, image_height = save_image(
+                        img, current_app, filename
+                    )
+
                 create_screening(
                     movie.id,
                     description,
                     cinema.id,
                     parsed_screening_dates,
-                    None,
-                    None,
-                    None,
+                    image,
+                    image_width,
+                    image_height,
                     True,
                 )
                 created_features += 1
