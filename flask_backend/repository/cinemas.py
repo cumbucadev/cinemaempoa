@@ -12,3 +12,7 @@ def get_all() -> List[Cinema]:
 
 def get_by_id(cinema_id: int) -> Optional[Cinema]:
     return db_session.query(Cinema).filter(Cinema.id == cinema_id).first()
+
+
+def get_by_slug(cinema_slug: str) -> Optional[Cinema]:
+    return db_session.query(Cinema).filter(Cinema.slug == cinema_slug).first()

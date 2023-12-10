@@ -1,0 +1,35 @@
+{% extends 'base.html' %} {% block header %}
+<h1>{% block title %}Importar sessões{% endblock %}</h1>
+<p></p>
+{% endblock %} {% block content %}
+<form method="post" enctype="multipart/form-data">
+  <p>Selecione um arquivo .json válido através do botão abaixo.</p>
+  <div class="mb-3">
+    <label for="json_file" class="form-label">Arquivo json</label>
+    <input class="form-control" name="json_file" type="file" id="json_file" />
+  </div>
+  <div class="container mb-3 pb-3">
+    <input class="btn btn-primary" type="submit" value="Enviar" />
+    <a
+      id="back-btn"
+      class="btn btn-secondary"
+      href="{{ url_for('screening.index') }}"
+      >Voltar</a
+    >
+  </div>
+</form>
+<script>
+  window.onload = () => {
+    const backBtn = document.getElementById("back-btn");
+    backBtn.addEventListener("click", (e) => {
+      const proceed = confirm(
+        "Alterações não salvas serão perdidas. Prosseguir?"
+      );
+      if (!proceed) {
+        e.preventDefault();
+        return;
+      }
+    });
+  };
+</script>
+{% endblock %}

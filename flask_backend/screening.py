@@ -1,3 +1,4 @@
+import json
 import math
 
 from datetime import date, datetime
@@ -21,6 +22,7 @@ from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
     get_by_id as get_cinema_by_id,
+    get_by_slug as get_cinema_by_slug,
 )
 from flask_backend.repository.screenings import (
     get_days_screenings_by_cinema_id,
@@ -33,6 +35,8 @@ from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
 from flask_backend.service.screening import build_dates, validate_image, save_image
+from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
+
 
 bp = Blueprint("screening", __name__)
 
@@ -243,6 +247,78 @@ def update(id):
             return redirect(url_for("screening.index"))
 
     return render_template("screening/update.html", screening=screening)
+
+
+@bp.route("/screening/import", methods=("GET", "POST"))
+@login_required
+def import_screenings():
+    suggestions = []
+    if request.method == "POST":
+        json_file = request.files.get("json_file", None)
+        error = None
+
+        if json_file is None:
+            error = "Arquivo .json inválido"
+
+        try:
+            parsed_json = json.load(json_file)
+        except json.decoder.JSONDecodeError:
+            error = "Arquivo .json inválido"
+
+        try:
+            scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
+        except Exception as e:
+            error = "Arquivo .json inválido"
+            print(e)
+
+        created_features = 0
+
+        scrapped_cinema: ScrappedCinema
+        for scrapped_cinema in scrapped_results.cinemas:
+            cinema = get_cinema_by_slug(scrapped_cinema.slug)
+            if cinema is None:
+                error = f"Sala {scrapped_cinema.slug} não encontrada."
+                break
+            scrapped_feature: ScrappedFeature
+            for scrapped_feature in scrapped_cinema.features:
+                movie = get_movie_by_title_or_create(scrapped_feature.title)
+
+                description: str = ""
+                if scrapped_feature.time:
+                    description += f"\n{scrapped_feature.time.strip()}"
+                if scrapped_feature.original_title:
+                    description += f"\n{scrapped_feature.original_title.strip()}"
+                if scrapped_feature.price:
+                    description += f"\n{scrapped_feature.price}"
+                if scrapped_feature.director:
+                    description += f"\n{scrapped_feature.director}"
+                if scrapped_feature.classification:
+                    description += f"\n{scrapped_feature.classification}"
+                if scrapped_feature.general_info:
+                    description += f"\n{scrapped_feature.general_info}"
+                if scrapped_feature.excerpt:
+                    description += f"\n{scrapped_feature.excerpt}"
+
+                parsed_screening_dates = build_dates(
+                    [datetime.now().strftime("%Y-%m-%dT%H:%M")]
+                )
+                create_screening(
+                    movie.id,
+                    description,
+                    cinema.id,
+                    parsed_screening_dates,
+                    None,
+                    None,
+                    None,
+                    True,
+                )
+                created_features += 1
+        if error is not None:
+            flash(error, "danger")
+        else:
+            flash(f"«{created_features}» sessões criadas com sucesso!", "success")
+
+    return render_template("screening/import.html", suggestions=suggestions)
 
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
