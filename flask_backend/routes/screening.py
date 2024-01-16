@@ -189,6 +189,29 @@ def create():
     )
 
 
+@bp.route("/screening/<int:id>/publish", methods=("POST",))
+@login_required
+def publish(id):
+    screening = get_screening_by_id(id)
+    if not request.method == "POST":
+        abort(405)
+
+    if not screening:
+        abort(404)
+
+    update_screening(
+        screening,
+        screening.movie_id,
+        screening.description,
+        None,
+        None,
+        None,
+        False,
+    )
+    flash(f"Sessão «{screening.movie.title}» publicada com sucesso!", "success")
+    return redirect(url_for("screening.index"))
+
+
 @bp.route("/screening/<int:id>/update", methods=("GET", "POST"))
 @login_required
 def update(id):
