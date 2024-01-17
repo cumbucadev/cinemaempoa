@@ -312,8 +312,9 @@ def import_screenings():
                 movie = get_movie_by_title_or_create(scrapped_feature.title)
 
                 description: str = ""
+                screenings_dates = None
                 if scrapped_feature.time:
-                    description += f"\n{scrapped_feature.time.strip()}"
+                    screenings_dates = build_dates(scrapped_feature.time)
                 if scrapped_feature.original_title:
                     description += f"\n{scrapped_feature.original_title.strip()}"
                 if scrapped_feature.price:
@@ -327,9 +328,11 @@ def import_screenings():
                 if scrapped_feature.excerpt:
                     description += f"\n{scrapped_feature.excerpt}"
 
-                parsed_screening_dates = build_dates(
-                    [datetime.now().strftime("%Y-%m-%dT%H:%M")]
-                )
+                if screenings_dates is None:
+                    screenings_dates = build_dates(
+                        [datetime.now().strftime("%Y-%m-%dT%H:%M")]
+                    )
+
                 image, image_width, image_height = None, None, None
                 if scrapped_feature.poster:
                     img, filename = download_image_from_url(scrapped_feature.poster)
@@ -342,7 +345,7 @@ def import_screenings():
                     movie.id,
                     description,
                     cinema.id,
-                    parsed_screening_dates,
+                    screenings_dates,
                     image,
                     image_width,
                     image_height,
