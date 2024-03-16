@@ -279,30 +279,37 @@ def import_screenings():
     suggestions = []
     if request.method == "POST":
         json_file = request.files.get("json_file", None)
-        error = None
 
         if json_file is None:
-            error = "Arquivo .json inválido"
+            flash("Arquivo .json inválido", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
 
         try:
             parsed_json = json.load(json_file)
-        except json.decoder.JSONDecodeError:
-            error = "Arquivo .json inválido"
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+            flash("Arquivo .json inválido", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
 
         try:
             scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
         except Exception as e:
-            error = "Arquivo .json inválido"
+            flash("Arquivo .json inválido", "danger")
             print(e)
+            return render_template("screening/import.html", suggestions=suggestions)
 
         created_features = 0
 
+        # validate all cinemas are valid
+        for json_cinema in scrapped_results.cinema:
+            cinema = get_cinema_by_slug(json_cinema.slug)
+            if cinema is None:
+                flash(f"Sala {json_cinema.slug} não encontrada.")
+                return render_template("screening/import.html", suggestions=suggestions)
+
+        # all validations passed, import screenings :)
         scrapped_cinema: ScrappedCinema
         for scrapped_cinema in scrapped_results.cinemas:
             cinema = get_cinema_by_slug(scrapped_cinema.slug)
-            if cinema is None:
-                error = f"Sala {scrapped_cinema.slug} não encontrada."
-                break
             scrapped_feature: ScrappedFeature
             for scrapped_feature in scrapped_cinema.features:
                 movie = get_movie_by_title_or_create(scrapped_feature.title)
@@ -350,10 +357,7 @@ def import_screenings():
                     True,
                 )
                 created_features += 1
-        if error is not None:
-            flash(error, "danger")
-        else:
-            flash(f"«{created_features}» sessões criadas com sucesso!", "success")
+        flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
 
