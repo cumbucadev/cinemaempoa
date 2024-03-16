@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from sqlalchemy.orm import aliased
 
 from flask_backend.db import db_session
@@ -13,13 +14,11 @@ def create(title: str) -> Movie:
     return movie
 
 
-def get_all(show_drafts: bool = False) -> List[Optional[Movie]]:
-    return (
-        db_session.query(Movie)
-        .join(Movie.screenings)
-        .filter(Screening.draft == show_drafts)
-        .all()
-    )
+def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
+    query = db_session.query(Movie).join(Screening)
+    if include_drafts is False:
+        query = query.filter(Screening.draft == False)
+    return query.all()
 
 
 def get_by_title(title: str) -> Optional[Movie]:
