@@ -1,7 +1,8 @@
 import json
 import math
-
 from datetime import date, datetime
+from typing import List
+
 from flask import (
     Blueprint,
     current_app,
@@ -13,35 +14,30 @@ from flask import (
     send_from_directory,
     url_for,
 )
-from typing import List
 from werkzeug.exceptions import abort
 
-
-from flask_backend.routes.auth import login_required
+from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import Screening
-from flask_backend.repository.cinemas import (
-    get_all as get_all_cinemas,
-    get_by_id as get_cinema_by_id,
-    get_by_slug as get_cinema_by_slug,
-)
-from flask_backend.repository.screenings import (
-    get_days_screenings_by_cinema_id,
-    get_screening_by_id,
-    create as create_screening,
-    update_screening_dates,
-    update as update_screening,
-)
+from flask_backend.repository.cinemas import get_all as get_all_cinemas
+from flask_backend.repository.cinemas import get_by_id as get_cinema_by_id
+from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
+from flask_backend.repository.screenings import create as create_screening
+from flask_backend.repository.screenings import (
+    get_days_screenings_by_cinema_id,
+    get_screening_by_id,
+)
+from flask_backend.repository.screenings import update as update_screening
+from flask_backend.repository.screenings import update_screening_dates
+from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
     build_dates,
     download_image_from_url,
-    validate_image,
     save_image,
+    validate_image,
 )
-from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
-
 
 bp = Blueprint("screening", __name__)
 
@@ -336,10 +332,12 @@ def import_screenings():
                 image, image_width, image_height = None, None, None
                 if scrapped_feature.poster:
                     img, filename = download_image_from_url(scrapped_feature.poster)
-                    # if we fail to download or validate the image, just ignore it for now
-                    image, image_width, image_height = save_image(
-                        img, current_app, filename
-                    )
+                    image, image_width, image_height = None, None, None
+                    if img is not None:
+                        # if we fail to download or validate the image, just ignore it for now
+                        image, image_width, image_height = save_image(
+                            img, current_app, filename
+                        )
 
                 create_screening(
                     movie.id,

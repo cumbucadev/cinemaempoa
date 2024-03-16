@@ -2,12 +2,12 @@ import hashlib
 import imghdr
 import os
 import re
-import requests
-
 from datetime import datetime
 from io import BytesIO
-from PIL import Image
 from typing import List, Optional, Tuple
+
+import requests
+from PIL import Image
 from werkzeug.utils import secure_filename
 
 from flask_backend.models import ScreeningDate
@@ -124,7 +124,7 @@ def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
     return None
 
 
-def download_image_from_url(image_url):
+def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[str]]:
     if image_url is None:
         return None, None
     file_extension = image_url.split(".")[-1]
@@ -132,4 +132,6 @@ def download_image_from_url(image_url):
         hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
     )
     r = requests.get(image_url)
+    if r.ok is False:
+        return None, None
     return Image.open(BytesIO(r.content)), file_name
