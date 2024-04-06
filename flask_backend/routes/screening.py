@@ -170,6 +170,7 @@ def create():
             return redirect(url_for("screening.index"))
 
     current_date = date.today()
+    max_year = datetime.now().year + 1
     cinemas = get_all_cinemas()
 
     valid_dates = []
@@ -185,6 +186,7 @@ def create():
         cinemas=cinemas,
         current_date=current_date,
         received_dates=valid_dates,
+        max_year=max_year,
     )
 
 
