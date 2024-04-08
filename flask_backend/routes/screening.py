@@ -35,6 +35,9 @@ from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
     build_dates,
     download_image_from_url,
+    get_image_metadata,
+    get_img_filename_from_url,
+    get_img_path_from_filename,
     save_image,
     validate_image,
 )
@@ -300,7 +303,7 @@ def import_screenings():
         created_features = 0
 
         # validate all cinemas are valid
-        for json_cinema in scrapped_results.cinema:
+        for json_cinema in scrapped_results.cinemas:
             cinema = get_cinema_by_slug(json_cinema.slug)
             if cinema is None:
                 flash(f"Sala {json_cinema.slug} não encontrada.")
@@ -336,22 +339,34 @@ def import_screenings():
                         [datetime.now().strftime("%Y-%m-%dT%H:%M")]
                     )
 
-                image, image_width, image_height = None, None, None
+                image_filename, image_width, image_height = None, None, None
                 if scrapped_feature.poster:
-                    img, filename = download_image_from_url(scrapped_feature.poster)
-                    image, image_width, image_height = None, None, None
-                    if img is not None:
-                        # if we fail to download or validate the image, just ignore it for now
-                        image, image_width, image_height = save_image(
-                            img, current_app, filename
+                    image_filename = get_img_filename_from_url(scrapped_feature.poster)
+
+                    # if the file from that URL already exists locally, use that
+                    img_path = get_img_path_from_filename(image_filename, current_app)
+                    if img_path:
+                        image_width, image_height = get_image_metadata(
+                            scrapped_feature.poster, current_app
                         )
+                    # file doesnt exist locally, attempt to download
+                    else:
+                        img, filename = download_image_from_url(
+                            scrapped_feature.poster, current_app
+                        )
+                        image_filename, image_width, image_height = None, None, None
+                        if img is not None:
+                            # if we fail to download or validate the image, just ignore it for now
+                            image_filename, image_width, image_height = save_image(
+                                img, current_app, filename
+                            )
 
                 create_screening(
                     movie.id,
                     description,
                     cinema.id,
                     screenings_dates,
-                    image,
+                    image_filename,
                     image_width,
                     image_height,
                     True,

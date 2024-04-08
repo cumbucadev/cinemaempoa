@@ -5,6 +5,7 @@ cinebancarios/
 sala-redencao/
 paulo-amorim/
 json/
+docs/
 
 *.pyc
 __pycache__/

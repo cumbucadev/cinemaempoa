@@ -131,7 +131,31 @@ def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[
     file_name = (
         hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
     )
+
     r = requests.get(image_url)
     if r.ok is False:
         return None, None
+
     return Image.open(BytesIO(r.content)), file_name
+
+
+def get_img_filename_from_url(image_url) -> str:
+    file_extension = image_url.split(".")[-1]
+    return secure_filename(
+        hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
+    )
+
+
+def get_img_path_from_filename(file_name, app) -> Optional[str]:
+    """returns image path if image from given url already exists locally,
+    None otherwise"""
+    img_path = os.path.join(app.config.get("UPLOAD_FOLDER"), file_name)
+    if os.path.exists(img_path):
+        return img_path
+    return None
+
+
+def get_image_metadata(img_path):
+    with open(img_path, "rb") as f:
+        loaded_image = Image.open(f)
+    return loaded_image.width, loaded_image.height
