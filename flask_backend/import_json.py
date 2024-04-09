@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
+from flask_backend.service.screening import parse_to_datetime_string
+
 
 @dataclass
 class ScrappedFeature:
@@ -17,9 +19,15 @@ class ScrappedFeature:
 
     @classmethod
     def from_jsonable(cls, feature_json: str):
+        received_time = feature_json.get("time", None)
+        if received_time is not None:
+            formatted_time_strs = parse_to_datetime_string(received_time)
+        else:
+            formatted_time_strs = None
+
         return cls(
             poster=feature_json.get("poster", None),
-            time=feature_json.get("time", None),
+            time=formatted_time_strs,
             title=feature_json["title"],
             original_title=feature_json.get("original_title", None),
             price=feature_json.get("price", None),

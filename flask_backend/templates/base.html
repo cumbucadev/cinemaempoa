@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="scroll-behavior: smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,7 +16,7 @@
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
-    <header>
+    <header id="header">
       <nav
         class="navbar mb-5"
         style="
@@ -193,6 +193,7 @@
         </li>
       </ul>
       <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
+      <p class="text-center mb-0"><a href="#header">voltar pro topo</a></p>
     </footer>
     <script src="{{ url_for('static', filename='bootstrap.bundle.js') }}"></script>
     <script>

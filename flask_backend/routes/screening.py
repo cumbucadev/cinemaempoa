@@ -1,7 +1,8 @@
 import json
 import math
-
 from datetime import date, datetime
+from typing import List
+
 from flask import (
     Blueprint,
     current_app,
@@ -13,35 +14,33 @@ from flask import (
     send_from_directory,
     url_for,
 )
-from typing import List
 from werkzeug.exceptions import abort
 
-
-from flask_backend.routes.auth import login_required
+from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import Screening
-from flask_backend.repository.cinemas import (
-    get_all as get_all_cinemas,
-    get_by_id as get_cinema_by_id,
-    get_by_slug as get_cinema_by_slug,
-)
-from flask_backend.repository.screenings import (
-    get_days_screenings_by_cinema_id,
-    get_screening_by_id,
-    create as create_screening,
-    update_screening_dates,
-    update as update_screening,
-)
+from flask_backend.repository.cinemas import get_all as get_all_cinemas
+from flask_backend.repository.cinemas import get_by_id as get_cinema_by_id
+from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
+from flask_backend.repository.screenings import create as create_screening
+from flask_backend.repository.screenings import (
+    get_days_screenings_by_cinema_id,
+    get_screening_by_id,
+)
+from flask_backend.repository.screenings import update as update_screening
+from flask_backend.repository.screenings import update_screening_dates
+from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
     build_dates,
     download_image_from_url,
-    validate_image,
+    get_image_metadata,
+    get_img_filename_from_url,
+    get_img_path_from_filename,
     save_image,
+    validate_image,
 )
-from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
-
 
 bp = Blueprint("screening", __name__)
 
@@ -171,7 +170,7 @@ def create():
             return redirect(url_for("screening.index"))
 
     current_date = date.today()
-    current_year = datetime.now().year
+    max_year = datetime.now().year + 1
     cinemas = get_all_cinemas()
 
     valid_dates = []
@@ -187,8 +186,31 @@ def create():
         cinemas=cinemas,
         current_date=current_date,
         received_dates=valid_dates,
-        current_year=current_year
+        max_year=max_year,
     )
+
+
+@bp.route("/screening/<int:id>/publish", methods=("POST",))
+@login_required
+def publish(id):
+    screening = get_screening_by_id(id)
+    if not request.method == "POST":
+        abort(405)
+
+    if not screening:
+        abort(404)
+
+    update_screening(
+        screening,
+        screening.movie_id,
+        screening.description,
+        None,
+        None,
+        None,
+        False,
+    )
+    flash(f"Sessão «{screening.movie.title}» publicada com sucesso!", "success")
+    return redirect(url_for("screening.index"))
 
 
 @bp.route("/screening/<int:id>/update", methods=("GET", "POST"))
@@ -262,37 +284,45 @@ def import_screenings():
     suggestions = []
     if request.method == "POST":
         json_file = request.files.get("json_file", None)
-        error = None
 
         if json_file is None:
-            error = "Arquivo .json inválido"
+            flash("Arquivo .json inválido", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
 
         try:
             parsed_json = json.load(json_file)
-        except json.decoder.JSONDecodeError:
-            error = "Arquivo .json inválido"
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+            flash("Arquivo .json inválido", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
 
         try:
             scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
         except Exception as e:
-            error = "Arquivo .json inválido"
+            flash("Arquivo .json inválido", "danger")
             print(e)
+            return render_template("screening/import.html", suggestions=suggestions)
 
         created_features = 0
 
+        # validate all cinemas are valid
+        for json_cinema in scrapped_results.cinemas:
+            cinema = get_cinema_by_slug(json_cinema.slug)
+            if cinema is None:
+                flash(f"Sala {json_cinema.slug} não encontrada.")
+                return render_template("screening/import.html", suggestions=suggestions)
+
+        # all validations passed, import screenings :)
         scrapped_cinema: ScrappedCinema
         for scrapped_cinema in scrapped_results.cinemas:
             cinema = get_cinema_by_slug(scrapped_cinema.slug)
-            if cinema is None:
-                error = f"Sala {scrapped_cinema.slug} não encontrada."
-                break
             scrapped_feature: ScrappedFeature
             for scrapped_feature in scrapped_cinema.features:
                 movie = get_movie_by_title_or_create(scrapped_feature.title)
 
                 description: str = ""
+                screenings_dates = None
                 if scrapped_feature.time:
-                    description += f"\n{scrapped_feature.time.strip()}"
+                    screenings_dates = build_dates(scrapped_feature.time)
                 if scrapped_feature.original_title:
                     description += f"\n{scrapped_feature.original_title.strip()}"
                 if scrapped_feature.price:
@@ -306,32 +336,45 @@ def import_screenings():
                 if scrapped_feature.excerpt:
                     description += f"\n{scrapped_feature.excerpt}"
 
-                parsed_screening_dates = build_dates(
-                    [datetime.now().strftime("%Y-%m-%dT%H:%M")]
-                )
-                image, image_width, image_height = None, None, None
-                if scrapped_feature.poster:
-                    img, filename = download_image_from_url(scrapped_feature.poster)
-                    # if we fail to download or validate the image, just ignore it for now
-                    image, image_width, image_height = save_image(
-                        img, current_app, filename
+                if screenings_dates is None:
+                    screenings_dates = build_dates(
+                        [datetime.now().strftime("%Y-%m-%dT%H:%M")]
                     )
+
+                image_filename, image_width, image_height = None, None, None
+                if scrapped_feature.poster:
+                    image_filename = get_img_filename_from_url(scrapped_feature.poster)
+
+                    # if the file from that URL already exists locally, use that
+                    img_path = get_img_path_from_filename(image_filename, current_app)
+                    if img_path:
+                        image_width, image_height = get_image_metadata(
+                            scrapped_feature.poster, current_app
+                        )
+                    # file doesnt exist locally, attempt to download
+                    else:
+                        img, filename = download_image_from_url(
+                            scrapped_feature.poster, current_app
+                        )
+                        image_filename, image_width, image_height = None, None, None
+                        if img is not None:
+                            # if we fail to download or validate the image, just ignore it for now
+                            image_filename, image_width, image_height = save_image(
+                                img, current_app, filename
+                            )
 
                 create_screening(
                     movie.id,
                     description,
                     cinema.id,
-                    parsed_screening_dates,
-                    image,
+                    screenings_dates,
+                    image_filename,
                     image_width,
                     image_height,
                     True,
                 )
                 created_features += 1
-        if error is not None:
-            flash(error, "danger")
-        else:
-            flash(f"«{created_features}» sessões criadas com sucesso!", "success")
+        flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
 

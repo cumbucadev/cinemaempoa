@@ -171,28 +171,65 @@ class CinematecaPauloAmorim:
             if not movie_matches_today:
                 continue
 
-            for strong in p_tag.find_all("strong"):
-                for movie in self.movies:
-                    if movie["title"].lower() != strong.text.lower():
-                        continue
-                    # Movie will be featured today
-                    # Lines are in the format
-                    # 14h30 EH: Retratos Fantasmas, Kleber Mendonça Filho
-                    time_str = (
-                        unicodedata.normalize(
-                            "NFKC", strong.find_previous_sibling(string=True)
-                        )
-                        .strip("\n")
-                        .strip()
-                        .split(" ")[0]
-                    )
-                    hour_str, min_str = time_str.split("h")
-                    if min_str:
-                        parsed_time = dt_time(int(hour_str), int(min_str))
-                    else:
-                        parsed_time = dt_time(int(hour_str))
+            # they might be using the following html structure
+            # <p>
+            #   <strong> 8 de dezembro | sexta </strong>
+            # </p>
+            # <table border="0" cellpadding="0" cellspacing="0" style="width:567px">
+            #   <tbody>
+            #       <tr>
+            #           <td>14h30</td>
+            #           <td>Sala 2</td>
+            #           <td>Filmes em competição Festival Cinema Negro em Ação</td>
+            #       </tr>
+            #       <tr>
+            #           ...
+            #       </tr>
+            #   </tbody>
+            # </table>
 
-                    movie["time"].append(parsed_time)
+            feature_timetable = p_tag.find_next_sibling("table")
+            if feature_timetable:
+                for feature_tr in feature_timetable.find_all("tr"):
+                    feature_tds = feature_tr.find_all("td")
+                    for movie in self.movies:
+                        if movie["title"].lower() == feature_tds[2].text.lower():
+                            # Movie will be featured today
+                            time_str = (
+                                unicodedata.normalize("NFKC", feature_tds[0].text)
+                                .strip("\n")
+                                .strip()
+                                .split(" ")[0]
+                            )
+                            hour_str, min_str = time_str.split("h")
+                            if min_str:
+                                parsed_time = dt_time(int(hour_str), int(min_str))
+                            else:
+                                parsed_time = dt_time(int(hour_str))
+                            movie["time"].append(parsed_time)
+            else:
+                for strong in p_tag.find_all("strong"):
+                    for movie in self.movies:
+                        if movie["title"].lower() != strong.text.lower():
+                            continue
+                        # Movie will be featured today
+                        # Lines are in the format
+                        # 14h30 EH: Retratos Fantasmas, Kleber Mendonça Filho
+                        time_str = (
+                            unicodedata.normalize(
+                                "NFKC", strong.find_previous_sibling(string=True)
+                            )
+                            .strip("\n")
+                            .strip()
+                            .split(" ")[0]
+                        )
+                        hour_str, min_str = time_str.split("h")
+                        if min_str:
+                            parsed_time = dt_time(int(hour_str), int(min_str))
+                        else:
+                            parsed_time = dt_time(int(hour_str))
+
+                        movie["time"].append(parsed_time)
         features = [movie for movie in self.movies if len(movie["time"]) > 0]
         sorted_features = sorted(features, key=lambda feature: feature["time"][0])
         for feature in sorted_features:

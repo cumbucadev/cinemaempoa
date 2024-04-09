@@ -51,13 +51,16 @@
         <div class="d-flex align-items-center">
           <h3>{{ screening_date['title'] }}</h3>
           {% if screening_date['draft'] %}
-          <span
+          <button
             class="badge text-bg-warning ms-3"
             data-bs-toggle="tooltip"
-            data-bs-title="Visível apenas para usuários logados"
+            data-bs-title="clique para publicar"
             aria-label="Visível apenas para usuários logados"
-            >Rascunho</span
+            data-function="publish"
+            data-screening-id="{{ screening_date['screening_id'] }}"
           >
+            Rascunho
+          </button>
           {% endif %}
         </div>
         {% if screening_date['times']|length %}
@@ -103,4 +106,30 @@
 </article>
 {% if not loop.last %}
 <hr />
-{% endif %} {% endfor %} {% endblock %}
+{% endif %} {% endfor %}
+<script>
+  const publishBtns = document.querySelectorAll('[data-function="publish"]');
+  publishBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // get the buttons screening id
+      const screeningId = btn.dataset.screeningId;
+      // send a post request to the server
+      fetch(`/screening/${screeningId}/publish`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => {
+          // if the response is ok, reload the page
+          if (response.ok) {
+            window.location.reload();
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    });
+  });
+</script>
+{% endblock %}

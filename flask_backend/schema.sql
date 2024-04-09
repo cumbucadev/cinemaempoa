@@ -34,5 +34,6 @@ CREATE TABLE screening (
     screening_url TEXT,
     image TEXT,
     description TEXT NOT NULL,
+    draft BOOLEAN NOT NULL DEFAULT false,
     FOREIGN KEY (cinema_id) REFERENCES cinema (id)
 );

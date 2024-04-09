@@ -21,13 +21,13 @@
     {% if received_dates|length %}
       {% for received_date in received_dates %}
         <div class="mb-2">
-          <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{received_date}}" min="2023-01-01T00:00" max="{{current_year}}-12-31T00:00" />
+          <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{received_date}}" min="2023-01-01T00:00" max="{{max_year}}-12-31T00:00" />
           <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
         </div>
       {% endfor %}
     {% else %}
       <div class="mb-2">
-        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{current_date}}T19:00" min="2023-01-01T00:00" max="{{current_year}}-12-31T00:00" />
+        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{current_date}}T19:00" min="2023-01-01T00:00" max="{{max_year}}-12-31T00:00" />
         <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
       </div>
     {% endif %}
