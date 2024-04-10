@@ -41,7 +41,11 @@
   </div>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
-    <input class="form-control" name="movie_poster" type="file" id="movie_poster">
+    <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*">
+    <p class="form-text">
+      <span id="file-limit-label"></span>
+      <span class="text-danger d-block" id="errorMessage"></span>
+    </p>
   </div>
 
   <div class="mb-3">
@@ -102,6 +106,28 @@
 
       screeningWrapper.appendChild(newScreeningDiv);
     });
+    document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
   };
+
+  function getMaxFileSize(in_mb) {
+    const max_file_size_bytes = {{ max_file_size }};
+    if (in_mb) {
+      return max_file_size_bytes / 1024 / 1024;
+    }
+    return max_file_size_bytes;
+  };
+
+  function verifyFileSize(input) {
+    const max_size_mb = getMaxFileSize() / 1024 / 1024;
+    const fileSize = input.files[0].size;
+    const errorMessage = document.getElementById("errorMessage");
+
+    if (fileSize > getMaxFileSize(false)) {
+        input.value = ''; // Limpar o campo de entrada para que o usuário possa selecionar novamente
+        errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
+    } else {
+        errorMessage.innerHTML = '';
+    }
+  }
 </script>
 {% endblock %}

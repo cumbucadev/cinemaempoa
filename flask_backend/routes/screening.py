@@ -187,6 +187,7 @@ def create():
         current_date=current_date,
         received_dates=valid_dates,
         max_year=max_year,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
     )
 
 
