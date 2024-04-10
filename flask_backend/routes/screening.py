@@ -349,14 +349,10 @@ def import_screenings():
                     # if the file from that URL already exists locally, use that
                     img_path = get_img_path_from_filename(image_filename, current_app)
                     if img_path:
-                        image_width, image_height = get_image_metadata(
-                            scrapped_feature.poster, current_app
-                        )
+                        image_width, image_height = get_image_metadata(img_path)
                     # file doesnt exist locally, attempt to download
                     else:
-                        img, filename = download_image_from_url(
-                            scrapped_feature.poster, current_app
-                        )
+                        img, filename = download_image_from_url(scrapped_feature.poster)
                         image_filename, image_width, image_height = None, None, None
                         if img is not None:
                             # if we fail to download or validate the image, just ignore it for now
