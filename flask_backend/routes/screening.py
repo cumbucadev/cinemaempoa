@@ -283,101 +283,76 @@ def update(id):
 def import_screenings():
     suggestions = []
     if request.method == "POST":
-        json_file = request.files.get("json_file", None)
-
-        if json_file is None:
-            flash("Arquivo .json inválido", "danger")
+        if "json_file" not in request.files:
+            flash("Nenhum arquivo enviado", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
 
-        try:
-            parsed_json = json.load(json_file)
-        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
-            flash("Arquivo .json inválido", "danger")
+        json_file = request.files["json_file"]
+
+        if json_file.filename == "":
+            flash("Nenhum arquivo selecionado", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
 
-        try:
-            scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
-        except Exception as e:
-            flash("Arquivo .json inválido", "danger")
-            print(e)
-            return render_template("screening/import.html", suggestions=suggestions)
-
-        created_features = 0
-
-        # validate all cinemas are valid
-        for json_cinema in scrapped_results.cinemas:
-            cinema = get_cinema_by_slug(json_cinema.slug)
-            if cinema is None:
-                flash(f"Sala {json_cinema.slug} não encontrada.")
+        if json_file:
+            try:
+                parsed_json = json.load(json_file)
+            except json.decoder.JSONDecodeError:
+                flash("Erro ao decodificar o arquivo JSON", "danger")
                 return render_template("screening/import.html", suggestions=suggestions)
 
-        # all validations passed, import screenings :)
-        scrapped_cinema: ScrappedCinema
-        for scrapped_cinema in scrapped_results.cinemas:
-            cinema = get_cinema_by_slug(scrapped_cinema.slug)
-            scrapped_feature: ScrappedFeature
-            for scrapped_feature in scrapped_cinema.features:
-                movie = get_movie_by_title_or_create(scrapped_feature.title)
+            try:
+                scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
+            except Exception as e:
+                flash("Erro ao analisar o arquivo JSON", "danger")
+                print(e)
+                return render_template("screening/import.html", suggestions=suggestions)
 
-                description: str = ""
-                screenings_dates = None
-                if scrapped_feature.time:
+            created_features = 0
+
+            for scrapped_cinema in scrapped_results.cinemas:
+                cinema = get_cinema_by_slug(scrapped_cinema.slug)
+                if cinema is None:
+                    flash(f"Sala {scrapped_cinema.slug} não encontrada.", "danger")
+                    return render_template("screening/import.html", suggestions=suggestions)
+
+                for scrapped_feature in scrapped_cinema.features:
+                    movie = get_movie_by_title_or_create(scrapped_feature.title)
+
+                    description = "\n".join(filter(None, [
+                        scrapped_feature.original_title,
+                        scrapped_feature.price,
+                        scrapped_feature.director,
+                        scrapped_feature.classification,
+                        scrapped_feature.general_info,
+                        scrapped_feature.excerpt
+                    ]))
+
                     screenings_dates = build_dates(scrapped_feature.time)
-                if scrapped_feature.original_title:
-                    description += f"\n{scrapped_feature.original_title.strip()}"
-                if scrapped_feature.price:
-                    description += f"\n{scrapped_feature.price}"
-                if scrapped_feature.director:
-                    description += f"\n{scrapped_feature.director}"
-                if scrapped_feature.classification:
-                    description += f"\n{scrapped_feature.classification}"
-                if scrapped_feature.general_info:
-                    description += f"\n{scrapped_feature.general_info}"
-                if scrapped_feature.excerpt:
-                    description += f"\n{scrapped_feature.excerpt}"
 
-                if screenings_dates is None:
-                    screenings_dates = build_dates(
-                        [datetime.now().strftime("%Y-%m-%dT%H:%M")]
+                    if not screenings_dates:
+                        screenings_dates = build_dates([datetime.now().strftime("%Y-%m-%dT%H:%M")])
+
+                    image_filename, image_width, image_height = None, None, None
+                    if scrapped_feature.poster:
+                        img, image_filename = download_image_from_url(scrapped_feature.poster)
+                        if img:
+                            image_width, image_height = img.size
+
+                    create_screening(
+                        movie.id,
+                        description,
+                        cinema.id,
+                        screenings_dates,
+                        image_filename,
+                        image_width,
+                        image_height,
+                        True
                     )
+                    created_features += 1
 
-                image_filename, image_width, image_height = None, None, None
-                if scrapped_feature.poster:
-                    image_filename = get_img_filename_from_url(scrapped_feature.poster)
-
-                    # if the file from that URL already exists locally, use that
-                    img_path = get_img_path_from_filename(image_filename, current_app)
-                    if img_path:
-                        image_width, image_height = get_image_metadata(
-                            scrapped_feature.poster, current_app
-                        )
-                    # file doesnt exist locally, attempt to download
-                    else:
-                        img, filename = download_image_from_url(
-                            scrapped_feature.poster, current_app
-                        )
-                        image_filename, image_width, image_height = None, None, None
-                        if img is not None:
-                            # if we fail to download or validate the image, just ignore it for now
-                            image_filename, image_width, image_height = save_image(
-                                img, current_app, filename
-                            )
-
-                create_screening(
-                    movie.id,
-                    description,
-                    cinema.id,
-                    screenings_dates,
-                    image_filename,
-                    image_width,
-                    image_height,
-                    True,
-                )
-                created_features += 1
-        flash(f"«{created_features}» sessões criadas com sucesso!", "success")
+            flash(f"{created_features} sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
-
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
 # @login_required
