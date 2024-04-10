@@ -1,6 +1,7 @@
-from sqlalchemy import Boolean, Column, Integer, String, Date, ForeignKey
-from sqlalchemy.orm import Mapped, relationship
 from typing import List
+
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, relationship
 
 from flask_backend.db import Base
 
@@ -26,7 +27,7 @@ class Cinema(Base):
     __tablename__ = "cinemas"
 
     id = Column(Integer, primary_key=True)
-    slug = Column(String, nullable=False)
+    slug = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     url = Column(String, nullable=False)
 
