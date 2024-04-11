@@ -11,6 +11,7 @@ primary_region = 'gig'
 
 [env]
   PORT = '8080'
+  TZ="America/Sao_Paulo"
 
 [[mounts]]
   source = 'cinemaempoadb'
