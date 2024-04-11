@@ -3,12 +3,16 @@ import os
 from flask import Flask
 
 from flask_backend.db import db_session
-from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY
+from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
 
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
-    app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
+    if UPLOAD_DIR is not None:
+        app.config["UPLOAD_FOLDER"] = UPLOAD_DIR
+    else:
+        app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
+
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 5  # max 5mb file uploads
     app.config.from_mapping(SECRET_KEY=SESSION_KEY)
     if test_config is None:
