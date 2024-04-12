@@ -1,7 +1,6 @@
 import hashlib
 import imghdr
 import os
-import re
 from datetime import datetime
 from io import BytesIO
 from typing import List, Optional, Tuple
@@ -10,7 +9,17 @@ import requests
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import ScreeningDate
+from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
+from flask_backend.repository.movies import (
+    get_by_title_or_create as get_movie_by_title_or_create,
+)
+from flask_backend.repository.screenings import create as create_screening
+from flask_backend.repository.screenings import (
+    get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
+)
+from flask_backend.repository.screenings import update_screening_dates
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -71,59 +80,6 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
     return screening_date_objects
 
 
-def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
-    """Receives string in format:
-    - \\n\\n\\nHorários: 12:00h\\n\\n\\n\\nSala de Cinema\\n\\n
-    - 16h
-    - 15h30/ 19h30
-    - 15h/ 19h
-    - 15h15
-    - 13 de setembro | quarta-feira | 19h
-    - 05 de setembro | terça-feira | 16h30
-
-    Attempts to parse it into a list of strings in format:
-    - ["2023-11-11T12:00"]"""
-    today_date = datetime.strftime(datetime.now(), "%Y-%m-%d")
-    if time_str is None or time_str == "":
-        return []
-
-    if time_str.startswith("\n\n\nHorários: "):
-        stripped_time = time_str.strip("\n\n\nHorários: ").split("h")
-        return [f"{today_date}T{stripped_time[0]}"]
-
-    # check if time_str is in format DD de MMMM | dia-da-semana | HHhMM,
-    # and save the match to a variable
-    format_match = re.match(
-        r"^\d{1,2} de \w+ \| [\w-]+ \| (\d{1,2}h?(?:\d{1,2})?)$", time_str
-    )
-    if format_match:
-        split_match = format_match.group(1).split("h")
-        if len(split_match) == 1 or split_match[1] == "":
-            return [f"{today_date}T{split_match[0]}:00"]
-        return [f"{today_date}T{split_match[0]}:{split_match[1]}"]
-
-    # check if time_str is in format HHhMM using regex
-    if re.match(r"^\d{1,2}h\d{1,2}$", time_str):
-        return [f"{today_date}T{time_str[0:2]}:{time_str[-2:]}"]
-
-    if "/" in time_str:
-        split_time = time_str.split("/")
-        formatted_time = []
-        for time in split_time:
-            if time.strip().endswith("h"):
-                formatted_time.append(f"{today_date}T{time.strip()[:-1]}:00")
-            else:
-                hour_mins = time.strip().split("h")
-                formatted_time.append(f"{today_date}T{hour_mins[0]}:{hour_mins[1]}")
-
-        return formatted_time
-
-    if time_str.strip().endswith("h"):
-        return [f"{today_date}T{time_str[:-1]}:00"]
-
-    return None
-
-
 def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[str]]:
     if image_url is None:
         return None, None
@@ -159,3 +115,86 @@ def get_image_metadata(img_path):
     with open(img_path, "rb") as f:
         loaded_image = Image.open(f)
     return loaded_image.width, loaded_image.height
+
+
+def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
+    created_features = 0
+    scrapped_cinema: ScrappedCinema
+    for scrapped_cinema in scrapped_results.cinemas:
+        cinema = get_cinema_by_slug(scrapped_cinema.slug)
+        scrapped_feature: ScrappedFeature
+        for scrapped_feature in scrapped_cinema.features:
+            movie = get_movie_by_title_or_create(scrapped_feature.title)
+
+            description: str = ""
+            screenings_dates = None
+            if scrapped_feature.time:
+                screenings_dates = build_dates(scrapped_feature.time)
+            if scrapped_feature.original_title:
+                description += f"\n{scrapped_feature.original_title.strip()}"
+            if scrapped_feature.price:
+                description += f"\n{scrapped_feature.price}"
+            if scrapped_feature.director:
+                description += f"\n{scrapped_feature.director}"
+            if scrapped_feature.classification:
+                description += f"\n{scrapped_feature.classification}"
+            if scrapped_feature.general_info:
+                description += f"\n{scrapped_feature.general_info}"
+            if scrapped_feature.excerpt:
+                description += f"\n{scrapped_feature.excerpt}"
+
+            if screenings_dates is None:
+                screenings_dates = build_dates(
+                    [datetime.now().strftime("%Y-%m-%dT%H:%M")]
+                )
+
+            image_filename, image_width, image_height = None, None, None
+            if scrapped_feature.poster:
+                image_filename = get_img_filename_from_url(scrapped_feature.poster)
+
+                # if the file from that URL already exists locally, use that
+                img_path = get_img_path_from_filename(image_filename, current_app)
+                if img_path:
+                    image_width, image_height = get_image_metadata(img_path)
+                # file doesnt exist locally, attempt to download
+                else:
+                    img, filename = download_image_from_url(scrapped_feature.poster)
+                    image_filename, image_width, image_height = None, None, None
+                    if img is not None:
+                        # if we fail to download or validate the image, just ignore it for now
+                        image_filename, image_width, image_height = save_image(
+                            img, current_app, filename
+                        )
+            screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
+            if not screening:
+                create_screening(
+                    movie.id,
+                    description,
+                    cinema.id,
+                    screenings_dates,
+                    image_filename,
+                    image_width,
+                    image_height,
+                    True,
+                )
+            else:
+                # create new ScreeningDate objects from existing ones
+                # to prevent reference errors
+                existing_dates = build_dates(
+                    [f"{sd.date}T{sd.time}" for sd in screening.dates]
+                )
+                # append new dates to the list by checking if there is no
+                # other date with an equal date and time fields
+                for new_date in screenings_dates:
+                    already_registered = False
+                    for existing_date in existing_dates:
+                        same_date = existing_date.date == new_date.date
+                        same_time = existing_date.time == new_date.time
+                        if same_date and same_time:
+                            already_registered = True
+                            break
+                    if not already_registered:
+                        existing_dates.append(new_date)
+                update_screening_dates(screening, existing_dates)
+            created_features += 1
+    return created_features

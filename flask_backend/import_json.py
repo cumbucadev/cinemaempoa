@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from flask_backend.service.screening import parse_to_datetime_string
+from flask_backend.service.shared import parse_to_datetime_string
 
 
 @dataclass

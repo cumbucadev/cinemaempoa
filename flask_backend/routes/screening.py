@@ -34,10 +34,7 @@ from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
     build_dates,
-    download_image_from_url,
-    get_image_metadata,
-    get_img_filename_from_url,
-    get_img_path_from_filename,
+    import_scrapped_results,
     save_image,
     validate_image,
 )
@@ -303,9 +300,7 @@ def import_screenings():
             print(e)
             return render_template("screening/import.html", suggestions=suggestions)
 
-        created_features = 0
-
-        # validate all cinemas are valid
+        # validate all cinemas exist in db
         for json_cinema in scrapped_results.cinemas:
             cinema = get_cinema_by_slug(json_cinema.slug)
             if cinema is None:
@@ -313,64 +308,8 @@ def import_screenings():
                 return render_template("screening/import.html", suggestions=suggestions)
 
         # all validations passed, import screenings :)
-        scrapped_cinema: ScrappedCinema
-        for scrapped_cinema in scrapped_results.cinemas:
-            cinema = get_cinema_by_slug(scrapped_cinema.slug)
-            scrapped_feature: ScrappedFeature
-            for scrapped_feature in scrapped_cinema.features:
-                movie = get_movie_by_title_or_create(scrapped_feature.title)
+        created_features = import_scrapped_results(scrapped_results, current_app)
 
-                description: str = ""
-                screenings_dates = None
-                if scrapped_feature.time:
-                    screenings_dates = build_dates(scrapped_feature.time)
-                if scrapped_feature.original_title:
-                    description += f"\n{scrapped_feature.original_title.strip()}"
-                if scrapped_feature.price:
-                    description += f"\n{scrapped_feature.price}"
-                if scrapped_feature.director:
-                    description += f"\n{scrapped_feature.director}"
-                if scrapped_feature.classification:
-                    description += f"\n{scrapped_feature.classification}"
-                if scrapped_feature.general_info:
-                    description += f"\n{scrapped_feature.general_info}"
-                if scrapped_feature.excerpt:
-                    description += f"\n{scrapped_feature.excerpt}"
-
-                if screenings_dates is None:
-                    screenings_dates = build_dates(
-                        [datetime.now().strftime("%Y-%m-%dT%H:%M")]
-                    )
-
-                image_filename, image_width, image_height = None, None, None
-                if scrapped_feature.poster:
-                    image_filename = get_img_filename_from_url(scrapped_feature.poster)
-
-                    # if the file from that URL already exists locally, use that
-                    img_path = get_img_path_from_filename(image_filename, current_app)
-                    if img_path:
-                        image_width, image_height = get_image_metadata(img_path)
-                    # file doesnt exist locally, attempt to download
-                    else:
-                        img, filename = download_image_from_url(scrapped_feature.poster)
-                        image_filename, image_width, image_height = None, None, None
-                        if img is not None:
-                            # if we fail to download or validate the image, just ignore it for now
-                            image_filename, image_width, image_height = save_image(
-                                img, current_app, filename
-                            )
-
-                create_screening(
-                    movie.id,
-                    description,
-                    cinema.id,
-                    screenings_dates,
-                    image_filename,
-                    image_width,
-                    image_height,
-                    True,
-                )
-                created_features += 1
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
