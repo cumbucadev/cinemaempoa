@@ -2,6 +2,10 @@ import json
 import math
 from datetime import date, datetime
 from typing import List
+import subprocess
+import shutil
+import os
+import requests
 
 from flask import (
     Blueprint,
@@ -13,6 +17,7 @@ from flask import (
     request,
     send_from_directory,
     url_for,
+    session
 )
 from werkzeug.exceptions import abort
 
@@ -276,6 +281,23 @@ def update(id):
             return redirect(url_for("screening.index"))
 
     return render_template("screening/update.html", screening=screening)
+
+
+@bp.route("/screening/scrap", methods=["GET", "POST"])
+@login_required
+def runScrap():
+    subprocess.run(["./cinemaempoa.py", "-r", "capitolio", "sala-redencao", "cinebancarios", "paulo-amorim"], check=True)
+
+    file_name = datetime.now().strftime("%Y-%m-%d") + ".json"
+    json_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "json"))
+    file_path = os.path.join(json_dir, file_name)
+    files = {'json_file': open(file_path, 'rb')}
+    session_cookie = request.cookies.get('session')
+    cookies = {'session': session_cookie}
+
+    requests.post(f"{url_for('screening.index', _external=True)}/screening/import", files=files, cookies=cookies)
+
+    return redirect(url_for("screening.index"))
 
 
 @bp.route("/screening/import", methods=("GET", "POST"))
