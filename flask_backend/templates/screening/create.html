@@ -37,10 +37,10 @@
   </div>
   <div class="mb-3">
     <label class="form-label" for="title">Title</label>
-    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" oninput="fetchSimilarTitles()" required>
+    <input autocomplete="off" class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" oninput="fetchSimilarTitles()" required>
   </div>
-  <div class="mb-3" class="" id="similar_movies">
-  </div>
+  <ul class="mb-3" class="" id="similar_movies">
+  </ul>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
     <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*">
@@ -134,19 +134,22 @@
 
 
   function createSimilarMovieTitleOption(movie) {
-          let option = document.createElement('a');
+          const li = document.createElement('li');
+          const btn = document.createElement('button');
+          btn.type = "button";
           const option_class_list = ["btn", "btn-link","link-light"]
-          option.classList.add(...option_class_list);
-          option.addEventListener("click", function () {
+          btn.classList.add(...option_class_list);
+          btn.addEventListener("click", function () {
               document.getElementById('title').value = movie.title;
           })
-          option.textContent = movie.title;
-          return option
-      }
+          btn.textContent = movie.title;
+          li.appendChild(btn);
+          return li;
+    }
 
   function fetchSimilarTitles() {
       const userInput = document.getElementById('title').value;
-      const url = 'http://localhost:5000/movies/search?title='
+      const url = '/movies/search?title='
       const similarMovieDiv = document.getElementById('similar_movies');
 
       function clearMoviesDisplay() {

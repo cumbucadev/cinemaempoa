@@ -1,7 +1,8 @@
-from flask import Blueprint, g, render_template, jsonify, after_this_request, request
+from flask import Blueprint, g, jsonify, render_template, request
 
 from flask_backend.repository.movies import get_all as get_all_movies
 from flask_backend.repository.movies import get_movies_with_similar_titles
+from flask_backend.routes.auth import login_required
 
 bp = Blueprint("movie", __name__)
 
@@ -15,12 +16,9 @@ def index():
     )
 
 
-@bp.route("/movies/search", methods=['GET'])
+@bp.route("/movies/search", methods=["GET"])
+@login_required
 def search_movies():
-    @after_this_request
-    def add_header(response):
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        return response
-    title = request.args.get('title')
+    title = request.args.get("title")
     movies = get_movies_with_similar_titles(title)
-    return jsonify([{'title': movie.title} for movie in movies])
+    return jsonify([{"title": movie.title} for movie in movies])
