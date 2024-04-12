@@ -159,8 +159,8 @@
         .then(data => {
             clearMoviesDisplay()
             data.forEach(movie => {
-                let option_movie_title = createSimilarMovieTitleOption(movie)
-                similarMovieDiv.appendChild(option_movie_title);
+                let optionMovieTitle = createSimilarMovieTitleOption(movie)
+                similarMovieDiv.appendChild(optionMovieTitle);
             })
         });
       }
