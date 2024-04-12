@@ -30,3 +30,7 @@ def get_by_title_or_create(title: str) -> Movie:
     if not movie:
         movie = create(title=title)
     return movie
+
+
+def get_movies_with_similar_titles(title: str) -> List[Movie]:
+    return db_session.query(Movie).filter(Movie.title.ilike(f"%{title}%")).limit(3).all()

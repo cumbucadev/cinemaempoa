@@ -37,7 +37,9 @@
   </div>
   <div class="mb-3">
     <label class="form-label" for="title">Title</label>
-    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" required>
+    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" oninput="fetchSimilarTitles()" required>
+  </div>
+  <div class="mb-3" class="" id="similar_movies">
   </div>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
@@ -128,6 +130,43 @@
     } else {
         errorMessage.innerHTML = '';
     }
+  }
+
+
+  function createSimilarMovieTitleOption(movie) {
+          let option = document.createElement('a');
+          const option_class_list = ["btn", "btn-link","link-light"]
+          option.classList.add(...option_class_list);
+          option.addEventListener("click", function () {
+              document.getElementById('title').value = movie.title;
+          })
+          option.textContent = movie.title;
+          return option
+      }
+
+  function fetchSimilarTitles() {
+      const userInput = document.getElementById('title').value;
+      const url = 'http://localhost:5000/movies/search?title='
+      const similarMovieDiv = document.getElementById('similar_movies');
+
+      function clearMoviesDisplay() {
+        similarMovieDiv.innerHTML = '';
+      }
+
+      if (userInput.length > 2) {
+        fetch(`${url}${encodeURIComponent(userInput)}`)
+        .then(response => response.json())
+        .then(data => {
+            clearMoviesDisplay()
+            data.forEach(movie => {
+                let option_movie_title = createSimilarMovieTitleOption(movie)
+                similarMovieDiv.appendChild(option_movie_title);
+            })
+        });
+      }
+      else {
+        clearMoviesDisplay()
+      }
   }
 </script>
 {% endblock %}
