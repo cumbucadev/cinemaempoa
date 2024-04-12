@@ -1,8 +1,7 @@
-from flask import Blueprint, g, render_template, jsonify, after_this_request
+from flask import Blueprint, g, render_template, jsonify, after_this_request, request
 
 from flask_backend.repository.movies import get_all as get_all_movies
 from flask_backend.repository.movies import get_movies_with_similar_titles
-from flask import request
 
 bp = Blueprint("movie", __name__)
 
