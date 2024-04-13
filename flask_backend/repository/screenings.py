@@ -19,6 +19,7 @@ def get_days_screenings_by_cinema_id(
         .join(ScreeningDate)
         .filter(Screening.cinema_id == cinema_id)
         .filter(func.date(ScreeningDate.date) == day)
+        .order_by(func.time(ScreeningDate.time))
         .all()
     )
 
