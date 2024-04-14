@@ -2,10 +2,13 @@ import json
 import math
 from datetime import date, datetime
 from typing import List
-import subprocess
-import shutil
 import os
 import requests
+from utils import dump_utf8_json
+from scrapers.capitolio import Capitolio
+from scrapers.cinebancarios import CineBancarios
+from scrapers.paulo_amorim import CinematecaPauloAmorim
+from scrapers.sala_redencao import SalaRedencao
 
 from flask import (
     Blueprint,
@@ -286,14 +289,54 @@ def update(id):
 @bp.route("/screening/scrap", methods=["GET", "POST"])
 @login_required
 def runScrap():
-    subprocess.run(["./cinemaempoa.py", "-r", "capitolio", "sala-redencao", "cinebancarios", "paulo-amorim"], check=True)
-
+    # subprocess.run(["./cinemaempoa.py", "-r", "capitolio", "sala-redencao", "cinebancarios", "paulo-amorim"], check=True)
+    features = []
     file_name = datetime.now().strftime("%Y-%m-%d") + ".json"
     json_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "json"))
     file_path = os.path.join(json_dir, file_name)
-    files = {'json_file': open(file_path, 'rb')}
     session_cookie = request.cookies.get('session')
     cookies = {'session': session_cookie}
+
+    # Capitolio
+    feature = {
+        "url": "http://www.capitolio.org.br",
+        "cinema": "Cinemateca Capitólio",
+        "slug": "capitolio",
+    }
+    cap = Capitolio()
+    feature["features"] = cap.get_daily_features_json()
+    features.append(feature)
+
+    # Sala-redenção
+    feature = {
+        "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
+        "cinema": "Sala Redenção",
+        "slug": "sala-redencao",
+    }
+    redencao = SalaRedencao()
+    feature["features"] = redencao.get_daily_features_json()
+    features.append(feature)
+
+    # cinebancarios
+    cineBancarios = CineBancarios()
+    features.append(cineBancarios.get_daily_features_json())
+
+    # paulo-amorim
+    feature = {
+        "url": "https://www.cinematecapauloamorim.com.br",
+        "cinema": "Cinemateca Paulo Amorim",
+        "slug": "paulo-amorim",
+    }
+    pauloAmorim = CinematecaPauloAmorim()
+    feature["features"] = pauloAmorim.get_daily_features_json()
+    features.append(feature)
+
+    os.makedirs("json", exist_ok=True)
+
+    with open(file_path, "w") as json_file:
+        json_file.write(dump_utf8_json(features))
+
+    files = {'json_file': open(file_path, 'rb')}
 
     requests.post(f"{url_for('screening.index', _external=True)}/screening/import", files=files, cookies=cookies)
 
