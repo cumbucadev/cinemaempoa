@@ -37,13 +37,17 @@
   </div>
   <div class="mb-3">
     <label class="form-label" for="title">Title</label>
-    <input class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" required>
+    <input autocomplete="off" class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" oninput="fetchSimilarTitles()" required>
   </div>
+  <ul class="mb-3" class="" id="similar_movies">
+  </ul>
   <div class="mb-3">
     <label for="movie_poster" class="form-label">Imagem do filme</label>
-    <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)">
-    <p>Tamanho máximo de imagem de 9mb!</p>
-    <p class="text-danger" id="errorMessage"></p>
+    <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*">
+    <p class="form-text">
+      <span id="file-limit-label"></span>
+      <span class="text-danger d-block" id="errorMessage"></span>
+    </p>
   </div>
 
   <div class="mb-3">
@@ -104,19 +108,68 @@
 
       screeningWrapper.appendChild(newScreeningDiv);
     });
+    document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
+  };
+
+  function getMaxFileSize(in_mb) {
+    const max_file_size_bytes = {{ max_file_size }};
+    if (in_mb) {
+      return max_file_size_bytes / 1024 / 1024;
+    }
+    return max_file_size_bytes;
   };
 
   function verifyFileSize(input) {
-    const MAX_SIZE_MB = 9;
-    const fileSize = input.files[0].size / 1024 / 1024; // Convertendo para MB
+    const max_size_mb = getMaxFileSize() / 1024 / 1024;
+    const fileSize = input.files[0].size;
     const errorMessage = document.getElementById("errorMessage");
 
-    if (fileSize > MAX_SIZE_MB) {
+    if (fileSize > getMaxFileSize(false)) {
         input.value = ''; // Limpar o campo de entrada para que o usuário possa selecionar novamente
-        errorMessage.innerHTML = `O tamanho máximo permitido é ${MAX_SIZE_MB}MB. Por favor, selecione um arquivo menor.`;
+        errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
     } else {
         errorMessage.innerHTML = '';
     }
-}
+  }
+
+
+  function createSimilarMovieTitleOption(movie) {
+          const li = document.createElement('li');
+          const btn = document.createElement('button');
+          btn.type = "button";
+          const option_class_list = ["btn", "btn-link","link-light"]
+          btn.classList.add(...option_class_list);
+          btn.addEventListener("click", function () {
+              document.getElementById('title').value = movie.title;
+          })
+          btn.textContent = movie.title;
+          li.appendChild(btn);
+          return li;
+    }
+
+  function fetchSimilarTitles() {
+      const userInput = document.getElementById('title').value;
+      const url = '/movies/search?title='
+      const similarMovieDiv = document.getElementById('similar_movies');
+
+      function clearMoviesDisplay() {
+        similarMovieDiv.innerHTML = '';
+      }
+
+      if (userInput.length > 2) {
+        fetch(`${url}${encodeURIComponent(userInput)}`)
+        .then(response => response.json())
+        .then(data => {
+            clearMoviesDisplay()
+            data.forEach(movie => {
+                let optionMovieTitle = createSimilarMovieTitleOption(movie)
+                similarMovieDiv.appendChild(optionMovieTitle);
+            })
+        });
+      }
+      else {
+        clearMoviesDisplay()
+      }
+  }
 </script>
 {% endblock %}

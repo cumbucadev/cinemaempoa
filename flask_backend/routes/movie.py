@@ -1,6 +1,8 @@
-from flask import Blueprint, g, render_template
+from flask import Blueprint, g, jsonify, render_template, request
 
 from flask_backend.repository.movies import get_all as get_all_movies
+from flask_backend.repository.movies import get_movies_with_similar_titles
+from flask_backend.routes.auth import login_required
 
 bp = Blueprint("movie", __name__)
 
@@ -12,3 +14,11 @@ def index():
     return render_template(
         "movie/index.html", movies=movies, show_drafts=user_logged_in
     )
+
+
+@bp.route("/movies/search", methods=["GET"])
+@login_required
+def search_movies():
+    title = request.args.get("title")
+    movies = get_movies_with_similar_titles(title)
+    return jsonify([{"title": movie.title} for movie in movies])

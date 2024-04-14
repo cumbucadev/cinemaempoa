@@ -1,6 +1,7 @@
 from datetime import date
+from typing import List, Optional, Tuple
+
 from sqlalchemy import func
-from typing import Optional, List, Tuple
 
 from flask_backend.db import db_session
 from flask_backend.models import Screening, ScreeningDate
@@ -18,10 +19,21 @@ def get_days_screenings_by_cinema_id(
         .join(ScreeningDate)
         .filter(Screening.cinema_id == cinema_id)
         .filter(func.date(ScreeningDate.date) == day)
+        .order_by(func.time(ScreeningDate.time))
         .all()
     )
 
     return screening_dates
+
+
+def get_by_movie_id_and_cinema_id(movie_id: int, cinema_id: int) -> Optional[Screening]:
+    screening = (
+        db_session.query(Screening)
+        .filter(Screening.movie_id == movie_id)
+        .filter(Screening.cinema_id == cinema_id)
+        .first()
+    )
+    return screening
 
 
 def create(

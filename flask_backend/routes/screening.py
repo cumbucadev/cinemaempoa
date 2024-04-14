@@ -42,10 +42,7 @@ from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
     build_dates,
-    download_image_from_url,
-    get_image_metadata,
-    get_img_filename_from_url,
-    get_img_path_from_filename,
+    import_scrapped_results,
     save_image,
     validate_image,
 )
@@ -195,6 +192,7 @@ def create():
         current_date=current_date,
         received_dates=valid_dates,
         max_year=max_year,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
     )
 
 
@@ -358,64 +356,24 @@ def import_screenings():
             flash("Nenhum arquivo selecionado", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
 
-        if json_file:
-            try:
-                parsed_json = json.load(json_file)
-            except json.decoder.JSONDecodeError:
-                flash("Erro ao decodificar o arquivo JSON", "danger")
+        try:
+            scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
+        except Exception as e:
+            flash("Arquivo .json inválido", "danger")
+            print(e)
+            return render_template("screening/import.html", suggestions=suggestions)
+
+        # validate all cinemas exist in db
+        for json_cinema in scrapped_results.cinemas:
+            cinema = get_cinema_by_slug(json_cinema.slug)
+            if cinema is None:
+                flash(f"Sala {json_cinema.slug} não encontrada.")
                 return render_template("screening/import.html", suggestions=suggestions)
 
-            try:
-                scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
-            except Exception as e:
-                flash("Erro ao analisar o arquivo JSON", "danger")
-                print(e)
-                return render_template("screening/import.html", suggestions=suggestions)
+        # all validations passed, import screenings :)
+        created_features = import_scrapped_results(scrapped_results, current_app)
 
-            created_features = 0
-
-            for scrapped_cinema in scrapped_results.cinemas:
-                cinema = get_cinema_by_slug(scrapped_cinema.slug)
-                if cinema is None:
-                    flash(f"Sala {scrapped_cinema.slug} não encontrada.", "danger")
-                    return render_template("screening/import.html", suggestions=suggestions)
-
-                for scrapped_feature in scrapped_cinema.features:
-                    movie = get_movie_by_title_or_create(scrapped_feature.title)
-
-                    description = "\n".join(filter(None, [
-                        scrapped_feature.original_title,
-                        scrapped_feature.price,
-                        scrapped_feature.director,
-                        scrapped_feature.classification,
-                        scrapped_feature.general_info,
-                        scrapped_feature.excerpt
-                    ]))
-
-                    screenings_dates = build_dates(scrapped_feature.time)
-
-                    if not screenings_dates:
-                        screenings_dates = build_dates([datetime.now().strftime("%Y-%m-%dT%H:%M")])
-
-                    image_filename, image_width, image_height = None, None, None
-                    if scrapped_feature.poster:
-                        img, image_filename = download_image_from_url(scrapped_feature.poster)
-                        if img:
-                            image_width, image_height = img.size
-
-                    create_screening(
-                        movie.id,
-                        description,
-                        cinema.id,
-                        screenings_dates,
-                        image_filename,
-                        image_width,
-                        image_height,
-                        True
-                    )
-                    created_features += 1
-
-            flash(f"{created_features} sessões criadas com sucesso!", "success")
+        flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
 
