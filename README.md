@@ -43,7 +43,9 @@ Você pode fazer login via <http://localhost:5000/auth/login>.
 
 ### Utilizando os scrappers
 
-Atualmente os scrappers são rodados via linha de comandos, com o comando
+Os scrappers podem ser disparados através da interface web na URL <http://127.0.0.1:5000/screening/import>, clicando no botão "Fazer Scrapping". Neste caso, será feita a raspagem de todas as quatro salas de cinema cadastradas.
+
+Alternativamente, os scrappers também podem ser rodados via linha de comandos, com o script
 
     ./cinemaempoa.py -h
 
@@ -60,7 +62,7 @@ Atualmente os scrappers são rodados via linha de comandos, com o comando
                             Filter specific rooms. Available: capitolio, sala-redencao, cinebancarios, paulo-amorim
     -j JSON, --json JSON  JSON filepath to build index.html from
 
-Para disparar os scrappers e conseguir os filmes em cartaz em formato json (que pode ser importado no portal), rode o comando com a flag `r`, e direcione a saída para um arquivo.
+Para disparar os scrappers e conseguir os filmes em cartaz em formato json (que pode ser importado no portal), rode o comando com a flag `r`, listando as salas de cinema desejadas, e direcione a saída para um arquivo.
 
     ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim > import.json
 

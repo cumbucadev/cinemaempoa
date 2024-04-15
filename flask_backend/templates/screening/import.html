@@ -3,7 +3,7 @@
 <p></p>
 {% endblock %} {% block content %}
 <form method="post" enctype="multipart/form-data">
-  <p>Selecione um arquivo .json válido através do botão abaixo.</p>
+  <p>Selecione um arquivo .json válido para realizar a importação.</p>
   <div class="mb-3">
     <label for="json_file" class="form-label">Arquivo json</label>
     <input
@@ -12,34 +12,17 @@
       type="file"
       id="json_file"
       accept=".json,application/json"
+      required
     />
   </div>
-  <div class="container mb-3 pb-3">
+  <div class="container mb-3 pb-3 ps-0">
     <input class="btn btn-primary" type="submit" value="Enviar" />
-    <a
-      id="back-btn"
-      class="btn btn-secondary"
-      href="{{ url_for('screening.index') }}"
-      >Voltar</a
-    >
   </div>
 </form>
+<hr />
 <form method="POST" action="/screening/scrap">
-  <h1>Scrapping automatico</h1>
+  <h2>Scrapping automático</h2>
+  <p>Dispare o processo de web scrapping através do botão abaixo.</p>
   <button class="btn btn-primary" type="submit">Fazer scrapping</button>
 </form>
-<script>
-  window.onload = () => {
-    const backBtn = document.getElementById("back-btn");
-    backBtn.addEventListener("click", (e) => {
-      const proceed = confirm(
-        "Alterações não salvas serão perdidas. Prosseguir?"
-      );
-      if (!proceed) {
-        e.preventDefault();
-        return;
-      }
-    });
-  };
-</script>
 {% endblock %}
