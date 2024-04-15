@@ -2,6 +2,13 @@ import json
 import math
 from datetime import date, datetime
 from typing import List
+import os
+import requests
+from utils import dump_utf8_json
+from scrapers.capitolio import Capitolio
+from scrapers.cinebancarios import CineBancarios
+from scrapers.paulo_amorim import CinematecaPauloAmorim
+from scrapers.sala_redencao import SalaRedencao
 
 from flask import (
     Blueprint,
@@ -13,6 +20,7 @@ from flask import (
     request,
     send_from_directory,
     url_for,
+    session
 )
 from werkzeug.exceptions import abort
 
@@ -276,15 +284,78 @@ def update(id):
     return render_template("screening/update.html", screening=screening)
 
 
+@bp.route("/screening/scrap", methods=["POST"])
+@login_required
+def runScrap():
+    features = []
+
+    # Capitolio
+    feature = {
+        "url": "http://www.capitolio.org.br",
+        "cinema": "Cinemateca Capitólio",
+        "slug": "capitolio",
+    }
+    cap = Capitolio()
+    feature["features"] = cap.get_daily_features_json()
+    features.append(feature)
+
+    # Sala-redenção
+    feature = {
+        "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
+        "cinema": "Sala Redenção",
+        "slug": "sala-redencao",
+    }
+    redencao = SalaRedencao()
+    feature["features"] = redencao.get_daily_features_json()
+    features.append(feature)
+
+    # cinebancarios
+    cineBancarios = CineBancarios()
+    features.append(cineBancarios.get_daily_features_json())
+
+    # paulo-amorim
+    feature = {
+        "url": "https://www.cinematecapauloamorim.com.br",
+        "cinema": "Cinemateca Paulo Amorim",
+        "slug": "paulo-amorim",
+    }
+    pauloAmorim = CinematecaPauloAmorim()
+    feature["features"] = pauloAmorim.get_daily_features_json()
+    features.append(feature)
+
+    try:
+        scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(features)
+    except Exception as e:
+        flash("Ocorreu um problema no processo de scrapping", "danger")
+        print(e)
+        return render_template("screening/import.html", suggestions=[])
+
+    # validate all cinemas exist in db
+    for json_cinema in scrapped_results.cinemas:
+        cinema = get_cinema_by_slug(json_cinema.slug)
+        if cinema is None:
+            flash(f"Sala {json_cinema.slug} não encontrada.")
+            return render_template("screening/import.html", suggestions=[])
+
+    created_features = import_scrapped_results(scrapped_results, current_app)
+    flash(f"«{created_features}» sessões criadas com sucesso!", "success")
+
+    return redirect(url_for("screening.import_screenings"))
+
+
 @bp.route("/screening/import", methods=("GET", "POST"))
 @login_required
 def import_screenings():
     suggestions = []
     if request.method == "POST":
-        json_file = request.files.get("json_file", None)
+        if "json_file" not in request.files:
+            flash("Nenhum arquivo enviado", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
 
-        if json_file is None:
-            flash("Arquivo .json inválido", "danger")
+        json_file = request.files["json_file"]
+
+        if json_file.filename == "":
+            flash("Nenhum arquivo selecionado", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
 
         try:
@@ -313,7 +384,6 @@ def import_screenings():
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
-
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
 # @login_required
