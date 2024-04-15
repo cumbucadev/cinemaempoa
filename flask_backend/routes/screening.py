@@ -284,16 +284,10 @@ def update(id):
     return render_template("screening/update.html", screening=screening)
 
 
-@bp.route("/screening/scrap", methods=["GET", "POST"])
+@bp.route("/screening/scrap", methods=["POST"])
 @login_required
 def runScrap():
-    # subprocess.run(["./cinemaempoa.py", "-r", "capitolio", "sala-redencao", "cinebancarios", "paulo-amorim"], check=True)
     features = []
-    file_name = datetime.now().strftime("%Y-%m-%d") + ".json"
-    json_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "json"))
-    file_path = os.path.join(json_dir, file_name)
-    session_cookie = request.cookies.get('session')
-    cookies = {'session': session_cookie}
 
     # Capitolio
     feature = {
@@ -329,16 +323,24 @@ def runScrap():
     feature["features"] = pauloAmorim.get_daily_features_json()
     features.append(feature)
 
-    os.makedirs("json", exist_ok=True)
+    try:
+        scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(features)
+    except Exception as e:
+        flash("Ocorreu um problema no processo de scrapping", "danger")
+        print(e)
+        return render_template("screening/import.html", suggestions=[])
 
-    with open(file_path, "w") as json_file:
-        json_file.write(dump_utf8_json(features))
+    # validate all cinemas exist in db
+    for json_cinema in scrapped_results.cinemas:
+        cinema = get_cinema_by_slug(json_cinema.slug)
+        if cinema is None:
+            flash(f"Sala {json_cinema.slug} não encontrada.")
+            return render_template("screening/import.html", suggestions=[])
 
-    files = {'json_file': open(file_path, 'rb')}
+    created_features = import_scrapped_results(scrapped_results, current_app)
+    flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
-    requests.post(f"{url_for('screening.index', _external=True)}/screening/import", files=files, cookies=cookies)
-
-    return redirect(url_for("screening.index"))
+    return redirect(url_for("screening.import_screenings"))
 
 
 @bp.route("/screening/import", methods=("GET", "POST"))
@@ -354,6 +356,12 @@ def import_screenings():
 
         if json_file.filename == "":
             flash("Nenhum arquivo selecionado", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
+
+        try:
+            parsed_json = json.load(json_file)
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+            flash("Arquivo .json inválido", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
 
         try:
