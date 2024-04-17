@@ -1,15 +1,10 @@
 import json
 import math
+import os
 from datetime import date, datetime
 from typing import List
-import os
-import requests
-from utils import dump_utf8_json
-from scrapers.capitolio import Capitolio
-from scrapers.cinebancarios import CineBancarios
-from scrapers.paulo_amorim import CinematecaPauloAmorim
-from scrapers.sala_redencao import SalaRedencao
 
+import requests
 from flask import (
     Blueprint,
     current_app,
@@ -19,8 +14,8 @@ from flask import (
     render_template,
     request,
     send_from_directory,
+    session,
     url_for,
-    session
 )
 from werkzeug.exceptions import abort
 
@@ -46,6 +41,11 @@ from flask_backend.service.screening import (
     save_image,
     validate_image,
 )
+from scrapers.capitolio import Capitolio
+from scrapers.cinebancarios import CineBancarios
+from scrapers.paulo_amorim import CinematecaPauloAmorim
+from scrapers.sala_redencao import SalaRedencao
+from utils import dump_utf8_json
 
 bp = Blueprint("screening", __name__)
 
@@ -290,7 +290,7 @@ def runScrap():
     features = []
 
     # Capitolio
-    if 'capitolio' in request.form and request.form['capitolio'] == 'sim':
+    if "capitolio" in request.form:
         feature = {
             "url": "http://www.capitolio.org.br",
             "cinema": "Cinemateca Capitólio",
@@ -300,9 +300,8 @@ def runScrap():
         feature["features"] = cap.get_daily_features_json()
         features.append(feature)
 
-
     # Sala-redenção
-    if 'redencao' in request.form and request.form['redencao'] == 'sim':
+    if "redencao" in request.form:
         feature = {
             "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
             "cinema": "Sala Redenção",
@@ -313,12 +312,12 @@ def runScrap():
         features.append(feature)
 
     # cinebancarios
-    if 'cinebancarios' in request.form and request.form['cinebancarios'] == 'sim':
+    if "cinebancarios" in request.form:
         cineBancarios = CineBancarios()
         features.append(cineBancarios.get_daily_features_json())
 
     # paulo-amorim
-    if 'pauloAmorim' in request.form and request.form['pauloAmorim'] == 'sim':
+    if "pauloAmorim" in request.form:
         feature = {
             "url": "https://www.cinematecapauloamorim.com.br",
             "cinema": "Cinemateca Paulo Amorim",
@@ -389,6 +388,7 @@ def import_screenings():
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
+
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
 # @login_required
