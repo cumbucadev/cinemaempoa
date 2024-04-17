@@ -290,38 +290,43 @@ def runScrap():
     features = []
 
     # Capitolio
-    feature = {
-        "url": "http://www.capitolio.org.br",
-        "cinema": "Cinemateca Capitólio",
-        "slug": "capitolio",
-    }
-    cap = Capitolio()
-    feature["features"] = cap.get_daily_features_json()
-    features.append(feature)
+    if 'capitolio' in request.form and request.form['capitolio'] == 'sim':
+        feature = {
+            "url": "http://www.capitolio.org.br",
+            "cinema": "Cinemateca Capitólio",
+            "slug": "capitolio",
+        }
+        cap = Capitolio()
+        feature["features"] = cap.get_daily_features_json()
+        features.append(feature)
+
 
     # Sala-redenção
-    feature = {
-        "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
-        "cinema": "Sala Redenção",
-        "slug": "sala-redencao",
-    }
-    redencao = SalaRedencao()
-    feature["features"] = redencao.get_daily_features_json()
-    features.append(feature)
+    if 'redencao' in request.form and request.form['redencao'] == 'sim':
+        feature = {
+            "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
+            "cinema": "Sala Redenção",
+            "slug": "sala-redencao",
+        }
+        redencao = SalaRedencao()
+        feature["features"] = redencao.get_daily_features_json()
+        features.append(feature)
 
     # cinebancarios
-    cineBancarios = CineBancarios()
-    features.append(cineBancarios.get_daily_features_json())
+    if 'cinebancarios' in request.form and request.form['cinebancarios'] == 'sim':
+        cineBancarios = CineBancarios()
+        features.append(cineBancarios.get_daily_features_json())
 
     # paulo-amorim
-    feature = {
-        "url": "https://www.cinematecapauloamorim.com.br",
-        "cinema": "Cinemateca Paulo Amorim",
-        "slug": "paulo-amorim",
-    }
-    pauloAmorim = CinematecaPauloAmorim()
-    feature["features"] = pauloAmorim.get_daily_features_json()
-    features.append(feature)
+    if 'pauloAmorim' in request.form and request.form['pauloAmorim'] == 'sim':
+        feature = {
+            "url": "https://www.cinematecapauloamorim.com.br",
+            "cinema": "Cinemateca Paulo Amorim",
+            "slug": "paulo-amorim",
+        }
+        pauloAmorim = CinematecaPauloAmorim()
+        feature["features"] = pauloAmorim.get_daily_features_json()
+        features.append(feature)
 
     try:
         scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(features)

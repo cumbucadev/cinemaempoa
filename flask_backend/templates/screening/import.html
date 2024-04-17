@@ -21,8 +21,32 @@
 </form>
 <hr />
 <form method="POST" action="/screening/scrap">
-  <h2>Scrapping automático</h2>
-  <p>Dispare o processo de web scrapping através do botão abaixo.</p>
-  <button class="btn btn-primary" type="submit">Fazer scrapping</button>
+  <h2>Scrapping automatico</h2>
+  <label class="form-label">Selecione os cinemas que deseja fazer os scrapping</label>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="sim" id="cinebancarios" name="cinebancarios">
+    <label class="form-check-label" for="cinebancarios">
+      CineBancários
+    </label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="sim" id="capitolio" name="capitolio">
+    <label class="form-check-label" for="capitolio">
+      Cinemateca Capitólio
+    </label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="sim" id="pauloAmorim" name="pauloAmorim">
+    <label class="form-check-label" for="pauloAmorim">
+      Cinemateca Paulo Amorim
+    </label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="sim" id="redencao" name="redencao">
+    <label class="form-check-label" for="redencao">
+      Sala Redenção
+    </label>
+  </div>
+  <button class="btn btn-primary" type="submit">Fazer scrapping dos cinemas selecionados</button>
 </form>
 {% endblock %}
