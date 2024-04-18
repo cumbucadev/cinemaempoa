@@ -1,0 +1,218 @@
+{% extends 'base.html' %} {% block header %}
+<style>
+  /* Required: base styles for the masonry-grid */
+  masonry-grid {
+    display: block;
+    position: relative;
+    width: 100%;
+    /* margin: 25px 0 150px 0  !important; */
+
+
+    /* Default gap, you can override this by setting --gap on the masonry-grid element */
+    --default-gap: 10px;
+  }
+
+  /* Required: base styles for masonry-grid blocks */
+  masonry-grid > * {
+    position: absolute;
+    display: block;
+
+    /* This is the line that causes every block to animate on layout change */
+    transition: top 0.3s, left 0.3s;
+
+    /* Main calcs that set the x position of blocks */
+    --col-width: calc(
+      100% / var(--cols) - var(--gap, var(--default-gap)) * (var(--cols) - 1) /
+        var(--cols)
+    );
+    width: var(--col-width);
+    left: calc(
+      var(--col-width) * var(--col-i) + var(--gap, var(--default-gap)) *
+        var(--col-i)
+    );
+  }
+
+  /* These are your styles for whatever your blocks look like */
+
+  img {
+    background: rgb(35, 35, 35);
+    border-radius: 2px;
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  button {
+    padding: 1rem;
+    color: white;
+    background: #333;
+    border: 1px solid #111;
+    border-radius: 100px;
+  }
+</style>
+<script>
+  class Masonry extends HTMLElement {
+    layoutTimeout;
+
+    constructor() {
+      super();
+
+      this.setCols = this.setCols.bind(this);
+      this.layout = this.layout.bind(this);
+      this.handleResize = this.handleResize.bind(this);
+    }
+
+    // Set the --cols css var
+    setCols() {
+      const w = this.offsetWidth;
+
+      // Choosing number of columns based on the width of the masonry-grid element
+      const cols = w > 800 ? 4 : w > 500 ? 3 : w > 300 ? 2 : 1;
+
+      this.style.setProperty("--cols", String(cols));
+    }
+
+      layout() {
+        this.setCols();
+
+        const blocks = Array.from(
+          document.querySelectorAll("masonry-grid > *")
+        );
+
+        // Number of columns
+        const cols = Number(this.style.getPropertyValue("--cols"));
+
+        // Each columns height
+        const colHeights = Array(cols).fill(0);
+
+        // Number of blocks in each column
+        const colBlockCounts = Array(cols).fill(0);
+
+        for (let i = 0; i < blocks.length; i++) {
+          // Get the column index of the shortest column
+          const min = Math.min(...colHeights);
+          const colIdx = colHeights.indexOf(min);
+
+          // Add this block to the shortest column by setting --col-i
+          blocks[i].style.setProperty("--col-i", String(colIdx));
+
+          // Update the number of blocks in this column
+          colBlockCounts[colIdx]++;
+
+          // Update `top` on this block
+          blocks[i].style.setProperty(
+            "top",
+            `calc(${min}px + (var(--gap, var(--default-gap)) * ${
+              colBlockCounts[colIdx] - 1
+            }))`
+          );
+
+          // Update the height of this column
+          colHeights[colIdx] += blocks[i].offsetHeight;
+
+          // Update the height of the masonry-grid element so that it's equal
+          // to the height of the tallest column
+          const max = Math.max(...colHeights);
+          this.style.setProperty("height", `${max}px`);
+        }
+      }
+
+    handleResize() {
+      // Throttle the layout method on window resize
+      if (!this.layoutTimeout) {
+        this.layoutTimeout = setTimeout(() => {
+          this.layout();
+          this.layoutTimeout = null;
+        }, 20);
+      }
+    }
+
+    async connectedCallback() {
+      window.addEventListener("load", this.layout, { once: true });
+      window.addEventListener("resize", this.handleResize);
+    }
+
+    disconnectedCallback() {
+      window.removeEventListener("resize", this.handleResize);
+    }
+  }
+
+  customElements.define("masonry-grid", Masonry);
+
+  // Initially the images are hidden. Here we wait for them to load,
+  // then call layout
+  document.addEventListener("DOMContentLoaded", async (event) => {
+      const imgs = Array.from(document.querySelectorAll(".grid-img"));
+      const masonry = document.querySelector("masonry-grid");
+      let countImgs = 0;
+
+      function intersectionCallback(entries) {
+        const entry = entries[0];
+        if (entries[0].intersectionRatio <= 0) {
+          return
+        }
+        console.log("chegou")
+
+        observer.unobserve(entry.target)
+
+        // carregar próxima página usando o fetch do js
+
+        // selecionar apenas as novas imagens baixadas
+
+        // rodar novamente o promise.all para esperar as imagens carregar
+
+        // observar a última imagem da nova lista
+      }
+
+      const observer = new IntersectionObserver(intersectionCallback, {threshold: 1})
+
+      try {
+        await Promise.all(
+        imgs.map((img, index) => {
+          img.setAttribute("count", countImgs)
+          return new Promise((resolve, reject) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+
+            img.onload = resolve;
+            img.onerror = () => {
+                img.style.opacity = 0
+                img.style.width = 0
+                reject(new Error("Erro ao carregar imagem"));
+              };
+          });
+        })
+      );
+      } catch (error) {
+
+      }
+
+      imgs.forEach((img) => (img.style.visibility = "visible"));
+
+      masonry.layout();
+      observer.observe(imgs[imgs.length - 1]);
+    })
+</script>
+<h1>{% block title %}Posters{% endblock %}</h1>
+<p>
+  Todos os filmes que já passaram pelo cinemaempoa
+</p>
+<masonry-grid data-page="0">
+  {% for movie in movies %}
+    {% for screening in movie.screenings %}
+      <img
+        class="grid-img"
+        src="/screening/assets/{{ screening['image'] }}"
+        loading="lazy"
+        onerror=""
+      />
+    {% endfor %}
+  {% endfor %}
+</masonry-grid>
+</div>
+
+{% endblock %}

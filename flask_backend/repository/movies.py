@@ -21,6 +21,15 @@ def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
     return query.all()
 
 
+def get_paginated(current_page: int ,per_page: int ,include_drafts: bool = False) -> List[Optional[Movie]]:
+    query = db_session.query(Movie).join(Screening)
+    offset = current_page * per_page
+    if include_drafts is False:
+        query = query.filter(Screening.draft == False)
+    query = query.offset(offset).limit(per_page)
+    return query.all()
+
+
 def get_by_title(title: str) -> Optional[Movie]:
     return db_session.query(Movie).filter(Movie.title == title).first()
 
