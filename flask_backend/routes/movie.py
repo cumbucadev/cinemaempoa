@@ -3,6 +3,7 @@ from flask import Blueprint, g, jsonify, render_template, request
 from flask_backend.repository.movies import get_all as get_all_movies, get_paginated
 from flask_backend.repository.movies import get_movies_with_similar_titles
 from flask_backend.routes.auth import login_required
+from werkzeug.exceptions import abort
 
 bp = Blueprint("movie", __name__)
 
@@ -17,11 +18,16 @@ def index():
 
 @bp.route("/movies/posters")
 def posters():
+    page = request.args.get("page", 0)
+    try:
+        page = int(page)
+    except ValueError:
+        abort(400)
     user_logged_in = g.user is not None
-    movies = get_paginated( 0, 12, user_logged_in)
+    movies = get_paginated( page, 12, user_logged_in)
     print(len(movies))
     return render_template(
-        "movie/movies.html", movies=movies, show_drafts=user_logged_in
+        "movie/movies.html", movies=movies, show_drafts=user_logged_in, page=page
     )
 
 
