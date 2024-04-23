@@ -5,11 +5,13 @@ from typing import Optional, Tuple
 import requests
 from werkzeug.utils import secure_filename
 
+from flask_backend.env_config import IMGBB_API_KEY
+
 
 def upload_image_to_api(app,image) -> Tuple[str, int, int]:
     url = "https://api.imgbb.com/1/upload"
     payload = {
-        "key": app.config.get("IMGBB_API_KEY"),
+        "key": IMGBB_API_KEY,
         "image": base64.b64encode(image.read()),
     }
     res = requests.post(url, payload)
