@@ -22,6 +22,7 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
+from flask_backend.utils.enums.environment import EnvironmentEnum
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -53,7 +54,7 @@ def validate_image(file) -> tuple[bool, str]:
 
 def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
     """Saves the received `file` into disk, returning the filename and image's width."""
-    if APP_ENVIRONMENT == "development":
+    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
         fileurl, width, height = upload_image_to_local_disk(file, app, filename)
     else:
         fileurl, width, height = upload_image_to_api(app, file)
