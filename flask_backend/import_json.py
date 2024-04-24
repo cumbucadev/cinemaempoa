@@ -68,7 +68,5 @@ class ScrappedResult:
     @classmethod
     def from_jsonable(cls, scrapped_results: str):
         return cls(
-            cinemas=[
-                ScrappedCinema.from_jsonable(cinema) for cinema in scrapped_results
-            ]
+            cinemas=[ScrappedCinema.from_jsonable(cinema) for cinema in scrapped_results]
         )

@@ -16,21 +16,23 @@ from flask import (
 )
 from werkzeug.exceptions import abort
 
-from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
+from flask_backend.import_json import ScrappedResult
 from flask_backend.models import Screening
-from flask_backend.repository.cinemas import get_all as get_all_cinemas
-from flask_backend.repository.cinemas import get_by_id as get_cinema_by_id
-from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
+from flask_backend.repository.cinemas import (
+    get_all as get_all_cinemas,
+    get_by_id as get_cinema_by_id,
+    get_by_slug as get_cinema_by_slug,
+)
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
-from flask_backend.repository.screenings import create as create_screening
 from flask_backend.repository.screenings import (
+    create as create_screening,
     get_days_screenings_by_cinema_id,
     get_screening_by_id,
+    update as update_screening,
+    update_screening_dates,
 )
-from flask_backend.repository.screenings import update as update_screening
-from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
     build_dates,
@@ -248,9 +250,7 @@ def update(id):
         if movie_poster and movie_poster.filename:
             img_is_valid, message = validate_image(movie_poster)
             if img_is_valid:
-                new_img, image_width, image_height = save_image(
-                    movie_poster, current_app
-                )
+                new_img, image_width, image_height = save_image(movie_poster, current_app)
                 image = new_img
             else:
                 error = message

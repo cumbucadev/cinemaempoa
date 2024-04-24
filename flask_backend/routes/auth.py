@@ -35,11 +35,9 @@ def register():
 
         if error is None:
             try:
-                user = users_repository.create(
-                    username, generate_password_hash(password)
-                )
+                user = users_repository.create(username, generate_password_hash(password))
             except IntegrityError:
-                error = f"Nome de usuário inválido. Tente um nome diferente."
+                error = "Nome de usuário inválido. Tente um nome diferente."
             else:
                 welcome_message = Markup(
                     f"Boas vindas, <strong>{user.username}</strong>!"

@@ -4,9 +4,9 @@ import json
 import os
 import re
 import shutil
+from datetime import datetime
 
 from bs4 import BeautifulSoup
-from datetime import datetime
 
 from build import HtmlBuilder
 from scrapers.capitolio import Capitolio
@@ -14,7 +14,6 @@ from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
 from scrapers.sala_redencao import SalaRedencao
 from utils import dump_utf8_json
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -69,9 +68,7 @@ if __name__ == "__main__":
 
     if args.rooms:
         if not all(room in allowed_rooms for room in args.rooms):
-            parser.error(
-                f"Invalid selected rooms. Available: {', '.join(allowed_rooms)}"
-            )
+            parser.error(f"Invalid selected rooms. Available: {', '.join(allowed_rooms)}")
 
         scrape_date = args.date
         if scrape_date:

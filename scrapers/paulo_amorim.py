@@ -1,10 +1,10 @@
 import locale
 import os
-import requests
 import unicodedata
-
-from bs4 import BeautifulSoup
 from datetime import date, datetime, time as dt_time
+
+import requests
+from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -70,9 +70,7 @@ class CinematecaPauloAmorim:
         ticket_links = programacao_soup.css.select("a.link-default > .ticket")
         movies = []
         for ticket_link in ticket_links:
-            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
-                ".generos"
-            )
+            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(".generos")
             if genre is not None:
                 genre = genre.text.strip("\n")
 

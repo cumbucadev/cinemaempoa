@@ -1,9 +1,9 @@
 import os
-import pytest
 import sys
 import unicodedata
-
 import xml.etree.ElementTree as ET
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.getcwd()))
 

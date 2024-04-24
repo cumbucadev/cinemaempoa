@@ -6,9 +6,7 @@ from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
-db_session = scoped_session(
-    sessionmaker(autocommit=False, autoflush=False, bind=engine)
-)
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 Base = declarative_base()
 Base.query = db_session.query_property()
@@ -25,9 +23,7 @@ def seed_db_prod():
 
     print("Setting up admin user")
     try:
-        user_seeds.create_user_from_data(
-            db_session, ADMIN_PROD_USERNAME, ADMIN_PROD_PWD
-        )
+        user_seeds.create_user_from_data(db_session, ADMIN_PROD_USERNAME, ADMIN_PROD_PWD)
     except IntegrityError:
         db_session.rollback()
         print("Admin user already exists. Skipping...")
