@@ -27,6 +27,10 @@ A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.p
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 
+É utilizado o pre-commit para formatar o código, para iniciar ele rode:
+
+    pre-commit install
+
 ### Rodando o projeto
 
 Para rodar o portal, você vai precisar de três comando (todos rodados a partir da raíz do projeto):
