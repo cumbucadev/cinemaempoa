@@ -1,27 +1,32 @@
 import base64
 import os
-from PIL import Image
 from typing import Optional, Tuple
+
 import requests
+from PIL import Image
 from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import IMGBB_API_KEY
 
 
-def upload_image_to_api(app,image) -> Tuple[str, int, int]:
+def upload_image_to_api(app, image) -> Tuple[str, int, int]:
     url = "https://api.imgbb.com/1/upload"
     payload = {
         "key": IMGBB_API_KEY,
         "image": base64.b64encode(image.read()),
     }
     res = requests.post(url, payload)
-    image_url = res.json()['data']['url']
-    width = res.json()['data']['width']
-    height = res.json()['data']['height']
+    res.raise_for_status()
+    image_url = res.json()["data"]["url"]
+    width = res.json()["data"]["width"]
+    height = res.json()["data"]["height"]
 
     return image_url, width, height
-    
-def upload_image_to_local_disk(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
+
+
+def upload_image_to_local_disk(
+    file, app, filename: Optional[str] = None
+) -> Tuple[str, int, int]:
     if filename:
         filename = secure_filename(filename)
     else:
