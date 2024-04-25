@@ -9,6 +9,7 @@ import requests
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
@@ -20,6 +21,8 @@ from flask_backend.repository.screenings import (
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
 )
 from flask_backend.repository.screenings import update_screening_dates
+from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
+from flask_backend.utils.enums.environment import EnvironmentEnum
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -51,15 +54,12 @@ def validate_image(file) -> tuple[bool, str]:
 
 def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
     """Saves the received `file` into disk, returning the filename and image's width."""
-    if filename:
-        filename = secure_filename(filename)
+    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
+        fileurl, width, height = upload_image_to_local_disk(file, app, filename)
     else:
-        filename = secure_filename(file.filename)
-    img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
-    file.save(img_savepath)
-    with open(img_savepath, "rb") as f:
-        loaded_image = Image.open(f)
-    return filename, loaded_image.width, loaded_image.height
+        fileurl, width, height = upload_image_to_api(app, file)
+
+    return fileurl, width, height
 
 
 def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
