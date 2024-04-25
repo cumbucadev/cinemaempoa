@@ -53,13 +53,18 @@ def validate_image(file) -> tuple[bool, str]:
 
 
 def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
-    """Saves the received `file` into disk, returning the filename and image's width."""
+    """Saves the received `file` into disk or uploads it to imgBB API,
+    depending on the current environment"""
+    # always save images locally on development
     if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
-        fileurl, width, height = upload_image_to_local_disk(file, app, filename)
-    else:
-        fileurl, width, height = upload_image_to_api(app, file)
-
-    return fileurl, width, height
+        return upload_image_to_local_disk(file, app, filename)
+    # on production, attempt to save to the imgBB API
+    try:
+        return upload_image_to_api(app, file)
+    # on failure, save locally
+    except requests.exceptions.HTTPError:
+        file.seek(0)
+        return upload_image_to_local_disk(file, app, filename)
 
 
 def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
