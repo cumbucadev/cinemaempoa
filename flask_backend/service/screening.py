@@ -85,7 +85,7 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
     return screening_date_objects
 
 
-def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[str]]:
+def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]]:
     if image_url is None:
         return None, None
     file_extension = image_url.split(".")[-1]
@@ -97,7 +97,7 @@ def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[
     if r.ok is False:
         return None, None
 
-    return Image.open(BytesIO(r.content)), file_name
+    return BytesIO(r.content), file_name
 
 
 def get_img_filename_from_url(image_url) -> str:
@@ -155,21 +155,13 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
 
             image_filename, image_width, image_height = None, None, None
             if scrapped_feature.poster:
-                image_filename = get_img_filename_from_url(scrapped_feature.poster)
-
-                # if the file from that URL already exists locally, use that
-                img_path = get_img_path_from_filename(image_filename, current_app)
-                if img_path:
-                    image_width, image_height = get_image_metadata(img_path)
-                # file doesnt exist locally, attempt to download
-                else:
-                    img, filename = download_image_from_url(scrapped_feature.poster)
-                    image_filename, image_width, image_height = None, None, None
-                    if img is not None:
-                        # if we fail to download or validate the image, just ignore it for now
-                        image_filename, image_width, image_height = save_image(
-                            img, current_app, filename
-                        )
+                img, filename = download_image_from_url(scrapped_feature.poster)
+                image_filename, image_width, image_height = None, None, None
+                if img is not None:
+                    # if we fail to download or validate the image, just ignore it for now
+                    image_filename, image_width, image_height = save_image(
+                        img, current_app, filename
+                    )
             screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
             if not screening:
                 create_screening(
