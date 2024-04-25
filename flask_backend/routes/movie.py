@@ -25,7 +25,9 @@ def posters():
         abort(400)
     user_logged_in = g.user is not None
     movies = get_paginated( page, 12, user_logged_in)
-    print(len(movies))
+    if len(movies) == 0:
+        abort(404)
+
     return render_template(
         "movie/movies.html", movies=movies, show_drafts=user_logged_in, page=page
     )
