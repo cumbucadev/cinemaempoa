@@ -32,7 +32,13 @@ def upload_image_to_local_disk(
     else:
         filename = secure_filename(file.filename)
     img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
-    file.save(img_savepath)
+
+    try:
+        file.save(img_savepath)
+    except AttributeError:
+        with open(img_savepath, "wb") as f:
+            f.write(file.read())
+
     with open(img_savepath, "rb") as f:
         loaded_image = Image.open(f)
 
