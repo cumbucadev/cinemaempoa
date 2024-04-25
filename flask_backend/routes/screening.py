@@ -28,6 +28,8 @@ from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
 from flask_backend.repository.screenings import create as create_screening
+from flask_backend.repository.screenings import delete as delete_screening
+
 from flask_backend.repository.screenings import (
     get_days_screenings_by_cinema_id,
     get_screening_by_id,
@@ -284,6 +286,22 @@ def update(id):
     return render_template("screening/update.html", screening=screening)
 
 
+@bp.route("/screening/<int:id>/delete", methods=("POST",))
+@login_required
+def delete(id):
+    screening = get_screening_by_id(id)
+    movie_title = screening.movie.title
+    if not request.method == "POST":
+        abort(405)
+
+    if not screening:
+        abort(404)
+
+    delete_screening(screening)
+    flash(f"Sessão «{movie_title}» deletado com sucesso!", "success")
+    return redirect(url_for("screening.index"))
+
+
 @bp.route("/screening/scrap", methods=["POST"])
 @login_required
 def runScrap():
@@ -388,7 +406,6 @@ def import_screenings():
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
-
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
 # @login_required

@@ -94,3 +94,13 @@ def update(
         screening.image_height = image_height
     db_session.add(screening)
     db_session.commit()
+
+
+def delete(
+    screening: Screening,
+) -> None:
+    # delete all related dates to maintain integrity
+    for date in screening.dates:
+        db_session.delete(date)
+    db_session.delete(screening)
+    db_session.commit()
