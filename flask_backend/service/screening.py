@@ -24,7 +24,7 @@ from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 
 def _check_if_actually_image(file):
