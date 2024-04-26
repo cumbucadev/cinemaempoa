@@ -46,7 +46,7 @@
       <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
       <button type="button" id="gen-alt-btn"
       class="btn btn-secondary d-none"
-      onclick="fetchImageAltText()"
+      onclick="fetchImageAltText(event)"
       >
         Gerar alt text
       </button>
@@ -56,6 +56,15 @@
       <span id="file-limit-label"></span>
       <span class="text-danger d-block" id="errorMessage"></span>
     </p>
+  </div>
+  <div class="mb-3">
+      <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
+      <textarea
+        placeholder="Descreva a imagem adicionada acima"
+        class="form-control"
+        name="image_alt"
+        id="image_alt"
+        ></textarea>
   </div>
   <div class="mb-3">
     <label class="form-label">Status do cadastro</label>
@@ -185,15 +194,45 @@
       }
   }
 
-  function fetchImageAltText() {
+  async function fetchImageAltText(e) {
+    const btn = e.target;
+    
     const image_input = document.getElementById("movie_poster");
+    const image_alt = document.getElementById("image_alt");
+    
+    // prevent accidental overwriting of existing
+    // image alt text
+    let confirmation = true;
+    if (image_alt.value != "") {
+      confirmation = confirm("Substituir descrição atual?");
+    }
+    if (!confirmation) {
+      return;
+    }
+
     const form = new FormData();
     form.append("image", image_input.files[0]);
-    
-    fetch("/screening/image/describe", {
+
+    btn.disabled = true;
+    const response = await fetch("/screening/image/describe", {
       method: "POST",
       body: form
     });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      alert(payload.details);
+      if (payload.hasOwnProperty("info")) {
+        console.log(payload.info);
+      }
+    }
+
+    if (response.ok) {
+      image_alt.value = payload.text;
+    }
+
+    btn.disabled = false;
+
   }
 </script>
 {% endblock %}

@@ -411,16 +411,24 @@ def describe_image():
     if request.method != "POST":
         abort(405)
     if "image" not in request.files:
-        abort(400)
+        jsonify({"details": "Imagem não encontrada."}), 400
     image = request.files["image"]
     try:
         gemini = Gemini()
     except ValueError:
-        abort(500)
+        jsonify({"details": "Chave de API Gemini não configurada."}), 500
+
     prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
     prompt_response = gemini.prompt_image(image, prompt_text)
-
-    return jsonify(text=prompt_response)
+    if not "candidates" in prompt_response or len(prompt_response["candidates"]) == 0:
+        return jsonify(
+            {
+                "details": "Não foi possível gerar uma descrição para a imagem.",
+                "info": prompt_response,
+            }
+        )
+    image_description = prompt_response["candidates"][0]["content"]["parts"][0]["text"]
+    return jsonify(text=image_description.strip())
 
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
