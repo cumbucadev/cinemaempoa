@@ -6,13 +6,10 @@ on:
 jobs:
     lint:
         runs-on: ubuntu-latest
-        strategy:
-          matrix:
-            python-version: [3.10, 3.11, 3.12]
         steps:
             - uses: actions/checkout@v4.1.3
             - uses: actions/setup-python@v5.1.0
               with:
-                python-version: ${{ matrix.python-version }}
+                python-version: '3.10'
             - run: pip install -r requirements.txt
             - run: ruff check
