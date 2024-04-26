@@ -29,12 +29,14 @@ from flask_backend.repository.cinemas import (
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
+
 from flask_backend.repository.screenings import (
     create as create_screening,
     get_days_screenings_by_cinema_id,
     get_screening_by_id,
     update as update_screening,
     update_screening_dates,
+    delete as delete_screening,
 )
 from flask_backend.routes.auth import login_required
 from flask_backend.service.screening import (
@@ -282,6 +284,22 @@ def update(id):
             return redirect(url_for("screening.index"))
 
     return render_template("screening/update.html", screening=screening)
+
+
+@bp.route("/screening/<int:id>/delete", methods=("POST",))
+@login_required
+def delete(id):
+    screening = get_screening_by_id(id)
+    movie_title = screening.movie.title
+    if not request.method == "POST":
+        abort(405)
+
+    if not screening:
+        abort(404)
+
+    delete_screening(screening)
+    flash(f"Sessão «{movie_title}» deletado com sucesso!", "success")
+    return redirect(url_for("screening.index"))
 
 
 @bp.route("/screening/scrap", methods=["POST"])
