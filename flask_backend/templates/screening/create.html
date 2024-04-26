@@ -42,14 +42,21 @@
   <ul class="mb-3" class="" id="similar_movies">
   </ul>
   <div class="mb-3">
-    <label for="movie_poster" class="form-label">Imagem do filme</label>
+    <div class="d-flex mb-2 align-items-center">
+      <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
+      <button type="button" id="gen-alt-btn"
+      class="btn btn-secondary d-none"
+      onclick="fetchImageAltText()"
+      >
+        Gerar alt text
+      </button>
+    </div>
     <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*">
     <p class="form-text">
       <span id="file-limit-label"></span>
       <span class="text-danger d-block" id="errorMessage"></span>
     </p>
   </div>
-
   <div class="mb-3">
     <label class="form-label">Status do cadastro</label>
     <div class="form-check">
@@ -130,6 +137,12 @@
     } else {
         errorMessage.innerHTML = '';
     }
+    const genAltBtn = document.getElementById("gen-alt-btn");
+    if (input.value != "") {
+      genAltBtn.classList.remove("d-none");
+    } else {
+      genAltBtn.classList.add("d-none");
+    }
   }
 
 
@@ -170,6 +183,17 @@
       else {
         clearMoviesDisplay()
       }
+  }
+
+  function fetchImageAltText() {
+    const image_input = document.getElementById("movie_poster");
+    const form = new FormData();
+    form.append("image", image_input.files[0]);
+    
+    fetch("/screening/image/describe", {
+      method: "POST",
+      body: form
+    });
   }
 </script>
 {% endblock %}

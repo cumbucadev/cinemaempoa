@@ -1,25 +1,23 @@
 import json
 import math
-import os
 from datetime import date, datetime
 from typing import List
 
-import requests
 from flask import (
     Blueprint,
     current_app,
     flash,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
     send_from_directory,
-    session,
     url_for,
 )
 from werkzeug.exceptions import abort
 
-from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
+from flask_backend.import_json import ScrappedResult
 from flask_backend.models import Screening
 from flask_backend.repository.cinemas import get_all as get_all_cinemas
 from flask_backend.repository.cinemas import get_by_id as get_cinema_by_id
@@ -29,7 +27,6 @@ from flask_backend.repository.movies import (
 )
 from flask_backend.repository.screenings import create as create_screening
 from flask_backend.repository.screenings import delete as delete_screening
-
 from flask_backend.repository.screenings import (
     get_days_screenings_by_cinema_id,
     get_screening_by_id,
@@ -37,6 +34,7 @@ from flask_backend.repository.screenings import (
 from flask_backend.repository.screenings import update as update_screening
 from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.routes.auth import login_required
+from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
     build_dates,
     import_scrapped_results,
@@ -47,7 +45,6 @@ from scrapers.capitolio import Capitolio
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
 from scrapers.sala_redencao import SalaRedencao
-from utils import dump_utf8_json
 
 bp = Blueprint("screening", __name__)
 
@@ -406,6 +403,25 @@ def import_screenings():
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
+
+
+@bp.route("/screening/image/describe", methods=("POST",))
+@login_required
+def describe_image():
+    if request.method != "POST":
+        abort(405)
+    if "image" not in request.files:
+        abort(400)
+    image = request.files["image"]
+    try:
+        gemini = Gemini()
+    except ValueError:
+        abort(500)
+    prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
+    prompt_response = gemini.prompt_image(image, prompt_text)
+
+    return jsonify(text=prompt_response)
+
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
 # @login_required
