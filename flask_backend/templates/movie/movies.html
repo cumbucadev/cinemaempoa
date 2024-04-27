@@ -1,81 +1,118 @@
 {% extends 'base.html' %} {% block header %}
 <style>
-  .main-grid {
-    column-count: 4;
-    column-gap: 10px ;
-    max-width: 100%;
-
+  .constraint {
+    max-width: 985px;
+    margin: auto;
+  }
+  /* Render items as columns */
+  .section-grid {
+    display: flex;
+    flex-flow: column wrap;
+  }
+  /* Force new columns */
+  .section-grid::before,
+  .section-grid::after {
+    content: "";
+    flex-basis: 100%;
+    width: 0;
+    order: 2;
   }
 
   .grid-img {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    width: 100%;
-    height: auto;
-    background: rgb(35, 35, 35);
-    border-radius: 2px;
-    margin-bottom: 10px;
+    width: 32%;
+    margin-bottom: 15px;
+  }
+  /* Re-order items into rows */
+  .grid-img:nth-child(3n + 1) {
+    order: 1;
+  }
+  .grid-img:nth-child(3n + 2) {
+    order: 2;
+  }
+  .grid-img:nth-child(3n) {
+    order: 3;
   }
 </style>
-
+<h1>{% block title %}Posters{% endblock %}</h1>
+<p>Todos os filmes que já passaram pelo cinemaempoa</p>
+{% endblock %} {% block content %}
+<div class="constraint">
+  <section
+    style="height: {{max_column_height}}px;"
+    class="section-grid"
+    data-height="{{max_column_height}}"
+    data-page="{{page}}"
+  >
+    {% for image in images %}
+    <img
+      class="grid-img"
+      src="/screening/assets/{{ image['url'] }}"
+      loading="lazy"
+      onerror="removeOnError(event)"
+      width="{{image['width']}}"
+      height="{{image['height']}}"
+    />
+    {% endfor %}
+  </section>
+</div>
 <script>
   async function intersectionCallback(entries, observer) {
     const entry = entries[0];
-    if (entries[0].intersectionRatio <= 0) {
-      return
+    const target = entry.target;
+    // console.log(target.complete);
+    // if (!target.complete) {
+    //   return;
+    // }
+    if (entry.intersectionRatio <= 0) {
+      return;
     }
+    console.log("reachd");
+    const main = document.querySelector("main");
+    const section = document.querySelector(".section-grid");
+    const currentSectionHeight = section.getAttribute("data-height");
 
-    const masonry = document.querySelector(".main-grid");
+    observer.unobserve(target);
 
+    const currentPage = section.getAttribute("data-page");
+    const nextPage = parseInt(currentPage) + 1;
 
-    observer.unobserve(entry.target)
+    const nextPageRequest = await fetch(`/movies/posters?page=${nextPage}`);
 
-    const page = masonry.getAttribute('data-page')
-    let pageIncremented = parseInt(page) + 1;
+    if (!nextPageRequest.ok) {
+      return;
+    }
+    console.log("request ok");
 
-    let nextPageFetch = await fetch(`/movies/posters?page=${pageIncremented}`)
+    const nextPageText = await nextPageRequest.text();
+    const parser = new DOMParser();
+    const nextPageHtml = parser.parseFromString(nextPageText, "text/html");
+    const nextPageSection = nextPageHtml.querySelector(".section-grid");
 
-    if (!nextPageFetch.ok)
-      return
+    const nextPageSectionHeight = nextPageSection.getAttribute("data-height");
+    const nextPageNumber = nextPageSection.getAttribute("data-page");
 
-    let nextPageHtml = await nextPageFetch.text()
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(nextPageHtml, 'text/html')
-    const masonGrid = doc.querySelector(".main-grid")
+    section.setAttribute("data-page", nextPageNumber);
+    section.innerHTML += nextPageSection.innerHTML;
+    const totalHeight =
+      parseInt(currentSectionHeight) + parseInt(nextPageSectionHeight);
+    section.setAttribute("data-height", totalHeight);
+    section.style.height = `${totalHeight}px`;
 
-    masonry.innerHTML += masonGrid.innerHTML
-    const imgsObserver = Array.from(masonry.getElementsByTagName('img'));
-    masonry.setAttribute('data-page', pageIncremented)
-
+    const imgsObserver = Array.from(section.querySelectorAll("img"));
+    console.log(imgsObserver[imgsObserver.length - 1]);
     observer.observe(imgsObserver[imgsObserver.length - 1]);
   }
 
   function removeOnError(e) {
-    e.target.remove()
+    e.target.remove();
   }
 
   document.addEventListener("DOMContentLoaded", (event) => {
-    const observer = new IntersectionObserver(intersectionCallback, {threshold: 1})
+    const observer = new IntersectionObserver(intersectionCallback, {
+      threshold: 1,
+    });
     const imgs = Array.from(document.querySelectorAll(".grid-img"));
     observer.observe(imgs[imgs.length - 1]);
   });
 </script>
-<h1>{% block title %}Posters{% endblock %}</h1>
-<p>
-  Todos os filmes que já passaram pelo cinemaempoa
-</p>
-<main class="main-grid" data-page="{{page}}">
-  {% for movie in movies %}
-    {% for screening in movie.screenings %}
-        <img
-          class="grid-img"
-          src="/screening/assets/{{ screening['image'] }}"
-          loading="lazy"
-          onerror="removeOnError(event)"
-        />
-    {% endfor %}
-  {% endfor %}
-</main>
-</div>
-
 {% endblock %}
