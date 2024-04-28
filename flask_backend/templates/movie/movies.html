@@ -1,6 +1,6 @@
 {% extends 'base.html' %} {% block header %}
 <style>
-  .main-grid {
+  /* .main-grid {
     column-count: 4;
     column-gap: 10px ;
     max-width: 100%;
@@ -15,67 +15,85 @@
     background: rgb(35, 35, 35);
     border-radius: 2px;
     margin-bottom: 10px;
+  } */
+
+  .grid-item {
+    float: left;
+    height: max-content;
+    border: 2px solid hsla(0, 0%, 0%, 0.5);
   }
+
+  .grid-item { width: 20%; }
 </style>
-
-<script>
-  async function intersectionCallback(entries, observer) {
-    const entry = entries[0];
-    if (entries[0].intersectionRatio <= 0) {
-      return
-    }
-
-    const masonry = document.querySelector(".main-grid");
-
-
-    observer.unobserve(entry.target)
-
-    const page = masonry.getAttribute('data-page')
-    let pageIncremented = parseInt(page) + 1;
-
-    let nextPageFetch = await fetch(`/movies/posters?page=${pageIncremented}`)
-
-    if (!nextPageFetch.ok)
-      return
-
-    let nextPageHtml = await nextPageFetch.text()
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(nextPageHtml, 'text/html')
-    const masonGrid = doc.querySelector(".main-grid")
-
-    masonry.innerHTML += masonGrid.innerHTML
-    const imgsObserver = Array.from(masonry.getElementsByTagName('img'));
-    masonry.setAttribute('data-page', pageIncremented)
-
-    observer.observe(imgsObserver[imgsObserver.length - 1]);
-  }
-
-  function removeOnError(e) {
-    e.target.remove()
-  }
-
-  document.addEventListener("DOMContentLoaded", (event) => {
-    const observer = new IntersectionObserver(intersectionCallback, {threshold: 1})
-    const imgs = Array.from(document.querySelectorAll(".grid-img"));
-    observer.observe(imgs[imgs.length - 1]);
-  });
-</script>
 <h1>{% block title %}Posters{% endblock %}</h1>
 <p>
   Todos os filmes que já passaram pelo cinemaempoa
 </p>
-<main class="main-grid" data-page="{{page}}">
+<main class="main-grid grid" data-page="{{page}}">
   {% for movie in movies %}
     {% for screening in movie.screenings %}
-        <img
-          class="grid-img"
-          src="/screening/assets/{{ screening['image'] }}"
-          loading="lazy"
-          onerror="removeOnError(event)"
-        />
+      <img
+        class="grid-img grid-item"
+        src="/screening/assets/{{ screening['image'] }}"
+        loading="lazy"
+
+      />
     {% endfor %}
   {% endfor %}
 </main>
 </div>
+<script>
+  // async function intersectionCallback(entries, observer) {
+  //   const entry = entries[0];
+  //   if (entries[0].intersectionRatio <= 0) {
+  //     return
+  //   }
 
+  //   const masonry = document.querySelector(".main-grid");
+
+
+  //   observer.unobserve(entry.target)
+
+  //   const page = masonry.getAttribute('data-page')
+  //   let pageIncremented = parseInt(page) + 1;
+
+  //   let nextPageFetch = await fetch(`/movies/posters?page=${pageIncremented}`)
+
+  //   if (!nextPageFetch.ok)
+  //     return
+
+  //   let nextPageHtml = await nextPageFetch.text()
+  //   const parser = new DOMParser()
+  //   const doc = parser.parseFromString(nextPageHtml, 'text/html')
+  //   const masonGrid = doc.querySelector(".main-grid")
+
+  //   masonry.innerHTML += masonGrid.innerHTML
+  //   const imgsObserver = Array.from(masonry.getElementsByTagName('img'));
+  //   masonry.setAttribute('data-page', pageIncremented)
+
+  //   observer.observe(imgsObserver[imgsObserver.length - 1]);
+  // }
+
+  // function removeOnError(e) {
+  //   e.target.remove()
+  // }
+
+  document.addEventListener("DOMContentLoaded", (event) => {
+    var grid = document.querySelector('.grid');
+    grid.imagesLoaded().progress( function() {
+      grid.masonry('layout');
+      var msnry = new Masonry( grid, {
+        // options
+        itemSelector: '.grid-item',
+        columnWidth: 320
+      });
+    });
+
+    // const observer = new IntersectionObserver(intersectionCallback, {threshold: 1})
+    // const imgs = Array.from(document.querySelectorAll(".grid-img"));
+    // observer.observe(imgs[imgs.length - 1]);
+  });
+</script>
+<script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>
+<script src="{{ url_for('static', filename='masonry.js') }}"></script>
 {% endblock %}
