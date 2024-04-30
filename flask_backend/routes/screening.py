@@ -89,6 +89,7 @@ def index():
                 {
                     "times": screening_times,
                     "image": screening.image,
+                    "image_alt": screening.image_alt,
                     "min_height": minHeight,
                     "image_display_width": imgDisplayWidth,
                     "title": screening.movie.title,
@@ -122,6 +123,7 @@ def create():
         cinema_id = request.form.get("cinema_id")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
         error = None
 
         if not movie_title:
@@ -169,6 +171,7 @@ def create():
                 image_width,
                 image_height,
                 status == "draft",
+                image_alt,
             )
             flash(f"Sessão «{movie_title}» criada com sucesso!", "success")
             return redirect(url_for("screening.index"))
@@ -411,12 +414,12 @@ def describe_image():
     if request.method != "POST":
         abort(405)
     if "image" not in request.files:
-        jsonify({"details": "Imagem não encontrada."}), 400
+        return jsonify({"details": "Imagem não encontrada."}), 400
     image = request.files["image"]
     try:
         gemini = Gemini()
     except ValueError:
-        jsonify({"details": "Chave de API Gemini não configurada."}), 500
+        return jsonify({"details": "Chave de API Gemini não configurada."}), 500
 
     prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
     prompt_response = gemini.prompt_image(image, prompt_text)

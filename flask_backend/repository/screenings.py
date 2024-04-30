@@ -45,12 +45,14 @@ def create(
     image_width: Optional[int],
     image_height: Optional[int],
     is_draft: Optional[bool] = False,
+    image_alt: Optional[bool] = None,
 ) -> Screening:
     screening = Screening(
         movie_id=movie_id,
         cinema_id=cinema_id,
         dates=screening_dates,
         image=image,
+        image_alt=image_alt,
         image_width=image_width,
         image_height=image_height,
         description=description,
