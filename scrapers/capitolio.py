@@ -104,7 +104,9 @@ class Capitolio:
             feature_film["excerpt"] = movie_text.get_text()
 
             read_more = movie.css.select_one(".movie-info .read-more")
-            feature_film["read_more"] = "http://www.capitolio.org.br" + read_more["href"]
+            feature_film["read_more"] = (
+                "http://www.capitolio.org.br" + read_more["href"]
+            )
             features.append(feature_film)
 
         return features

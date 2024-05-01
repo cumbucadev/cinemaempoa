@@ -89,7 +89,9 @@ def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]
     if image_url is None:
         return None, None
     file_extension = image_url.split(".")[-1]
-    file_name = hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
+    file_name = (
+        hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
+    )
 
     r = requests.get(image_url)
     if r.ok is False:

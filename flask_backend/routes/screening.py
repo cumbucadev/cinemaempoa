@@ -260,7 +260,9 @@ def update(id):
         if movie_poster and movie_poster.filename:
             img_is_valid, message = validate_image(movie_poster)
             if img_is_valid:
-                new_img, image_width, image_height = save_image(movie_poster, current_app)
+                new_img, image_width, image_height = save_image(
+                    movie_poster, current_app
+                )
                 image = new_img
             else:
                 error = message

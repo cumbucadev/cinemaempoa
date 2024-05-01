@@ -134,9 +134,9 @@ class IMDBScrapper:
         # TODO: attempt to get movie featured poster first,
         # sometimes images listed here are random stills
         # from the movie
-        image_poster_link = movie_soup.find(class_="hero-media__watchlist").findNext("a")[
-            "href"
-        ]
+        image_poster_link = movie_soup.find(class_="hero-media__watchlist").findNext(
+            "a"
+        )["href"]
 
         poster_request = requests.get(
             f"https://www.imdb.com/{image_poster_link}", headers=self.headers

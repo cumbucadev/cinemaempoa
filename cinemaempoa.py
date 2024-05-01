@@ -68,7 +68,9 @@ if __name__ == "__main__":
 
     if args.rooms:
         if not all(room in allowed_rooms for room in args.rooms):
-            parser.error(f"Invalid selected rooms. Available: {', '.join(allowed_rooms)}")
+            parser.error(
+                f"Invalid selected rooms. Available: {', '.join(allowed_rooms)}"
+            )
 
         scrape_date = args.date
         if scrape_date:

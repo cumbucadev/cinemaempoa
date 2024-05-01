@@ -35,7 +35,9 @@ def register():
 
         if error is None:
             try:
-                user = users_repository.create(username, generate_password_hash(password))
+                user = users_repository.create(
+                    username, generate_password_hash(password)
+                )
             except IntegrityError:
                 error = "Nome de usuário inválido. Tente um nome diferente."
             else:

@@ -70,7 +70,9 @@ class CinematecaPauloAmorim:
         ticket_links = programacao_soup.css.select("a.link-default > .ticket")
         movies = []
         for ticket_link in ticket_links:
-            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(".generos")
+            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
+                ".generos"
+            )
             if genre is not None:
                 genre = genre.text.strip("\n")
 
