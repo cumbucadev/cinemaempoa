@@ -117,6 +117,7 @@ def upload(filename):
 @login_required
 def create():
     screening_dates = []
+    image = None
     if request.method == "POST":
         movie_title = request.form.get("movie_title")
         description = request.form.get("description")
@@ -147,7 +148,6 @@ def create():
             error = "Selecione uma sala de cinema disponível na listagem."
 
         movie_poster = request.files.get("movie_poster", None)
-        image = None
         image_width = None
         image_height = None
 
@@ -191,6 +191,7 @@ def create():
     return render_template(
         "screening/create.html",
         cinemas=cinemas,
+        image=image,
         current_date=current_date,
         received_dates=valid_dates,
         max_year=max_year,
@@ -225,7 +226,7 @@ def publish(id):
 @login_required
 def update(id):
     screening = get_screening_by_id(id)
-
+    image = screening.image
     if not screening:
         abort(404)
 
@@ -234,6 +235,7 @@ def update(id):
         description = request.form.get("description")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
         error = None
 
         if not movie_title:
@@ -279,11 +281,17 @@ def update(id):
                 image_width,
                 image_height,
                 status == "draft",
+                image_alt,
             )
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))
 
-    return render_template("screening/update.html", screening=screening)
+    return render_template(
+        "screening/update.html",
+        screening=screening,
+        image=image,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
 
 
 @bp.route("/screening/<int:id>/delete", methods=("POST",))

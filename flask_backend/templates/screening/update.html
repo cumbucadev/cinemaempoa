@@ -37,15 +37,45 @@
     />
   </div>
   <div class="mb-3">
-    <label for="movie_poster" class="form-label">Imagem do filme</label>
+    <div class="d-flex mb-2 align-items-center">
+      <label for="movie_poster" class="form-label mb-0 me-3"
+        >Imagem do filme</label
+      >
+      <button
+        type="button"
+        id="gen-alt-btn"
+        class="btn btn-secondary d-none"
+        onclick="fetchImageAltText(event)"
+      >
+        Gerar alt text
+      </button>
+    </div>
     <input
       class="form-control"
       name="movie_poster"
       type="file"
       id="movie_poster"
+      onchange="verifyFileSize(this)"
+      accept="image/*"
     />
+    <p class="form-text">
+      <span id="file-limit-label"></span>
+      <span class="text-danger d-block" id="errorMessage"></span>
+    </p>
   </div>
-
+  <div class="mb-3">
+    <label class="form-label" for="image_alt"
+      >Descrição do poster (texto alternativo)</label
+    >
+    <textarea
+      placeholder="Descreva a imagem adicionada acima"
+      class="form-control"
+      name="image_alt"
+      id="image_alt"
+    >
+{{ request.form['image_alt'] }}</textarea
+    >
+  </div>
   <div class="mb-3">
     <label class="form-label">Status do cadastro</label>
     <div class="form-check">
@@ -86,35 +116,4 @@
     >
   </div>
 </form>
-<script>
-  function removeScreening(e) {
-    const screeningWrapper = document.getElementById("screenings");
-    if (screeningWrapper.childElementCount == 2) return;
-    e.parentElement.remove();
-  }
-  window.onload = () => {
-    const description = document.getElementById("screening-description");
-    description.style.height = `${description.scrollHeight}px`;
-    const backBtn = document.getElementById("back-btn");
-    backBtn.addEventListener("click", (e) => {
-      const proceed = confirm(
-        "Alterações não salvas serão perdidas. Prosseguir?"
-      );
-      if (!proceed) {
-        e.preventDefault();
-        return;
-      }
-    });
-  };
-  const addScreeningBtn = document.getElementById("add-screening-btn");
-  addScreeningBtn.addEventListener("click", (e) => {
-    const screeningWrapper = document.getElementById("screenings");
-
-    const screeningDiv = screeningWrapper.lastElementChild;
-
-    const newScreeningDiv = screeningDiv.cloneNode(true);
-
-    screeningWrapper.appendChild(newScreeningDiv);
-  });
-</script>
-{% endblock %}
+{% endblock %} {% include 'screening/form_js.html' %}

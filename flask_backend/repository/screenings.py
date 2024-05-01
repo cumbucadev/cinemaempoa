@@ -86,10 +86,12 @@ def update(
     image_width: Optional[int],
     image_height: Optional[int],
     is_draft: Optional[bool] = False,
+    image_alt: Optional[str] = None,
 ) -> None:
     screening.movie_id = movie_id
     screening.description = description
     screening.draft = is_draft
+    screening.image_alt = image_alt
     if image:
         screening.image = image
         screening.image_width = image_width
