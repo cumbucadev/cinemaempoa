@@ -27,9 +27,18 @@ A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.p
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 
-É utilizado o pre-commit para formatar o código, para iniciar ele rode:
+É utilizado o pre-commit para formatar o código, para rodar as validações automaticamente ao criar um commit, rode:
 
     pre-commit install
+
+Você também pode rodar as validações/formatação de código à qualquer momento com:
+
+```bash
+ruff check # roda o linter
+ruff format # roda o formatter
+```
+
+Para mais informações sobre o que é o `ruff` e como ele funciona, veja o PR [56](https://github.com/guites/cinemaempoa/pull/56) e também a [documentação oficial do ruff](https://docs.astral.sh/ruff/).
 
 ### Rodando o projeto
 
