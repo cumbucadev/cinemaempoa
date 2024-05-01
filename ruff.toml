@@ -1,4 +1,4 @@
-line-length = 90
+line-length = 88
 
 [lint]
 # Add the `line-too-long` rule to the enforced rule set. By default, Ruff omits rules that
