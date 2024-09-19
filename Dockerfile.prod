@@ -1,0 +1,14 @@
+FROM python:3.10-slim
+WORKDIR /app
+RUN apt-get update
+RUN apt-get install locales locales-all -y
+
+ENV LC_ALL pt_BR.UTF-8
+ENV LANG pt_BR.UTF-8
+ENV LANGUAGE pt_BR.UTF-8
+
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
+COPY . .
+EXPOSE 8080
+CMD ["flask", "--app", "flask_backend", "run", "--host=0.0.0.0", "--port", "8080"]
