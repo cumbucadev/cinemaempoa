@@ -46,11 +46,30 @@ def seed_db():
         screening_seeds,
         user_seeds,
     )
+    
+    try:
+        screening_seeds.create_screenings(db_session)
+    except IntegrityError:
+        db_session.rollback()
+        print("Screenings already registered. Skipping...")
 
-    cinema_seeds.create_cinemas(db_session)
-    movie_seeds.create_movies(db_session)
-    screening_seeds.create_screenings(db_session)
-    user_seeds.create_user(db_session)
+    try:
+        cinema_seeds.create_cinemas(db_session)
+    except IntegrityError:
+        db_session.rollback()
+        print("Cinemas already registered. Skipping...")
+
+    try:
+        movie_seeds.create_movies(db_session)
+    except IntegrityError:
+        db_session.rollback()
+        print("Movies already registered. Skipping...")
+
+    try:
+        user_seeds.create_user(db_session)        
+    except IntegrityError:
+        db_session.rollback()
+        print("Users already registered. Skipping...")
 
 
 def init_app(app):
