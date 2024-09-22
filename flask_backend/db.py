@@ -63,7 +63,7 @@ def seed_db():
         movie_seeds.create_movies(db_session)
     except IntegrityError:
         db_session.rollback()
-        print("Movie already registered. Skipping...")
+        print("Movies already registered. Skipping...")
 
     try:
         user_seeds.create_user(db_session)        
