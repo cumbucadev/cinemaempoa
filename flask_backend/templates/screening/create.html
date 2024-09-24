@@ -104,8 +104,12 @@
     e.parentElement.remove();
   }
   window.onload = () => {
+
+    // Adjusts the "Body" textarea height to show all written text
     const description = document.getElementById("screening-description");
     description.style.height = `${description.scrollHeight}px`;
+
+    // Prevents accidental click on "Voltar" button
     const backBtn = document.getElementById('back-btn');
     backBtn.addEventListener("click", (e) => {
       const proceed = confirm("Alterações não salvas serão perdidas. Prosseguir?");
@@ -114,16 +118,16 @@
         return;
       }
     });
+
+    // Duplicates latest screening by clicking on the "Outra exibição" button
     const addScreeningBtn = document.getElementById("add-screening-btn");
     addScreeningBtn.addEventListener("click", (e) => {
       const screeningWrapper = document.getElementById("screenings");
-
       const screeningDiv = screeningWrapper.lastElementChild;
-
       const newScreeningDiv = screeningDiv.cloneNode(true);
-
       screeningWrapper.appendChild(newScreeningDiv);
     });
+
     document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
   };
 

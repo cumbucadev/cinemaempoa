@@ -234,6 +234,7 @@ def update(id):
         description = request.form.get("description")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
         error = None
 
         if not movie_title:
@@ -279,11 +280,12 @@ def update(id):
                 image_width,
                 image_height,
                 status == "draft",
+                image_alt
             )
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))
 
-    return render_template("screening/update.html", screening=screening)
+    return render_template("screening/update.html", screening=screening, max_file_size=current_app.config["MAX_CONTENT_LENGTH"])
 
 
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
