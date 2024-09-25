@@ -225,7 +225,7 @@ def publish(id):
 @login_required
 def update(id):
     screening = get_screening_by_id(id)
-
+    image = None
     if not screening:
         abort(404)
 
@@ -285,7 +285,12 @@ def update(id):
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))
 
-    return render_template("screening/update.html", screening=screening, max_file_size=current_app.config["MAX_CONTENT_LENGTH"])
+    return render_template(
+        "screening/update.html",
+        current_movie_poster=image or screening.image,
+        screening=screening,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"]
+    )
 
 
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
@@ -432,7 +437,15 @@ def describe_image():
                 "info": prompt_response,
             }
         )
-    image_description = prompt_response["candidates"][0]["content"]["parts"][0]["text"]
+    candidate = prompt_response["candidates"][0]
+    if not "content" in candidate:
+        return jsonify(
+            {
+                "details": "Não foi possível gerar uma descrição para a imagem.",
+                "info": prompt_response,
+            }
+        )
+    image_description = candidate["content"]["parts"][0]["text"]
     return jsonify(text=image_description.strip())
 
 

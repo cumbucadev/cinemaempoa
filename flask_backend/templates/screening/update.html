@@ -38,15 +38,16 @@
   </div>
   <div class="mb-3">
     <div class="d-flex mb-2 align-items-center">
-      <label for="movie_poster" class="form-label">Imagem do filme</label>
+      <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
       <button type="button" id="gen-alt-btn"
-        class="btn btn-secondary d-none"
+        class="btn btn-secondary"
         onclick="fetchImageAltText(event)"
         >
         Gerar alt text
       </button>
     </div>
     <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*" />
+    <input type="hidden" name="current_movie_poster" id="current_movie_poster" value="{{ current_movie_poster }}"/>
     <p class="form-text">
       <span id="file-limit-label"></span>
       <span class="text-danger d-block" id="errorMessage"></span>
@@ -156,18 +157,21 @@
     } else {
         errorMessage.innerHTML = '';
     }
-    const genAltBtn = document.getElementById("gen-alt-btn");
-    if (input.value != "") {
-      genAltBtn.classList.remove("d-none");
-    } else {
-      genAltBtn.classList.add("d-none");
-    }
+  }
+
+  async function getFileFromUrl(url, name, defaultType = 'image/jpeg'){
+    const response = await fetch(url);
+    const data = await response.blob();
+    return new File([data], name, {
+      type: data.type || defaultType,
+    });
   }
 
   async function fetchImageAltText(e) {
     const btn = e.target;
 
     const image_input = document.getElementById("movie_poster");
+    const current_movie_poster = document.getElementById("current_movie_poster")
     const image_alt = document.getElementById("image_alt");
 
     // prevent accidental overwriting of existing
@@ -181,7 +185,14 @@
     }
 
     const form = new FormData();
-    form.append("image", image_input.files[0]);
+
+    // if the user selected a new file via input,
+    // use that
+    if (image_input.files.length > 0) {
+      form.append("image", image_input.files[0]);
+    } else if (current_movie_poster.value != "") {
+      form.append('image', await getFileFromUrl(current_movie_poster.value))
+    }
 
     btn.disabled = true;
     const response = await fetch("/screening/image/describe", {
