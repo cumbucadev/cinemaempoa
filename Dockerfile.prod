@@ -3,6 +3,9 @@ WORKDIR /app
 RUN apt-get update
 RUN apt-get install locales locales-all -y
 
+RUN apt update && apt install tzdata -y
+ENV TZ="America/Sao_Paulo"
+
 ENV LC_ALL pt_BR.UTF-8
 ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR.UTF-8
