@@ -41,6 +41,7 @@ class Screening(Base):
     url = Column(String, nullable=True)
     # TODO: should image and description belong to the movie?
     image = Column(String, nullable=True)
+    image_alt = Column(String, nullable=True)
     description = Column(String, nullable=False)
     # TODO: maybe change this to a _status_ enum?
     draft = Column(Boolean, nullable=False, default=False)
