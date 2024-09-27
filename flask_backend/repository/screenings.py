@@ -68,8 +68,8 @@ def update_screening_dates(
     screening: Screening, screening_dates: List[ScreeningDate]
 ) -> Screening:
     """Deletes all existing dates for a screening and substitute for the received dates."""
-    for date in screening.dates:
-        db_session.delete(date)
+    for _date in screening.dates:
+        db_session.delete(_date)
 
     screening.dates = screening_dates
     db_session.add(screening)
@@ -105,7 +105,7 @@ def delete(
     screening: Screening,
 ) -> None:
     # delete all related dates to maintain integrity
-    for date in screening.dates:
-        db_session.delete(date)
+    for _date in screening.dates:
+        db_session.delete(_date)
     db_session.delete(screening)
     db_session.commit()
