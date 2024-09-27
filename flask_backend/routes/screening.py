@@ -1,20 +1,18 @@
 import json
 import math
-import os
 from datetime import date, datetime
 from typing import List
 
-import requests
 from flask import (
     Blueprint,
     current_app,
     flash,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
     send_from_directory,
-    session,
     url_for,
 )
 from werkzeug.exceptions import abort
@@ -29,16 +27,16 @@ from flask_backend.repository.cinemas import (
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
-
 from flask_backend.repository.screenings import (
     create as create_screening,
+    delete as delete_screening,
     get_days_screenings_by_cinema_id,
     get_screening_by_id,
     update as update_screening,
     update_screening_dates,
-    delete as delete_screening,
 )
 from flask_backend.routes.auth import login_required
+from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
     build_dates,
     import_scrapped_results,
@@ -49,7 +47,6 @@ from scrapers.capitolio import Capitolio
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
 from scrapers.sala_redencao import SalaRedencao
-from utils import dump_utf8_json
 
 bp = Blueprint("screening", __name__)
 
@@ -94,6 +91,7 @@ def index():
                 {
                     "times": screening_times,
                     "image": screening.image,
+                    "image_alt": screening.image_alt,
                     "min_height": minHeight,
                     "image_display_width": imgDisplayWidth,
                     "title": screening.movie.title,
@@ -127,6 +125,7 @@ def create():
         cinema_id = request.form.get("cinema_id")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
         error = None
 
         if not movie_title:
@@ -174,6 +173,7 @@ def create():
                 image_width,
                 image_height,
                 status == "draft",
+                image_alt,
             )
             flash(f"Sessão «{movie_title}» criada com sucesso!", "success")
             return redirect(url_for("screening.index"))
@@ -227,7 +227,7 @@ def publish(id):
 @login_required
 def update(id):
     screening = get_screening_by_id(id)
-
+    image = None
     if not screening:
         abort(404)
 
@@ -236,6 +236,7 @@ def update(id):
         description = request.form.get("description")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
         error = None
 
         if not movie_title:
@@ -281,11 +282,17 @@ def update(id):
                 image_width,
                 image_height,
                 status == "draft",
+                image_alt,
             )
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))
 
-    return render_template("screening/update.html", screening=screening)
+    return render_template(
+        "screening/update.html",
+        current_movie_poster=image or screening.image,
+        screening=screening,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
 
 
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
@@ -408,6 +415,40 @@ def import_screenings():
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return render_template("screening/import.html", suggestions=suggestions)
+
+
+@bp.route("/screening/image/describe", methods=("POST",))
+@login_required
+def describe_image():
+    if request.method != "POST":
+        abort(405)
+    if "image" not in request.files:
+        return jsonify({"details": "Imagem não encontrada."}), 400
+    image = request.files["image"]
+    try:
+        gemini = Gemini()
+    except ValueError:
+        return jsonify({"details": "Chave de API Gemini não configurada."}), 500
+
+    prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
+    prompt_response = gemini.prompt_image(image, prompt_text)
+    if "candidates" not in prompt_response or len(prompt_response["candidates"]) == 0:
+        return jsonify(
+            {
+                "details": "Não foi possível gerar uma descrição para a imagem.",
+                "info": prompt_response,
+            }
+        )
+    candidate = prompt_response["candidates"][0]
+    if "content" not in candidate:
+        return jsonify(
+            {
+                "details": "Não foi possível gerar uma descrição para a imagem.",
+                "info": prompt_response,
+            }
+        )
+    image_description = candidate["content"]["parts"][0]["text"]
+    return jsonify(text=image_description.strip())
 
 
 # @bp.route("/<int:id>/delete", methods=("POST",))
