@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask_backend.service.screening import parse_to_datetime_string
+from flask_backend.service.shared import parse_to_datetime_string
 
 
 class TestParseTimeToDatetimeString:
