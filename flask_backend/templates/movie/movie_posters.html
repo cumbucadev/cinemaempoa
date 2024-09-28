@@ -1,0 +1,4 @@
+{% for image in images %}
+<img data-screening-id="{{ image['screening_id'] }}" class="grid-item" src="/screening/assets/{{ image['url'] }}"
+    width="325" height="{{ image['height'] }}" onerror="removeOnError(event)" />
+{% endfor %}
