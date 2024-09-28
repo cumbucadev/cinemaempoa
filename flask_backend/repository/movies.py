@@ -15,7 +15,7 @@ def create(title: str) -> Movie:
 def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
     query = db_session.query(Movie).join(Screening)
     if include_drafts is False:
-        query = query.filter(Screening.draft is False)
+        query = query.filter(Screening.draft == False)  # noqa: E712
     return query.all()
 
 
@@ -26,7 +26,8 @@ def get_paginated(
     offset = current_page * per_page
     if not include_drafts:
         query = query.filter(Screening.draft == False)  # noqa: E712
-    query = query.offset(offset).limit(per_page)
+    query = query.filter(Movie.id > offset)
+    query = query.limit(per_page)
     return query.all()
 
 
