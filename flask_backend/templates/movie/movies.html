@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+<style>
+  .grid-item {
+    width: 325px;
+  }
+</style>
+{% block header %}
+<h1>{% block title %}Posters{% endblock %}</h1>
+<p>
+  Todos os filmes que já passaram pelo cinemaempoa
+</p>
+{% endblock %}
+
+{% block content %}
+<section class="grid">
+  {% include "movie/movie_posters.html" %}
+</section>
+</div>
+<script>
+  let masonry, observer, currPage = 1;
+
+  async function intersectionCallback(entries, _observer) {
+    const entry = entries[0];
+    if (entries[0].intersectionRatio <= 0) {
+      return;
+    }
+    const currentImage = entry.target;
+    const section = document.querySelector("section.grid");
+
+    _observer.unobserve(currentImage);
+    currentImage.setAttribute("data-observed", 0);
+
+    const nextPage = parseInt(currPage) + 1;
+
+    const nextPageFetch = await fetch(
+      `/movies/posters/images?page=${nextPage}`,
+      {
+        headers: {
+          "X-LAZY-LOAD": "1"
+        }
+      }
+    )
+
+    if (!nextPageFetch.ok) {
+      return;
+    }
+
+    currPage += 1;
+
+    const nextPageText = await nextPageFetch.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(nextPageText, 'text/html');
+    const nextPageImages = doc.querySelectorAll("img.grid-item");
+
+    section.setAttribute('data-page', nextPage);
+    nextPageImages.forEach((img) => section.appendChild(img));
+    masonry.appended(nextPageImages);
+
+    const imgsObserver = Array.from(section.getElementsByTagName('img'));
+    const lastImage = imgsObserver[imgsObserver.length - 1];
+    lastImage.setAttribute("data-observed", 1);
+    _observer.observe(lastImage);
+  }
+
+  function removeOnError(e) {
+    const img = e.target;
+    const isObserved = img.getAttribute("data-observed");
+    img.remove();
+    if (isObserved) {
+      const imgs = Array.from(document.querySelectorAll("section.grid img.grid-item"));
+      const lastImage = imgs[imgs.length - 1];
+      observer.observe(lastImage);
+      lastImage.setAttribute("data-observed", 1);
+    }
+    masonry.layout();
+  }
+
+  document.addEventListener("DOMContentLoaded", (event) => {
+    const grid = document.querySelector('main');
+    masonry = new Masonry(grid, {
+      // options
+      itemSelector: '.grid-item',
+      columnWidth: 325
+    });
+    imagesLoaded(grid).on('progress', function () {
+      masonry.layout();
+    });
+
+    observer = new IntersectionObserver(intersectionCallback, { threshold: 1 });
+    const imgs = Array.from(document.querySelectorAll(".grid-item"));
+    observer.observe(imgs[imgs.length - 1]);
+  });
+</script>
+<script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>
+<script src="{{ url_for('static', filename='masonry.js') }}"></script>
+{% endblock %}
