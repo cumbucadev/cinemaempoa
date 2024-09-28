@@ -29,10 +29,8 @@ def poster_images():
         abort(400)
     page = request.args.get("page", 0)
     limit = 4
-    # limit = request.args.get("limit", 12)
     try:
         page = int(page)
-        # limit = int(limit)
     except ValueError:
         abort(400)
 
