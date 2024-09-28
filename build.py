@@ -2,12 +2,12 @@
 
 import hashlib
 import json
-import requests
 import math
 import os
-
 from datetime import datetime
 from io import BytesIO
+
+import requests
 from PIL import Image
 
 from scrapers.imdb import IMDBScrapper

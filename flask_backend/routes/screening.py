@@ -19,20 +19,22 @@ from werkzeug.exceptions import abort
 
 from flask_backend.import_json import ScrappedResult
 from flask_backend.models import Screening
-from flask_backend.repository.cinemas import get_all as get_all_cinemas
-from flask_backend.repository.cinemas import get_by_id as get_cinema_by_id
-from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
+from flask_backend.repository.cinemas import (
+    get_all as get_all_cinemas,
+    get_by_id as get_cinema_by_id,
+    get_by_slug as get_cinema_by_slug,
+)
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
-from flask_backend.repository.screenings import create as create_screening
-from flask_backend.repository.screenings import delete as delete_screening
 from flask_backend.repository.screenings import (
+    create as create_screening,
+    delete as delete_screening,
     get_days_screenings_by_cinema_id,
     get_screening_by_id,
+    update as update_screening,
+    update_screening_dates,
 )
-from flask_backend.repository.screenings import update as update_screening
-from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
@@ -280,7 +282,7 @@ def update(id):
                 image_width,
                 image_height,
                 status == "draft",
-                image_alt
+                image_alt,
             )
             flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
             return redirect(url_for("screening.index"))
@@ -289,7 +291,7 @@ def update(id):
         "screening/update.html",
         current_movie_poster=image or screening.image,
         screening=screening,
-        max_file_size=current_app.config["MAX_CONTENT_LENGTH"]
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
     )
 
 
@@ -430,7 +432,7 @@ def describe_image():
 
     prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
     prompt_response = gemini.prompt_image(image, prompt_text)
-    if not "candidates" in prompt_response or len(prompt_response["candidates"]) == 0:
+    if "candidates" not in prompt_response or len(prompt_response["candidates"]) == 0:
         return jsonify(
             {
                 "details": "Não foi possível gerar uma descrição para a imagem.",
@@ -438,7 +440,7 @@ def describe_image():
             }
         )
     candidate = prompt_response["candidates"][0]
-    if not "content" in candidate:
+    if "content" not in candidate:
         return jsonify(
             {
                 "details": "Não foi possível gerar uma descrição para a imagem.",

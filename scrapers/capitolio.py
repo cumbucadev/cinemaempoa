@@ -1,9 +1,9 @@
 import os
 import re
-import requests
-
-from bs4 import BeautifulSoup
 from datetime import datetime
+
+import requests
+from bs4 import BeautifulSoup
 
 
 class Capitolio:
@@ -81,8 +81,8 @@ class Capitolio:
                 ".movie-info .movie-director"
             ).get_text()
             general_info = ""
-            for l in iter(movie_director.splitlines()):
-                line = l.strip()
+            for line in iter(movie_director.splitlines()):
+                line = line.strip()
                 if len(line) == 0:
                     continue
                 if line.startswith("Direção"):

@@ -1,12 +1,12 @@
 import os
 import re
-import requests
 import unicodedata
 import xml.etree.ElementTree as ET
+from datetime import datetime
 
+import requests
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, ResultSet
-from datetime import datetime
 
 from utils import is_monday
 

@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from faker import Faker
 
 from flask_backend.models import Screening, ScreeningDate

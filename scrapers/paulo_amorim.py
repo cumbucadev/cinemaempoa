@@ -1,10 +1,10 @@
 import locale
 import os
-import requests
 import unicodedata
-
-from bs4 import BeautifulSoup
 from datetime import date, datetime, time as dt_time
+
+import requests
+from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 

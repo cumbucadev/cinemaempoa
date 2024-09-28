@@ -15,7 +15,7 @@ Base.query = db_session.query_property()
 
 
 def init_db():
-    import flask_backend.models
+    import flask_backend.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
@@ -46,7 +46,7 @@ def seed_db():
         screening_seeds,
         user_seeds,
     )
-    
+
     try:
         screening_seeds.create_screenings(db_session)
     except IntegrityError:
@@ -66,7 +66,7 @@ def seed_db():
         print("Movies already registered. Skipping...")
 
     try:
-        user_seeds.create_user(db_session)        
+        user_seeds.create_user(db_session)
     except IntegrityError:
         db_session.rollback()
         print("Users already registered. Skipping...")

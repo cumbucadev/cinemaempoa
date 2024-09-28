@@ -1,11 +1,11 @@
 import os
 import re
-import requests
-
-from bs4 import BeautifulSoup
 from datetime import datetime
 
-from utils import get_formatted_day_str, string_is_current_day, string_is_day
+import requests
+from bs4 import BeautifulSoup
+
+from utils import get_formatted_day_str, string_is_day
 
 
 class SalaRedencao:

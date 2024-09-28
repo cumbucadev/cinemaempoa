@@ -29,6 +29,23 @@ A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.p
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 
+Antes de subir uma alteração, rode o ruff para validar e formatar o código. Ele vai apontar ajustes para que o seu código
+fique no padrão utilizado no projeto:
+
+```bash
+ruff check # roda o linter
+ruff format # roda o formatter
+```
+
+> [!NOTE]
+> Para mais informações sobre o que é o `ruff` e como ele funciona, veja a [documentação oficial do ruff](https://docs.astral.sh/ruff/). Na dúvida, peça ajuda!
+
+Opcionalmente, o [pre-commit](https://pre-commit.com/) pode automatizar o uso do `ruff` quando você rodar um `git commit`.
+
+Para utilizá-lo, instale com:
+
+    pre-commit install
+
 ### Rodando o projeto
 
 Para rodar o portal, você vai precisar de três comando (todos rodados a partir da raíz do projeto):

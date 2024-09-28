@@ -16,11 +16,11 @@ from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
-from flask_backend.repository.screenings import create as create_screening
 from flask_backend.repository.screenings import (
+    create as create_screening,
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
+    update_screening_dates,
 )
-from flask_backend.repository.screenings import update_screening_dates
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
 
@@ -48,7 +48,7 @@ def validate_image(file) -> tuple[bool, str]:
             f"Extensão do arquivo inválida. Aceitamos {', '.join(ALLOWED_EXTENSIONS)}.",
         )
     if not _check_if_actually_image(file.stream):
-        return (False, f"Arquivo corrompido ou inválido.")
+        return (False, "Arquivo corrompido ou inválido.")
     return True, None
 
 

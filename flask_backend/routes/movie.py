@@ -1,7 +1,9 @@
 from flask import Blueprint, g, jsonify, render_template, request
 
-from flask_backend.repository.movies import get_all as get_all_movies
-from flask_backend.repository.movies import get_movies_with_similar_titles
+from flask_backend.repository.movies import (
+    get_all as get_all_movies,
+    get_movies_with_similar_titles,
+)
 from flask_backend.routes.auth import login_required
 
 bp = Blueprint("movie", __name__)

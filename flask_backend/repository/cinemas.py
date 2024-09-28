@@ -1,5 +1,6 @@
-from sqlalchemy import asc
 from typing import List, Optional
+
+from sqlalchemy import asc
 
 from flask_backend.db import db_session
 from flask_backend.models import Cinema
