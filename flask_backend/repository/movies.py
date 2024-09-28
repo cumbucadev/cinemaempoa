@@ -1,7 +1,5 @@
 from typing import List, Optional
 
-from sqlalchemy.orm import aliased
-
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening
 
@@ -17,15 +15,17 @@ def create(title: str) -> Movie:
 def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
     query = db_session.query(Movie).join(Screening)
     if include_drafts is False:
-        query = query.filter(Screening.draft == False)
+        query = query.filter(Screening.draft is False)
     return query.all()
 
 
-def get_paginated(current_page: int ,per_page: int ,include_drafts: bool = False) -> List[Optional[Movie]]:
+def get_paginated(
+    current_page: int, per_page: int, include_drafts: bool = False
+) -> List[Optional[Movie]]:
     query = db_session.query(Movie).join(Screening)
     offset = current_page * per_page
-    if include_drafts is False:
-        query = query.filter(Screening.draft == False)
+    if not include_drafts:
+        query = query.filter(Screening.draft == False)  # noqa: E712
     query = query.offset(offset).limit(per_page)
     return query.all()
 
@@ -42,4 +42,6 @@ def get_by_title_or_create(title: str) -> Movie:
 
 
 def get_movies_with_similar_titles(title: str) -> List[Movie]:
-    return db_session.query(Movie).filter(Movie.title.ilike(f"%{title}%")).limit(3).all()
+    return (
+        db_session.query(Movie).filter(Movie.title.ilike(f"%{title}%")).limit(3).all()
+    )

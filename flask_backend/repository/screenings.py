@@ -45,12 +45,14 @@ def create(
     image_width: Optional[int],
     image_height: Optional[int],
     is_draft: Optional[bool] = False,
+    image_alt: Optional[bool] = None,
 ) -> Screening:
     screening = Screening(
         movie_id=movie_id,
         cinema_id=cinema_id,
         dates=screening_dates,
         image=image,
+        image_alt=image_alt,
         image_width=image_width,
         image_height=image_height,
         description=description,
@@ -66,8 +68,8 @@ def update_screening_dates(
     screening: Screening, screening_dates: List[ScreeningDate]
 ) -> Screening:
     """Deletes all existing dates for a screening and substitute for the received dates."""
-    for date in screening.dates:
-        db_session.delete(date)
+    for _date in screening.dates:
+        db_session.delete(_date)
 
     screening.dates = screening_dates
     db_session.add(screening)
@@ -84,13 +86,26 @@ def update(
     image_width: Optional[int],
     image_height: Optional[int],
     is_draft: Optional[bool] = False,
+    image_alt: Optional[str] = None,
 ) -> None:
     screening.movie_id = movie_id
     screening.description = description
     screening.draft = is_draft
+    if image_alt:
+        screening.image_alt = image_alt
     if image:
         screening.image = image
         screening.image_width = image_width
         screening.image_height = image_height
     db_session.add(screening)
+    db_session.commit()
+
+
+def delete(
+    screening: Screening,
+) -> None:
+    # delete all related dates to maintain integrity
+    for _date in screening.dates:
+        db_session.delete(_date)
+    db_session.delete(screening)
     db_session.commit()

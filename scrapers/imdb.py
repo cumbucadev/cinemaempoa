@@ -1,5 +1,4 @@
 import requests
-
 from bs4 import BeautifulSoup
 from country_list import countries_for_language
 from Levenshtein import distance

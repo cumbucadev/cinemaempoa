@@ -4,6 +4,7 @@ from flask import Flask
 
 from flask_backend.db import db_session
 from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
+from flask_backend.utils.enums.environment import EnvironmentEnum
 
 
 def create_app(test_config=None):
@@ -32,7 +33,7 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
-    if APP_ENVIRONMENT == "production":
+    if APP_ENVIRONMENT == EnvironmentEnum.PRODUCTION:
         db.init_db()
         db.seed_db_prod()
 

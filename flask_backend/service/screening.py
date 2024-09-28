@@ -9,19 +9,22 @@ import requests
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
 )
-from flask_backend.repository.screenings import create as create_screening
 from flask_backend.repository.screenings import (
+    create as create_screening,
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
+    update_screening_dates,
 )
-from flask_backend.repository.screenings import update_screening_dates
+from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
+from flask_backend.utils.enums.environment import EnvironmentEnum
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 
 def _check_if_actually_image(file):
@@ -45,21 +48,23 @@ def validate_image(file) -> tuple[bool, str]:
             f"Extensão do arquivo inválida. Aceitamos {', '.join(ALLOWED_EXTENSIONS)}.",
         )
     if not _check_if_actually_image(file.stream):
-        return (False, f"Arquivo corrompido ou inválido.")
+        return (False, "Arquivo corrompido ou inválido.")
     return True, None
 
 
 def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
-    """Saves the received `file` into disk, returning the filename and image's width."""
-    if filename:
-        filename = secure_filename(filename)
-    else:
-        filename = secure_filename(file.filename)
-    img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
-    file.save(img_savepath)
-    with open(img_savepath, "rb") as f:
-        loaded_image = Image.open(f)
-    return filename, loaded_image.width, loaded_image.height
+    """Saves the received `file` into disk or uploads it to imgBB API,
+    depending on the current environment"""
+    # always save images locally on development
+    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
+        return upload_image_to_local_disk(file, app, filename)
+    # on production, attempt to save to the imgBB API
+    try:
+        return upload_image_to_api(app, file)
+    # on failure, save locally
+    except requests.exceptions.HTTPError:
+        file.seek(0)
+        return upload_image_to_local_disk(file, app, filename)
 
 
 def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
@@ -80,7 +85,7 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
     return screening_date_objects
 
 
-def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[str]]:
+def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]]:
     if image_url is None:
         return None, None
     file_extension = image_url.split(".")[-1]
@@ -92,7 +97,7 @@ def download_image_from_url(image_url) -> Tuple[Optional[Image.Image], Optional[
     if r.ok is False:
         return None, None
 
-    return Image.open(BytesIO(r.content)), file_name
+    return BytesIO(r.content), file_name
 
 
 def get_img_filename_from_url(image_url) -> str:
@@ -150,21 +155,13 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
 
             image_filename, image_width, image_height = None, None, None
             if scrapped_feature.poster:
-                image_filename = get_img_filename_from_url(scrapped_feature.poster)
-
-                # if the file from that URL already exists locally, use that
-                img_path = get_img_path_from_filename(image_filename, current_app)
-                if img_path:
-                    image_width, image_height = get_image_metadata(img_path)
-                # file doesnt exist locally, attempt to download
-                else:
-                    img, filename = download_image_from_url(scrapped_feature.poster)
-                    image_filename, image_width, image_height = None, None, None
-                    if img is not None:
-                        # if we fail to download or validate the image, just ignore it for now
-                        image_filename, image_width, image_height = save_image(
-                            img, current_app, filename
-                        )
+                img, filename = download_image_from_url(scrapped_feature.poster)
+                image_filename, image_width, image_height = None, None, None
+                if img is not None:
+                    # if we fail to download or validate the image, just ignore it for now
+                    image_filename, image_width, image_height = save_image(
+                        img, current_app, filename
+                    )
             screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
             if not screening:
                 create_screening(

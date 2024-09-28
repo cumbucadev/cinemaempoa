@@ -3,8 +3,8 @@ import math
 from flask import Blueprint, g, jsonify, render_template, request
 from werkzeug.exceptions import abort
 
-from flask_backend.repository.movies import get_all as get_all_movies
 from flask_backend.repository.movies import (
+    get_all as get_all_movies,
     get_movies_with_similar_titles,
     get_paginated,
 )

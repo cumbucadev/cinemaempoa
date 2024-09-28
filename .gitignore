@@ -5,7 +5,6 @@ cinebancarios/
 sala-redencao/
 paulo-amorim/
 json/
-docs/
 
 *.pyc
 __pycache__/
@@ -24,3 +23,5 @@ build/
 *.sqlite
 flask_backend/uploads/*
 !flask_backend/uploads/.gitkeep
+
+.env
