@@ -285,8 +285,14 @@
       }
       function switchCallback() {
         if (!sp00kyAudio) {
-          sp00kyAudio = new Audio("{{ url_for('static', filename='ring.mp3') }}");
+          sp00kyAudio = new Audio("{{ url_for('static', filename='halloween/ring-48.mp3') }}");
           sp00kyAudio.loop = true;
+          sp00kyAudio.addEventListener('canplaythrough', () => {
+            if (sp00kySwitch.checked) {
+              sp00kyAudio.play();
+            }
+          });
+          sp00kyAudio.setAttribute('canplay', true);
         }
         const isChecked = sp00kySwitch.checked;
         if (isChecked) {
@@ -295,7 +301,9 @@
           html.setAttribute("data-bs-core", "elegant");
           pageTitle.setAttribute('data-text', pageTitle.textContent);
           pageTitle.classList.add('glitch');
-          sp00kyAudio.play();
+          if (sp00kyAudio.getAttribute('canplay')) {
+            sp00kyAudio.play();
+          }
         } else {
           // Unsp00k
           killBats();
