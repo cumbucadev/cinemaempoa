@@ -274,7 +274,8 @@
     {% endif %}
 
     <!-- REMOVE ME AFTER OCTOBER -->
-    <script src="{{ url_for('static', filename='bats.js') }}"></script>
+    <script src="{{ url_for('static', filename='halloween/loopify.js') }}"></script>
+    <script src="{{ url_for('static', filename='halloween/bats.js') }}"></script>
     <script>
       const bats = new BatManager();
       function makeBats() {
@@ -283,29 +284,36 @@
       function killBats() {
         bats.markForDeath();
       }
-      const pageTitle = document.querySelector("h1");
-      const sp00kySwitch = document.getElementById('sp00k-switch');
-      let sp00kyAudio = null;
+      function loopifyCallback(err, loop) {
+        if (err) {
+          console.warn(err);
+          return;
+        }
+
+        const pageTitle = document.querySelector("h1");
+        const sp00kySwitch = document.getElementById('sp00k-switch');
+        
         sp00kySwitch.addEventListener('change', (e) => {
-          if (!sp00kyAudio) {
-            sp00kyAudio = new Audio("{{ url_for('static', filename='sp00k.mp3') }}");
-          }
           const isChecked = e.target.checked;
           if (isChecked) {
             // Get sp00ked!
             makeBats();
             html.setAttribute("data-bs-core", "elegant");
-            sp00kyAudio.play();
             pageTitle.setAttribute('data-text', pageTitle.textContent);
             pageTitle.classList.add('glitch');
+            loop.play();
           } else {
             // Unsp00k
             killBats();
             html.setAttribute("data-bs-core", "default");
-            sp00kyAudio.pause();
             pageTitle.classList.remove('glitch');
+            loop.stop();
           }
         });
+      }
+
+      loopify("{{ url_for('static', filename='ring.mp3') }}", loopifyCallback);
+
     </script>
     <!-- REMOVE ME AFTER OCTOBER -->
   </body>
