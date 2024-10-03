@@ -274,7 +274,6 @@
     {% endif %}
 
     <!-- REMOVE ME AFTER OCTOBER -->
-    <script src="{{ url_for('static', filename='halloween/loopify.js') }}"></script>
     <script src="{{ url_for('static', filename='halloween/bats.js') }}"></script>
     <script>
       const bats = new BatManager();
@@ -284,35 +283,34 @@
       function killBats() {
         bats.markForDeath();
       }
-      function loopifyCallback(err, loop) {
-        if (err) {
-          console.warn(err);
-          return;
+      function switchCallback() {
+        if (!sp00kyAudio) {
+          sp00kyAudio = new Audio("{{ url_for('static', filename='ring.mp3') }}");
+          sp00kyAudio.loop = true;
         }
-
-        const pageTitle = document.querySelector("h1");
-        const sp00kySwitch = document.getElementById('sp00k-switch');
-        
-        sp00kySwitch.addEventListener('change', (e) => {
-          const isChecked = e.target.checked;
-          if (isChecked) {
-            // Get sp00ked!
-            makeBats();
-            html.setAttribute("data-bs-core", "elegant");
-            pageTitle.setAttribute('data-text', pageTitle.textContent);
-            pageTitle.classList.add('glitch');
-            loop.play();
-          } else {
-            // Unsp00k
-            killBats();
-            html.setAttribute("data-bs-core", "default");
-            pageTitle.classList.remove('glitch');
-            loop.stop();
-          }
-        });
+        const isChecked = sp00kySwitch.checked;
+        if (isChecked) {
+          // Get sp00ked!
+          makeBats();
+          html.setAttribute("data-bs-core", "elegant");
+          pageTitle.setAttribute('data-text', pageTitle.textContent);
+          pageTitle.classList.add('glitch');
+          sp00kyAudio.play();
+        } else {
+          // Unsp00k
+          killBats();
+          html.setAttribute("data-bs-core", "default");
+          pageTitle.classList.remove('glitch');
+          sp00kyAudio.pause();
+        }
       }
 
-      loopify("{{ url_for('static', filename='ring.mp3') }}", loopifyCallback);
+      const pageTitle = document.querySelector("h1");
+      const sp00kySwitch = document.getElementById('sp00k-switch');
+      // always untoggle on page load
+      sp00kySwitch.checked = false;
+      let sp00kyAudio = null;
+      sp00kySwitch.addEventListener('change', () => switchCallback());
 
     </script>
     <!-- REMOVE ME AFTER OCTOBER -->
