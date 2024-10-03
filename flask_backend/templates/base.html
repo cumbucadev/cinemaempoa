@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" style="scroll-behavior: smooth">
+<html lang="en" style="scroll-behavior: smooth" data-bs-core="default">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,6 +9,60 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}"
     />
+
+    <!-- REMOVE ME AFTER OCTOBER -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='halfmoon/cores/halfmoon.elegant.css') }}" />
+    <style>
+      .glitch {
+        position: relative;
+        z-index: 1;
+      }
+
+      .glitch:before,
+      .glitch:after {
+        display: block;
+        content: attr(data-text);
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0.8;
+      }
+
+      .glitch:before {
+        animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+        color: #780606;
+        z-index: -1;
+      }
+
+      .glitch:after {
+        animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both infinite;
+        color: #EB5E28;
+        z-index: -2;
+      }
+
+      @keyframes glitch-it {
+        0% {
+            transform: translate(0);
+        }
+        20% {
+            transform: translate(-2px, 2px);
+        }
+        40% {
+            transform: translate(-2px, -2px);
+        }
+        60% {
+            transform: translate(2px, 2px);
+        }
+        80% {
+            transform: translate(2px, -2px);
+        }
+        to {
+            transform: translate(0);
+        }
+      }
+
+    </style>
+    <!-- REMOVE ME AFTER OCTOBER -->
   </head>
   <body class="d-flex flex-column min-vh-100">
     <header id="header">
@@ -142,6 +196,21 @@
           </ul>
         </div>
       </nav>
+      <!-- REMOVE ME AFTER OCTOBER -->
+      <div class="container-fluid d-flex container align-items-center">
+        <div class="form-check me-2">
+          <label class="form-check-label" for="sp00k-switch">
+            🪦
+          </label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" value="" id="sp00k-switch">
+          <label class="form-check-label" for="sp00k-switch">
+            🎃
+          </label>
+        </div>
+      </div>
+      <!-- REMOVE ME AFTER OCTOBER -->
       <script>
         const html = document.querySelector("html");
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -203,5 +272,41 @@
       <script data-goatcounter="https://cinemaempoa.goatcounter.com/count"
       async src="//gc.zgo.at/count.js"></script>
     {% endif %}
+
+    <!-- REMOVE ME AFTER OCTOBER -->
+    <script src="{{ url_for('static', filename='bats.js') }}"></script>
+    <script>
+      const bats = new BatManager();
+      function makeBats() {
+        bats.makeBats(15);
+      }
+      function killBats() {
+        bats.markForDeath();
+      }
+      const pageTitle = document.querySelector("h1");
+      const sp00kySwitch = document.getElementById('sp00k-switch');
+      let sp00kyAudio = null;
+        sp00kySwitch.addEventListener('change', (e) => {
+          if (!sp00kyAudio) {
+            sp00kyAudio = new Audio("{{ url_for('static', filename='sp00k.mp3') }}");
+          }
+          const isChecked = e.target.checked;
+          if (isChecked) {
+            // Get sp00ked!
+            makeBats();
+            html.setAttribute("data-bs-core", "elegant");
+            sp00kyAudio.play();
+            pageTitle.setAttribute('data-text', pageTitle.textContent);
+            pageTitle.classList.add('glitch');
+          } else {
+            // Unsp00k
+            killBats();
+            html.setAttribute("data-bs-core", "default");
+            sp00kyAudio.pause();
+            pageTitle.classList.remove('glitch');
+          }
+        });
+    </script>
+    <!-- REMOVE ME AFTER OCTOBER -->
   </body>
 </html>
