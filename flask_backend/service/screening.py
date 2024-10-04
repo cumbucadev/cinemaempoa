@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import List, Optional, Tuple
 
 import requests
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import APP_ENVIRONMENT
@@ -97,7 +97,15 @@ def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]
     if r.ok is False:
         return None, None
 
-    return BytesIO(r.content), file_name
+    image_bytes = BytesIO(r.content)
+
+    # test that the return is a valid image
+    try:
+        Image.open(image_bytes)
+        image_bytes.seek(0)
+    except UnidentifiedImageError:
+        return None, None
+    return image_bytes, file_name
 
 
 def get_img_filename_from_url(image_url) -> str:
