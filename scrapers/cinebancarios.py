@@ -156,7 +156,7 @@ class CineBancarios:
             "classification": "",
             "excerpt": "",
             "time": [],
-            "read_more": "http://cinebancarios.blogspot.com/?view=classic",
+            "read_more": None,
         }
 
         movie_block["excerpt"] = unicodedata.normalize(
@@ -266,7 +266,7 @@ class CineBancarios:
             "classification": "",
             "excerpt": "",
             "time": [],
-            "read_more": "http://cinebancarios.blogspot.com/?view=classic",
+            "read_more": None,
         }
         movie_block["excerpt"] = unicodedata.normalize("NFKD", node.text)
         movie_block = self._match_info_on_text_nodes(

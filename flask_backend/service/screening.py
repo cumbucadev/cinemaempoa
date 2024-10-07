@@ -173,14 +173,16 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
             screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
             if not screening:
                 create_screening(
-                    movie.id,
-                    description,
-                    cinema.id,
-                    screenings_dates,
-                    image_filename,
-                    image_width,
-                    image_height,
-                    True,
+                    movie_id=movie.id,
+                    description=description,
+                    cinema_id=cinema.id,
+                    screening_dates=screenings_dates,
+                    image=image_filename,
+                    image_width=image_width,
+                    image_height=image_height,
+                    is_draft=True,
+                    image_alt=None,
+                    url_origin=scrapped_feature.read_more,
                 )
             else:
                 # create new ScreeningDate objects from existing ones

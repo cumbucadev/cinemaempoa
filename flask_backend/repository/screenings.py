@@ -46,6 +46,7 @@ def create(
     image_height: Optional[int],
     is_draft: Optional[bool] = False,
     image_alt: Optional[bool] = None,
+    url_origin: Optional[str] = None,
 ) -> Screening:
     screening = Screening(
         movie_id=movie_id,
@@ -57,6 +58,7 @@ def create(
         image_height=image_height,
         description=description,
         draft=is_draft,
+        url=url_origin,
     )
     db_session.add(screening)
     db_session.commit()
