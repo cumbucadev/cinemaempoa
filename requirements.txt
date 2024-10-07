@@ -6,7 +6,7 @@ click==8.1.7
 country-list==1.0.0
 Faker==24.7.1
 Flask==3.0.3
-gunicorn==21.2.0
+gunicorn==23.0.0
 idna==3.4
 itsdangerous==2.1.2
 Jinja2==3.1.3
