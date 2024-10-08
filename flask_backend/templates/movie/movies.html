@@ -17,7 +17,7 @@
 </section>
 </div>
 <script>
-  let masonry, observer, currPage = 1;
+  let masonry, observer, currPage = 0;
 
   async function intersectionCallback(entries, _observer) {
     const entry = entries[0];
@@ -75,7 +75,35 @@
     masonry.layout();
   }
 
-  document.addEventListener("DOMContentLoaded", (event) => {
+
+  // Função para carregar uma nova página de imagens
+  async function fetchNextPage() {
+    const section = document.querySelector("section.grid");
+    const nextPage = parseInt(currPage) + 1;
+
+    const nextPageFetch = await fetch(`/movies/posters/images?page=${nextPage}`, {
+      headers: {
+        "X-LAZY-LOAD": "1"
+      }
+    });
+
+    if (!nextPageFetch.ok) {
+      return;
+    }
+
+    currPage += 1;
+
+    const nextPageText = await nextPageFetch.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(nextPageText, 'text/html');
+    const nextPageImages = doc.querySelectorAll("img.grid-item");
+
+    section.setAttribute('data-page', nextPage);
+    nextPageImages.forEach((img) => section.appendChild(img));
+    masonry.appended(nextPageImages);
+  }
+
+  document.addEventListener("DOMContentLoaded", async (event) => {
     const grid = document.querySelector('main');
     masonry = new Masonry(grid, {
       // options
@@ -86,10 +114,14 @@
       masonry.layout();
     });
 
+    // Chamada inicial para carregar as primeiras imagens
+    await fetchNextPage();
+
     observer = new IntersectionObserver(intersectionCallback, { threshold: 1 });
     const imgs = Array.from(document.querySelectorAll(".grid-item"));
     observer.observe(imgs[imgs.length - 1]);
   });
+
 </script>
 <script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>
 <script src="{{ url_for('static', filename='masonry.js') }}"></script>
