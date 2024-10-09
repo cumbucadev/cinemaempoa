@@ -40,9 +40,11 @@ function setup() {
   const cols = 4;
   const rows = 4;
 
-  const pageWidth = window.innerWidth;
-  const canvasWidth = pageWidth < 600 ? pageWidth : 600;
-  const canvasHeight = canvasWidth;
+  const pageWidth = document
+    .getElementById("canvas-container")
+    .getBoundingClientRect().width;
+  const canvasWidth = pageWidth < 500 ? pageWidth : 500;
+  const canvasHeight = canvasWidth * 1.6;
 
   const myCanvas = createCanvas(canvasWidth, canvasHeight);
   myCanvas.parent("canvas-container");

@@ -43,7 +43,9 @@ function preload() {
 }
 
 function setup() {
-  const pageWidth = window.innerWidth;
+  const pageWidth = document
+    .getElementById("canvas-container")
+    .getBoundingClientRect().width;
   const canvasWidth = pageWidth < 500 ? pageWidth : 500;
   const canvasHeight = canvasWidth * 1.6;
 
