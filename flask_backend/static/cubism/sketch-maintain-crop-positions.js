@@ -2,6 +2,7 @@ let payload;
 let imgUrls = [];
 let images = [];
 let squares = [];
+let squareGrid = [];
 
 let squareWidth;
 let squareHeight;
@@ -9,17 +10,22 @@ let squareHeight;
 let loadedImages = 0;
 let allImagesLoaded = false;
 
+let cols = 4;
+let rows = 4;
+
 function prepSquares() {
   for (const img of images) {
+    let grid = [];
     img.resize(width, height);
     img.loadPixels();
-
     for (let y = 0; y < height; y += squareHeight) {
+      let row = [];
       for (let x = 0; x < width; x += squareWidth) {
-        const imgCrop = img.get(x, y, squareWidth, squareHeight);
-        squares.push(imgCrop);
+        row.push(img.get(x, y, squareWidth, squareHeight));
       }
+      grid.push(row);
     }
+    squareGrid.push(grid);
   }
 }
 
@@ -37,15 +43,13 @@ function preload() {
 }
 
 function setup() {
-  const cols = 4;
-  const rows = 4;
-
   const pageWidth = window.innerWidth;
-  const canvasWidth = pageWidth < 600 ? pageWidth : 600;
-  const canvasHeight = canvasWidth;
+  const canvasWidth = pageWidth < 500 ? pageWidth : 500;
+  const canvasHeight = canvasWidth * 1.6;
 
   const myCanvas = createCanvas(canvasWidth, canvasHeight);
   myCanvas.parent("canvas-container");
+  myCanvas.mouseClicked(_mouseClicked);
 
   background(89);
 
@@ -58,26 +62,29 @@ function setup() {
     const path = imgUrls[i];
     images.push(loadImage(path, prepImage));
   }
+
   noLoop();
 }
 
-function mouseClicked() {
+function _mouseClicked() {
   draw();
 }
 
 function draw() {
   if (!allImagesLoaded) return;
   background(89);
-  squares = shuffle(squares);
+
   let x = 0;
   let y = 0;
 
-  for (const square of squares) {
-    image(square, x, y);
-    x += squareWidth;
-    if (x >= width) {
-      x = 0;
-      y += squareHeight;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      let randomImageIndex = floor(random(squareGrid.length));
+      let square = squareGrid[randomImageIndex][row][col];
+      image(square, x, y);
+      x += squareWidth;
     }
+    x = 0;
+    y += squareHeight;
   }
 }

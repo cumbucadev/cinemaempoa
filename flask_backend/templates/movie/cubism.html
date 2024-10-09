@@ -17,6 +17,20 @@
     </ul>
 </nav>
 
+<!-- Inline radio buttons -->
+
+<div class="container mb-3">
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" value="maintain" id="maintain-order" name="crop-position" {% if
+            crop_position=='maintain' %} checked {% endif %}>
+        <label class="form-check-label" for="maintain-order">Ordenado</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" value="random" id="random-order" name="crop-position" {% if
+            crop_position=='random' %} checked {% endif %}>
+        <label class="form-check-label" for="random-order">Aleatório</label>
+    </div>
+</div>
 
 
 {% endblock %}
@@ -30,6 +44,17 @@
     Carregando...
 </div>
 
+<script>
+    const orderRadios = document.querySelectorAll("[name=crop-position]");
+    orderRadios.forEach((r) => r.addEventListener('change', (e) => {
+        const crop_position = e.target.value;
+        window.location.href = `{{ url_for('movie.posters_cubism') }}?crop_position=${crop_position}`
+    }))
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/p5.min.js"></script>
-<script src="{{ url_for('static', filename='cubism/sketch1.js') }}"></script>
+{% if crop_position == 'maintain' %}
+<script src="{{ url_for('static', filename='cubism/sketch-maintain-crop-positions.js') }}"></script>
+{% else %}
+<script src="{{ url_for('static', filename='cubism/sketch-random-crop-positions.js') }}"></script>
+{% endif %}
 {% endblock %}
