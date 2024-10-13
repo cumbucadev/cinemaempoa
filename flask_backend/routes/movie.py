@@ -39,45 +39,43 @@ def posters_cubism():
 
 @bp.route("/movies/posters/images")
 def poster_images():
-    lazy_loading = request.headers.get("X-LAZY-LOAD", None)
-    if lazy_loading is None or lazy_loading != "1":
+    lazy_loading = request.headers.get("X-LAZY-LOAD", "0")
+    if lazy_loading != "1":
         abort(400)
-    page = request.args.get("page", 0)
-    limit = 4
+
     try:
-        page = int(page)
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 4))
     except ValueError:
         abort(400)
 
     user_logged_in = g.user is not None
-    movies = get_paginated(page, limit, user_logged_in)
+    scrennigs_list = get_paginated(page, limit, user_logged_in)
 
-    if len(movies) == 0:
+    if len(scrennigs_list) == 0:
         abort(404)
 
     imgDisplayWidth = 325
     images = []
     image_urls = set()
-    for movie in movies:
-        for screening in movie.screenings:
-            if not screening.image:
-                continue
-            if screening.image in image_urls:
-                continue
-            image_urls.add(screening.image)
-            if screening.image:
-                images.append(
-                    {
-                        "screening_id": screening.id,
-                        "url": screening.image,
-                        "width": imgDisplayWidth,
-                        "height": math.ceil(
-                            imgDisplayWidth
-                            / screening.image_width
-                            * screening.image_height
-                        ),
-                    }
-                )
+    for screening in scrennigs_list:
+        if not screening.image:
+            continue
+        if screening.image in image_urls:
+            continue
+
+        image_urls.add(screening.image)
+        if screening.image:
+            images.append(
+                {
+                    "screening_id": screening.id,
+                    "url": screening.image,
+                    "width": imgDisplayWidth,
+                    "height": math.ceil(
+                        imgDisplayWidth / screening.image_width * screening.image_height
+                    ),
+                }
+            )
     return render_template(
         "movie/movie_posters.html", images=images, show_drafts=user_logged_in
     )
@@ -93,19 +91,18 @@ def poster_images_urls():
         abort(400)
 
     user_logged_in = g.user is not None
-    movies = get_paginated(page, limit, user_logged_in)
+    screenings_list = get_paginated(page, limit, user_logged_in)
 
-    if len(movies) == 0:
+    if len(screenings_list) == 0:
         abort(404)
 
     image_urls = []
-    for movie in movies:
-        for screening in movie.screenings:
-            if not screening.image:
-                continue
-            if screening.image in image_urls:
-                continue
-            image_urls.append(screening.image)
+    for screening in screenings_list:
+        if not screening.image:
+            continue
+        if screening.image in image_urls:
+            continue
+        image_urls.append(screening.image)
     return jsonify(image_urls)
 
 
