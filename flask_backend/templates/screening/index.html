@@ -39,7 +39,7 @@
       >
         <img class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0
         me-sm-3" src="{{ screening_date['image'] }}" width="{{
-        screening_date['image_display_width'] }}" loading="lazy" {% if
+        screening_date['image_display_width'] }}" height="{{screening_date['min_height']}}" loading="lazy" {% if
         screening_date['image_alt'] %} alt="{{ screening_date['image_alt'] }}"
         title="{{ screening_date['image_alt'] }}" {% endif %} /> {% else %}
       </li>
