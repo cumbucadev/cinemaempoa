@@ -268,10 +268,14 @@
         (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
       );
     </script>
-    {% if request.path == url_for('screening.index') %}
-      <script data-goatcounter="https://cinemaempoa.goatcounter.com/count"
-      async src="//gc.zgo.at/count.js"></script>
-    {% endif %}
+    <script>
+      // reference: https://www.goatcounter.com/help/skip-path
+      // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
+      window.goatcounter = {
+        no_onload: document.querySelector("[data-goatcounter-skip]") !== null,
+      }
+    </script>
+    <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 
     <!-- REMOVE ME AFTER OCTOBER -->
     <script src="{{ url_for('static', filename='halloween/bats.js') }}"></script>

@@ -57,6 +57,17 @@
     )
 
     if (!nextPageFetch.ok) {
+      if (nextPageFetch.status && nextPageFetch.status == 404) {
+        // register that someone scrolled to the bottom of the page
+        // using a goatcounter event
+        if (window.goatcounter) {
+          window.goatcounter.count({
+            path: window.location.pathname,
+            title: "Posters loaded last page",
+            event: true,
+          });
+        }
+      }
       return;
     }
 
@@ -75,6 +86,15 @@
     const lastImage = imgsObserver[imgsObserver.length - 1];
     lastImage.setAttribute("data-observed", 1);
     _observer.observe(lastImage);
+    // register that someone scrolled up to the next page
+    // using a goatcounter event
+    if (window.goatcounter) {
+      window.goatcounter.count({
+        path: window.location.pathname,
+        title: "Posters load next page",
+        event: true,
+      });
+    }
   }
 
   function removeOnError(e) {
