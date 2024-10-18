@@ -1,0 +1,104 @@
+Metadata-Version: 2.1
+Name: country-list
+Version: 1.0.0
+Summary: List of all countries with names and ISO 3166-1 codes in all languages
+Home-page: https://github.com/bulv1ne/country_list
+Author: Niels Lemmens
+Author-email: draso.odin@gmail.com
+License: MIT license
+Keywords: country_list
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+
+============
+Country List
+============
+
+.. image:: https://img.shields.io/pypi/v/country_list.svg
+        :target: https://pypi.python.org/pypi/country_list
+
+.. image:: https://img.shields.io/travis/bulv1ne/country_list.svg
+        :target: https://travis-ci.org/bulv1ne/country_list
+
+.. image:: https://pyup.io/repos/github/bulv1ne/country_list/shield.svg
+        :target: https://pyup.io/repos/github/bulv1ne/country_list/
+        :alt: Updates
+
+.. image:: https://coveralls.io/repos/github/bulv1ne/country_list/badge.svg?branch=master
+        :target: https://coveralls.io/github/bulv1ne/country_list?branch=master
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/ambv/black
+
+
+
+
+Features
+--------
+
+- List of all countries with names and ISO 3166-1 codes in all languages and all data formats.
+
+
+Installation
+------------
+
+Install country_list by running:
+
+.. code-block:: sh
+
+    pip install country_list
+
+Usage
+-----
+
+Get all available languages:
+
+.. code-block:: python
+
+    from country_list import available_languages
+
+    for language in available_languages():
+        print(language)
+
+Get country names in english and swedish:
+
+.. code-block:: python
+
+    >>> from country_list import countries_for_language
+    >>> # countries_for_language returns a list of tuples now, might be changed to an OrderedDict
+    >>> countries = dict(countries_for_language('en'))
+    >>> print(countries['GB'])
+    'United Kingdom'
+    >>> print(countries['SE'])
+    'Sweden'
+    >>> countries = dict(countries_for_language('sv'))
+    >>> print(countries['GB'])
+    'Storbritannien'
+    >>> print(countries['SE'])
+    'Sverige'
+
+
+Credits
+-------
+
+This package contains the data files from `umpirsky/country-list`_.
+
+This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+
+.. _`umpirsky/country-list`: https://github.com/umpirsky/country-list
+.. _Cookiecutter: https://github.com/audreyr/cookiecutter
+.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+
+License
+-------
+
+The project is licensed under the MIT license.
+
+
