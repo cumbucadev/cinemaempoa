@@ -1,7 +1,6 @@
-{% extends 'base.html' %} {% block header %}
-<h1 data-goatcounter-skip="true">{% block title %}Importar sessões{% endblock %}</h1>
-<p></p>
-{% endblock %} {% block content %}
+{% extends "base.html" %} {% block header %}
+<h1 data-goatcounter-skip="true">{% block title %}Importar sessões{% endblock title %}</h1>
+{% endblock header %} {% block content %}
 <form method="post" enctype="multipart/form-data">
   <p>Selecione um arquivo .json válido para realizar a importação.</p>
   <div class="mb-3">
@@ -20,7 +19,7 @@
   </div>
 </form>
 <hr />
-<form method="POST" action="/screening/scrap">
+<form method="post" action="{{ url_for("screening.runScrap") }}">
   <h2>Scrapping automático</h2>
   <p>Selecione os cinemas na listagem abaixo.</p>
   <div class="form-group">
@@ -51,4 +50,4 @@
   </div>
   <button class="btn btn-primary mt-2" type="submit">Fazer scrapping dos cinemas selecionados</button>
 </form>
-{% endblock %}
+{% endblock content %}

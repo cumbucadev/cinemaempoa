@@ -1,9 +1,8 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block header %}
-  <h1 data-goatcounter-skip="true">{% block title %}Criar sessão{% endblock %}</h1>
-  <p></p>
-{% endblock %}
+  <h1 data-goatcounter-skip="true">{% block title %}Criar sessão{% endblock title %}</h1>
+{% endblock header %}
 
 {% block content %}
 <form method="post" enctype="multipart/form-data">
@@ -21,13 +20,13 @@
     {% if received_dates|length %}
       {% for received_date in received_dates %}
         <div class="mb-2">
-          <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{received_date}}" min="2023-01-01T00:00" max="{{max_year}}-12-31T00:00" />
+          <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{ received_date }}" min="2023-01-01T00:00" max="{{ max_year }}-12-31T00:00" />
           <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
         </div>
       {% endfor %}
     {% else %}
       <div class="mb-2">
-        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{current_date}}T19:00" min="2023-01-01T00:00" max="{{max_year}}-12-31T00:00" />
+        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{ current_date }}T19:00" min="2023-01-01T00:00" max="{{ max_year }}-12-31T00:00" />
         <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
       </div>
     {% endif %}
@@ -39,7 +38,7 @@
     <label class="form-label" for="title">Title</label>
     <input autocomplete="off" class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" oninput="fetchSimilarTitles()" required>
   </div>
-  <ul class="mb-3" class="" id="similar_movies">
+  <ul class="mb-3" id="similar_movies">
   </ul>
   <div class="mb-3">
     <div class="d-flex mb-2 align-items-center">
@@ -239,4 +238,4 @@
 
   }
 </script>
-{% endblock %}
+{% endblock content %}

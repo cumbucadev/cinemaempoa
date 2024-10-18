@@ -1,5 +1,5 @@
-{% extends 'base.html' %} {% block header %}
-<h1>{% block title %}Em cartaz{% endblock %}</h1>
+{% extends "base.html" %} {% block header %}
+<h1>{% block title %}Em cartaz{% endblock title %}</h1>
 <p>
   Filmes em cartaz hoje, <time><strong>{{ today }}</strong></time
   >, em Porto Alegre.
@@ -21,7 +21,7 @@
     {% endfor %}
   </ul>
 </div>
-{% endblock %} {% block content %} {% for cinema in cinemas_with_screenings %}
+{% endblock header %} {% block content %} {% for cinema in cinemas_with_screenings %}
 <article>
   <header>
     <h2 id="{{ cinema.slug }}">{{ cinema.name }}</h2>
@@ -35,11 +35,11 @@
       screening_date['image'] %}
       <li
         class="mb-5 clearfix"
-        style="min-height: {{screening_date['min_height']}}px"
+        style="min-height: {{ screening_date['min_height'] }}px"
       >
         <img class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0
         me-sm-3" src="{{ screening_date['image'] }}" width="{{
-        screening_date['image_display_width'] }}" height="{{screening_date['min_height']}}" loading="lazy" {% if
+        screening_date['image_display_width'] }}" height="{{ screening_date['min_height'] }}" loading="lazy" {% if
         screening_date['image_alt'] %} alt="{{ screening_date['image_alt'] }}"
         title="{{ screening_date['image_alt'] }}" {% endif %} /> {% else %}
       </li>
@@ -81,7 +81,8 @@
           </ul>
         </div>
         {% endif %}
-        <p style="white-space: break-spaces">
+        <!-- djlint:off -->
+        <p style="white-space: break-spaces;">
           {{ screening_date['description']|safe }}
         </p>
         {% if screening_date['screening_url'] %}
@@ -164,4 +165,4 @@
     });
   });
 </script>
-{% endblock %}
+{% endblock content %}
