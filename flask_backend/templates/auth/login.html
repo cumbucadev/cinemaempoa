@@ -1,11 +1,12 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block header %}
-  <h1>{% block title %}Acessar{% endblock %}</h1>
+  <h1>{% block title %}Acessar{% endblock title %}</h1>
   <p>Faça Login no site para ajudar com a curadoria.</p>
-{% endblock %}
+{% endblock header %}
 
 {% block content %}
+<!-- djlint:off -->
 <div class="w-100" style="max-width: 479px;">
     <form method="post">
         <div class="form-group mb-3">
@@ -24,4 +25,4 @@
         </div>
     </form>
 </div>
-{% endblock %}
+{% endblock content %}

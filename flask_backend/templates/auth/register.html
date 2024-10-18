@@ -1,12 +1,13 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block header %}
-  <h1>{% block title %}Criar conta{% endblock %}</h1>
+  <h1>{% block title %}Criar conta{% endblock title %}</h1>
   <!-- <p>Registre-se no <strong>Cinema em POA</strong> para contribuir e comentar nas postagens.</p> -->
   <p>O registro de contas está <strong>temporariamente desabilitado!</strong></p>
-{% endblock %}
+{% endblock header %}
 
 {% block content %}
+<!-- djlint:off -->
 <div class="w-100" style="max-width: 479px;">
     <!-- <form method="post">
         <div class="form-group mb-3">
