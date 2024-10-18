@@ -1,9 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" style="scroll-behavior: smooth" data-bs-core="default">
+<style>
+    html {
+        scroll-behavior: smooth;
+    }
+</style>
+<!-- djlint:off -->
+<!-- TODO: #95 add meta description -->
+<html lang="en" data-bs-core="default">
+<!-- djlint:on -->
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block title %}{% endblock %} - Cinema em POA</title>
+    <title>{% block title %}{% endblock title %} - Cinema em POA</title>
     <!-- halfmoon css file -->
     <link
       rel="stylesheet"
@@ -66,6 +74,7 @@
   </head>
   <body class="d-flex flex-column min-vh-100">
     <header id="header">
+      <!-- djlint:off -->
       <nav
         class="navbar mb-5"
         style="
@@ -74,6 +83,7 @@
             var(--bs-content-border-color);
         "
       >
+     <!-- djlint:on -->
         <div class="container-fluid container align-items-center">
           <a class="navbar-brand" href="{{ url_for('screening.index') }}">
             <img
@@ -111,28 +121,28 @@
           >
             <ul class="navbar-nav">
               <li class="nav-item">
-                <a class="nav-link" href="{{url_for('screening.index')}}"
+                <a class="nav-link" href="{{ url_for('screening.index') }}"
                   >Em cartaz</a
                 >
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="{{url_for('movie.posters')}}"
+                <a class="nav-link" href="{{ url_for('movie.posters') }}"
                   >Posters</a
                 >
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="{{url_for('movie.index')}}">Filmes</a>
+                <a class="nav-link" href="{{ url_for('movie.index') }}">Filmes</a>
               </li>
               {% if g.user %}
               <li class="nav-item">
                 <a
                   class="nav-link"
-                  href="{{url_for('screening.import_screenings')}}"
+                  href="{{ url_for('screening.import_screenings') }}"
                   >Importar sessões</a
                 >
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="{{url_for('screening.create')}}"
+                <a class="nav-link" href="{{ url_for('screening.create') }}"
                   >Nova sessão</a
                 >
               </li>
@@ -150,32 +160,32 @@
           </div>
           <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
             <li class="nav-item">
-              <a class="nav-link" href="{{url_for('screening.index')}}"
+              <a class="nav-link" href="{{ url_for('screening.index') }}"
                 >Em cartaz</a
               >
             </li>
             <div class="vr mx-3"></div>
             <li class="nav-item">
-              <a class="nav-link" href="{{url_for('movie.posters')}}"
+              <a class="nav-link" href="{{ url_for('movie.posters') }}"
                 >Posters</a
               >
             </li>
             <div class="vr mx-3"></div>
             <li class="nav-item">
-              <a class="nav-link" href="{{url_for('movie.index')}}">Filmes</a>
+              <a class="nav-link" href="{{ url_for('movie.index') }}">Filmes</a>
             </li>
             <div class="vr mx-3"></div>
             {% if g.user %}
             <li class="nav-item">
               <a
                 class="nav-link"
-                href="{{url_for('screening.import_screenings')}}"
+                href="{{ url_for('screening.import_screenings') }}"
                 >Importar sessões</a
               >
             </li>
             <div class="vr mx-3"></div>
             <li class="nav-item">
-              <a class="nav-link" href="{{url_for('screening.create')}}"
+              <a class="nav-link" href="{{ url_for('screening.create') }}"
                 >Nova sessão</a
               >
             </li>
@@ -185,12 +195,14 @@
             </li>
             {% else %}
             <li class="nav-item">
+            <!-- djlint:off -->
               <a
                 href="{{ url_for('auth.login') }}"
                 style="margin-right: 0.5rem !important"
                 class="nav-link pr-1"
                 >Acessar</a
               >
+            <!-- djlint:on -->
             </li>
             {% endif %}
           </ul>
@@ -221,7 +233,7 @@
           document.getElementById("logo-white").remove();
         }
       </script>
-      <div class="container">{% block header %}{% endblock %}</div>
+      <div class="container">{% block header %}{% endblock header %}</div>
     </header>
     <main class="container">
       {% for category, message in get_flashed_messages(with_categories=true) %}
@@ -237,7 +249,7 @@
           aria-label="Close"
         ></button>
       </div>
-      {% endfor %} {% block content %}{% endblock %}
+      {% endfor %} {% block content %}{% endblock content %}
     </main>
     <footer class="py-3 my-4 mt-auto">
       <ul class="nav justify-content-center border-bottom pb-3 mb-3">
