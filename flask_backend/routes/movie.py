@@ -76,6 +76,7 @@ def poster_images():
                             / screening.image_width
                             * screening.image_height
                         ),
+                        "image_alt": screening.image_alt,
                     }
                 )
     return render_template(

@@ -1,11 +1,11 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 <style>
   .grid-item {
     width: 325px;
   }
 </style>
 {% block header %}
-<h1>{% block title %}Posters{% endblock %}</h1>
+<h1>{% block title %}Posters{% endblock title %}</h1>
 <p>
   Diferentes formas de visualizar os posters de filmes que já passaram pelo cinemaempoa.
 </p>
@@ -22,15 +22,13 @@
   </ul>
 </nav>
 
-
-
-{% endblock %}
+{% endblock header %}
 
 {% block content %}
 <section class="grid">
   {% include "movie/movie_posters.html" %}
 </section>
-</div>
+
 <script>
   let masonry, observer, currPage = 0;
 
@@ -160,4 +158,4 @@
 </script>
 <script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>
 <script src="{{ url_for('static', filename='masonry.js') }}"></script>
-{% endblock %}
+{% endblock content %}

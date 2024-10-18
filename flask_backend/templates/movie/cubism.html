@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block header %}
-<h1>{% block title %}Posters{% endblock %}</h1>
+<h1>{% block title %}Posters{% endblock title %}</h1>
 <p>
     Diferentes formas de visualizar os posters de filmes que já passaram pelo cinemaempoa.
 </p>
@@ -32,8 +32,7 @@
     </div>
 </div>
 
-
-{% endblock %}
+{% endblock header %}
 {% block content %}
 <noscript>
     Esta página é um experimento que só funciona com o JavaScript ligado!
@@ -57,4 +56,4 @@
 {% else %}
 <script src="{{ url_for('static', filename='cubism/sketch-random-crop-positions.js') }}"></script>
 {% endif %}
-{% endblock %}
+{% endblock content %}

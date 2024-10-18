@@ -1,18 +1,18 @@
-{% extends 'base.html' %} {% block header %}
-<h1>{% block title %}Filmes{% endblock %}</h1>
+{% extends "base.html" %} {% block header %}
+<h1>{% block title %}Filmes{% endblock title %}</h1>
 <p>
   Filmes que estão ou já estiveram em cartaz nas cinematecas de Porto Alegre.
 </p>
-{% endblock %} {% block content %} {% for movie in movies %}
+{% endblock header %} {% block content %} {% for movie in movies %}
 <article>
   <header>
-    <h2>{{movie.title}}</h2>
+    <h2>{{ movie.title }}</h2>
   </header>
   <main>
     {% for screening in movie.screenings %} {% if not screening.draft or
     screening.draft and show_drafts %}
     <p>
-      Exibições em <strong>{{screening.cinema.name}}</strong>
+      Exibições em <strong>{{ screening.cinema.name }}</strong>
       {% if screening.draft %}
       <span
         class="badge text-bg-warning ms-3"
@@ -25,7 +25,7 @@
     {% endif %}
     <ul>
       {% for date in screening.dates %}
-      <li>{{date.date.strftime("%d/%m/%Y")}} - {{date.time}}</li>
+      <li>{{ date.date.strftime("%d/%m/%Y") }} - {{ date.time }}</li>
       {% endfor %}
     </ul>
     {% endif %} {% else %}
@@ -39,4 +39,4 @@
     <p>Nenhum filme registrado. Volte em breve!</p>
   </header>
 </article>
-{% endfor %} {% endblock %}
+{% endfor %} {% endblock content %}
