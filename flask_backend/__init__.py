@@ -1,16 +1,11 @@
 import os
 
-from flask import Flask, send_from_directory
+from flask import Flask
 
 from flask_backend.db import db_session
 from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
 from flask_backend.utils.enums.environment import EnvironmentEnum
 
-app = Flask(__name__)
-
-@app.route('cinemaempoa/robots.txt')
-def robots_txt():
-    return send_from_directory('static', 'robots.txt')
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
