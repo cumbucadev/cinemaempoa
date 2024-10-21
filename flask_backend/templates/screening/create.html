@@ -1,241 +1,268 @@
 {% extends "base.html" %}
-
 {% block header %}
-  <h1 data-goatcounter-skip="true">{% block title %}Criar sessão{% endblock title %}</h1>
+    <h1 data-goatcounter-skip="true">
+        {% block title %}
+            Criar sessão
+        {% endblock title %}
+    </h1>
 {% endblock header %}
-
 {% block content %}
-<form method="post" enctype="multipart/form-data">
-  <div class="mb-3">
-    <label class="form-label" for="title">Cinema</label>
-    <select class="form-select" id="cinema_id" name="cinema_id">
-      <option {% if not request.form['cinema_id'] %} selected {% endif %}>Selecione uma sala</option>
-      {% for cinema in cinemas %}
-        <option value="{{ cinema.id }}"{% if request.form['cinema_id'] == cinema.id|string %} selected {% endif %}>{{ cinema.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="mb-3" id="screenings">
-    <p>Exibições</p>
-    {% if received_dates|length %}
-      {% for received_date in received_dates %}
-        <div class="mb-2">
-          <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{ received_date }}" min="2023-01-01T00:00" max="{{ max_year }}-12-31T00:00" />
-          <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label class="form-label" for="title">Cinema</label>
+            <select class="form-select" id="cinema_id" name="cinema_id">
+                <option {% if not request.form['cinema_id'] %}selected{% endif %}>Selecione uma sala</option>
+                {% for cinema in cinemas %}
+                    <option value="{{ cinema.id }}"
+                            {% if request.form['cinema_id'] == cinema.id|string %}selected{% endif %}>
+                        {{ cinema.name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
-      {% endfor %}
-    {% else %}
-      <div class="mb-2">
-        <input class="form-control mb-1" type="datetime-local" name="screening_dates" value="{{ current_date }}T19:00" min="2023-01-01T00:00" max="{{ max_year }}-12-31T00:00" />
-        <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
-      </div>
-    {% endif %}
-  </div>
-  <div class="mb-3">
-    <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
-  </div>
-  <div class="mb-3">
-    <label class="form-label" for="title">Title</label>
-    <input autocomplete="off" class="form-control" name="movie_title" id="title" value="{{ request.form['movie_title'] }}" oninput="fetchSimilarTitles()" required>
-  </div>
-  <ul class="mb-3" id="similar_movies">
-  </ul>
-  <div class="mb-3">
-    <div class="d-flex mb-2 align-items-center">
-      <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
-      <button type="button" id="gen-alt-btn"
-      class="btn btn-secondary d-none"
-      onclick="fetchImageAltText(event)"
-      >
-        Gerar alt text
-      </button>
-    </div>
-    <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*">
-    <p class="form-text">
-      <span id="file-limit-label"></span>
-      <span class="text-danger d-block" id="errorMessage"></span>
-    </p>
-  </div>
-  <div class="mb-3">
-      <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
-      <textarea
-        placeholder="Descreva a imagem adicionada acima"
-        class="form-control"
-        name="image_alt"
-        id="image_alt"
-        >{{ request.form['image_alt'] }}</textarea>
-  </div>
-  <div class="mb-3">
-    <label class="form-label">Status do cadastro</label>
-    <div class="form-check">
-      <input class="form-check-input" type="radio" value="draft" name="status" id="status-draft">
-      <label class="form-check-label" for="status-draft">
-        Salvar rascunho
-      </label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="radio" value="published" name="status" id="status-published" checked>
-      <label class="form-check-label" for="status-published">
-        Publicar
-      </label>
-    </div>
-  </div>
+        <div class="mb-3" id="screenings">
+            <p>Exibições</p>
+            {% if received_dates|length %}
+                {% for received_date in received_dates %}
+                    <div class="mb-2">
+                        <input class="form-control mb-1"
+                               type="datetime-local"
+                               name="screening_dates"
+                               value="{{ received_date }}"
+                               min="2023-01-01T00:00"
+                               max="{{ max_year }}-12-31T00:00" />
+                        <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="mb-2">
+                    <input class="form-control mb-1"
+                           type="datetime-local"
+                           name="screening_dates"
+                           value="{{ current_date }}T19:00"
+                           min="2023-01-01T00:00"
+                           max="{{ max_year }}-12-31T00:00" />
+                    <button onclick="removeScreening(this)"  type="button" class="btn btn-sm">Remover</button>
+                </div>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="title">Title</label>
+            <input autocomplete="off"
+                   class="form-control"
+                   name="movie_title"
+                   id="title"
+                   value="{{ request.form['movie_title'] }}"
+                   oninput="fetchSimilarTitles()"
+                   required>
+        </div>
+        <ul class="mb-3" id="similar_movies">
+        </ul>
+        <div class="mb-3">
+            <div class="d-flex mb-2 align-items-center">
+                <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
+                <button type="button"
+                        id="gen-alt-btn"
+                        class="btn btn-secondary d-none"
+                        onclick="fetchImageAltText(event)">Gerar alt text</button>
+            </div>
+            <input class="form-control"
+                   name="movie_poster"
+                   type="file"
+                   id="movie_poster"
+                   onchange="verifyFileSize(this)"
+                   accept="image/*">
+            <p class="form-text">
+                <span id="file-limit-label"></span>
+                <span class="text-danger d-block" id="errorMessage"></span>
+            </p>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
+            <textarea placeholder="Descreva a imagem adicionada acima"
+                      class="form-control"
+                      name="image_alt"
+                      id="image_alt">{{ request.form['image_alt'] }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Status do cadastro</label>
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="radio"
+                       value="draft"
+                       name="status"
+                       id="status-draft">
+                <label class="form-check-label" for="status-draft">Salvar rascunho</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="radio"
+                       value="published"
+                       name="status"
+                       id="status-published"
+                       checked>
+                <label class="form-check-label" for="status-published">Publicar</label>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="screening-description">Body</label>
+            <div class="grow-wrap">
+                <textarea class="form-control" name="description" id="screening-description">{{ request.form['description'] }}</textarea>
+            </div>
+        </div>
+        <div class="container mb-3 pb-3">
+            <input class="btn btn-primary" type="submit" value="Save">
+            <a id="back-btn"
+               class="btn btn-secondary"
+               href="{{ url_for("screening.index") }}">Voltar</a>
+        </div>
+    </form>
+    <script>
+        function removeScreening(e) {
+            const screeningWrapper = document.getElementById("screenings");
+            if (screeningWrapper.childElementCount == 2) return;
+            e.parentElement.remove();
+        }
+        window.onload = () => {
 
-  <div class="mb-3">
-    <label class="form-label" for="screening-description">Body</label>
-    <div class="grow-wrap">
-      <textarea
-        class="form-control"
-        name="description"
-        id="screening-description"
-        >{{ request.form['description'] }}</textarea>
-    </div>
-  </div>
-  <div class="container mb-3 pb-3">
-    <input class="btn btn-primary" type="submit" value="Save">
-    <a id="back-btn" class="btn btn-secondary" href="{{ url_for('screening.index') }}">Voltar</a>
-  </div>
-</form>
-<script>
-  function removeScreening(e) {
-    const screeningWrapper = document.getElementById("screenings");
-    if (screeningWrapper.childElementCount == 2) return;
-    e.parentElement.remove();
-  }
-  window.onload = () => {
+            // Adjusts the "Body" textarea height to show all written text
+            const description = document.getElementById("screening-description");
+            description.style.height = `${description.scrollHeight}px`;
 
-    // Adjusts the "Body" textarea height to show all written text
-    const description = document.getElementById("screening-description");
-    description.style.height = `${description.scrollHeight}px`;
+            // Prevents accidental click on "Voltar" button
+            const backBtn = document.getElementById('back-btn');
+            backBtn.addEventListener("click", (e) => {
+                const proceed = confirm("Alterações não salvas serão perdidas. Prosseguir?");
+                if (!proceed) {
+                    e.preventDefault();
+                    return;
+                }
+            });
 
-    // Prevents accidental click on "Voltar" button
-    const backBtn = document.getElementById('back-btn');
-    backBtn.addEventListener("click", (e) => {
-      const proceed = confirm("Alterações não salvas serão perdidas. Prosseguir?");
-      if (!proceed) {
-        e.preventDefault();
-        return;
-      }
-    });
+            // Duplicates latest screening by clicking on the "Outra exibição" button
+            const addScreeningBtn = document.getElementById("add-screening-btn");
+            addScreeningBtn.addEventListener("click", (e) => {
+                const screeningWrapper = document.getElementById("screenings");
+                const screeningDiv = screeningWrapper.lastElementChild;
+                const newScreeningDiv = screeningDiv.cloneNode(true);
+                screeningWrapper.appendChild(newScreeningDiv);
+            });
 
-    // Duplicates latest screening by clicking on the "Outra exibição" button
-    const addScreeningBtn = document.getElementById("add-screening-btn");
-    addScreeningBtn.addEventListener("click", (e) => {
-      const screeningWrapper = document.getElementById("screenings");
-      const screeningDiv = screeningWrapper.lastElementChild;
-      const newScreeningDiv = screeningDiv.cloneNode(true);
-      screeningWrapper.appendChild(newScreeningDiv);
-    });
+            document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
+        };
 
-    document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
-  };
+        function getMaxFileSize(in_mb) {
+            const max_file_size_bytes = {
+                {
+                    max_file_size
+                }
+            };
+            if (in_mb) {
+                return max_file_size_bytes / 1024 / 1024;
+            }
+            return max_file_size_bytes;
+        };
 
-  function getMaxFileSize(in_mb) {
-    const max_file_size_bytes = {{ max_file_size }};
-    if (in_mb) {
-      return max_file_size_bytes / 1024 / 1024;
-    }
-    return max_file_size_bytes;
-  };
+        function verifyFileSize(input) {
+            const max_size_mb = getMaxFileSize() / 1024 / 1024;
+            const fileSize = input.files[0].size;
+            const errorMessage = document.getElementById("errorMessage");
 
-  function verifyFileSize(input) {
-    const max_size_mb = getMaxFileSize() / 1024 / 1024;
-    const fileSize = input.files[0].size;
-    const errorMessage = document.getElementById("errorMessage");
-
-    if (fileSize > getMaxFileSize(false)) {
-        input.value = ''; // Limpar o campo de entrada para que o usuário possa selecionar novamente
-        errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
-    } else {
-        errorMessage.innerHTML = '';
-    }
-    const genAltBtn = document.getElementById("gen-alt-btn");
-    if (input.value != "") {
-      genAltBtn.classList.remove("d-none");
-    } else {
-      genAltBtn.classList.add("d-none");
-    }
-  }
+            if (fileSize > getMaxFileSize(false)) {
+                input.value = ''; // Limpar o campo de entrada para que o usuário possa selecionar novamente
+                errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
+            } else {
+                errorMessage.innerHTML = '';
+            }
+            const genAltBtn = document.getElementById("gen-alt-btn");
+            if (input.value != "") {
+                genAltBtn.classList.remove("d-none");
+            } else {
+                genAltBtn.classList.add("d-none");
+            }
+        }
 
 
-  function createSimilarMovieTitleOption(movie) {
-          const li = document.createElement('li');
-          const btn = document.createElement('button');
-          btn.type = "button";
-          const option_class_list = ["btn", "btn-link","link-light"]
-          btn.classList.add(...option_class_list);
-          btn.addEventListener("click", function () {
-              document.getElementById('title').value = movie.title;
-          })
-          btn.textContent = movie.title;
-          li.appendChild(btn);
-          return li;
-    }
-
-  function fetchSimilarTitles() {
-      const userInput = document.getElementById('title').value;
-      const url = '/movies/search?title='
-      const similarMovieDiv = document.getElementById('similar_movies');
-
-      function clearMoviesDisplay() {
-        similarMovieDiv.innerHTML = '';
-      }
-
-      if (userInput.length > 2) {
-        fetch(`${url}${encodeURIComponent(userInput)}`)
-        .then(response => response.json())
-        .then(data => {
-            clearMoviesDisplay()
-            data.forEach(movie => {
-                let optionMovieTitle = createSimilarMovieTitleOption(movie)
-                similarMovieDiv.appendChild(optionMovieTitle);
+        function createSimilarMovieTitleOption(movie) {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = "button";
+            const option_class_list = ["btn", "btn-link", "link-light"]
+            btn.classList.add(...option_class_list);
+            btn.addEventListener("click", function() {
+                document.getElementById('title').value = movie.title;
             })
-        });
-      }
-      else {
-        clearMoviesDisplay()
-      }
-  }
+            btn.textContent = movie.title;
+            li.appendChild(btn);
+            return li;
+        }
 
-  async function fetchImageAltText(e) {
-    const btn = e.target;
-    
-    const image_input = document.getElementById("movie_poster");
-    const image_alt = document.getElementById("image_alt");
-    
-    // prevent accidental overwriting of existing
-    // image alt text
-    let confirmation = true;
-    if (image_alt.value != "") {
-      confirmation = confirm("Substituir descrição atual?");
-    }
-    if (!confirmation) {
-      return;
-    }
+        function fetchSimilarTitles() {
+            const userInput = document.getElementById('title').value;
+            const url = '/movies/search?title='
+            const similarMovieDiv = document.getElementById('similar_movies');
 
-    const form = new FormData();
-    form.append("image", image_input.files[0]);
+            function clearMoviesDisplay() {
+                similarMovieDiv.innerHTML = '';
+            }
 
-    btn.disabled = true;
-    const response = await fetch("/screening/image/describe", {
-      method: "POST",
-      body: form
-    });
-    const payload = await response.json();
+            if (userInput.length > 2) {
+                fetch(`${url}${encodeURIComponent(userInput)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        clearMoviesDisplay()
+                        data.forEach(movie => {
+                            let optionMovieTitle = createSimilarMovieTitleOption(movie)
+                            similarMovieDiv.appendChild(optionMovieTitle);
+                        })
+                    });
+            } else {
+                clearMoviesDisplay()
+            }
+        }
 
-    if (!response.ok) {
-      alert(payload.details);
-      if (payload.hasOwnProperty("info")) {
-        console.log(payload.info);
-      }
-    }
+        async function fetchImageAltText(e) {
+            const btn = e.target;
 
-    if (response.ok) {
-      image_alt.value = payload.text;
-    }
+            const image_input = document.getElementById("movie_poster");
+            const image_alt = document.getElementById("image_alt");
 
-    btn.disabled = false;
+            // prevent accidental overwriting of existing
+            // image alt text
+            let confirmation = true;
+            if (image_alt.value != "") {
+                confirmation = confirm("Substituir descrição atual?");
+            }
+            if (!confirmation) {
+                return;
+            }
 
-  }
-</script>
+            const form = new FormData();
+            form.append("image", image_input.files[0]);
+
+            btn.disabled = true;
+            const response = await fetch("/screening/image/describe", {
+                method: "POST",
+                body: form
+            });
+            const payload = await response.json();
+
+            if (!response.ok) {
+                alert(payload.details);
+                if (payload.hasOwnProperty("info")) {
+                    console.log(payload.info);
+                }
+            }
+
+            if (response.ok) {
+                image_alt.value = payload.text;
+            }
+
+            btn.disabled = false;
+
+        }
+    </script>
 {% endblock content %}
