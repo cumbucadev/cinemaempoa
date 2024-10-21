@@ -29,18 +29,16 @@ A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.p
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 
-Antes de subir uma alteração, rode o ruff para validar e formatar o código. Ele vai apontar ajustes para que o seu código
-fique no padrão utilizado no projeto:
+Após fazer suas alterações, rode os comandos abaixo no seu terminal para validar e formatar o código:
 
 ```bash
-ruff check # roda o linter
-ruff format # roda o formatter
+ruff check # roda o linter para código python
+ruff format # roda o formatter para código python
+djlint flask_backend/templates --lint --profile=jinja # roda o linter para os arquivos .html
+djlint --reformat flask_backend/templates --format-css --format-js # roda o formatter para os arquivos .html
 ```
 
-> [!NOTE]
-> Para mais informações sobre o que é o `ruff` e como ele funciona, veja a [documentação oficial do ruff](https://docs.astral.sh/ruff/). Na dúvida, peça ajuda!
-
-Opcionalmente, o [pre-commit](https://pre-commit.com/) pode automatizar o uso do `ruff` quando você rodar um `git commit`.
+Opcionalmente, o [pre-commit](https://pre-commit.com/) pode automatizar a formatação do código quando você rodar um `git commit`.
 
 Para utilizá-lo, instale com:
 
