@@ -14,3 +14,5 @@ jobs:
             - run: pip install -r requirements.txt
             - run: ruff check
             - run: ruff format
+            - run: djlint flask_backend/templates --lint --profile=jinja
+            - run: djlint --reformat flask_backend/templates --format-css --format-js
