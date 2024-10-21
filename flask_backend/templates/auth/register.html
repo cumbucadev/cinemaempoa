@@ -1,16 +1,20 @@
 {% extends "base.html" %}
-
 {% block header %}
-  <h1>{% block title %}Criar conta{% endblock title %}</h1>
-  <!-- <p>Registre-se no <strong>Cinema em POA</strong> para contribuir e comentar nas postagens.</p> -->
-  <p>O registro de contas está <strong>temporariamente desabilitado!</strong></p>
+    <h1>
+        {% block title %}
+            Criar conta
+        {% endblock title %}
+    </h1>
+    <!-- <p>Registre-se no <strong>Cinema em POA</strong> para contribuir e comentar nas postagens.</p> -->
+    <p>
+        O registro de contas está <strong>temporariamente desabilitado!</strong>
+    </p>
 {% endblock header %}
-
 {% block content %}
-<!-- djlint:off -->
-<div class="w-100" style="max-width: 479px;">
-<!-- djlint:on -->
-    <!-- <form method="post">
+    <!-- djlint:off -->
+    <div class="w-100" style="max-width: 479px;">
+        <!-- djlint:on -->
+        <!-- <form method="post">
         <div class="form-group mb-3">
             <label class="form-label" for="username">Nome de usuário</label>
             <input type="text" class="form-control" name="username" id="username" placeholder="Nome de usuário" required>
@@ -23,8 +27,8 @@
             <input type="submit" value="Criar conta" class="btn btn-primary w-100">
         </div> -->
         <div class="text-body-secondary">
-            Já tem uma conta? <a href="{{ url_for('auth.login') }}">Faça Login</a>
+            Já tem uma conta? <a href="{{ url_for("auth.login") }}">Faça Login</a>
         </div>
-    <!-- </form> -->
-</div>
+        <!-- </form> -->
+    </div>
 {% endblock content %}
