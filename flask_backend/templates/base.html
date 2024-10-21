@@ -87,7 +87,7 @@
                                                                                             ">
         {# djlint:on #}
         <div class="container-fluid container align-items-center">
-            <a class="navbar-brand" href="{{ url_for(" screening.index") }}">
+            <a class="navbar-brand" href="{{ url_for("screening.index") }}">
                 <img id="logo-black"
                      src="{{ url_for('static', filename='cinema.png') }}"
                      alt="Logo"
@@ -114,56 +114,56 @@
             <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for(" screening.index") }}">Em cartaz</a>
+                        <a class="nav-link" href="{{ url_for("screening.index") }}">Em cartaz</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for(" movie.posters") }}">Posters</a>
+                        <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for(" movie.index") }}">Filmes</a>
+                        <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
                     </li>
                     {% if g.user %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for(" screening.import_screenings") }}">Importar
+                            <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar
                             sessões</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for(" screening.create") }}">Nova sessão</a>
+                            <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for(" auth.logout") }}">Sair</a>
+                            <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a href="{{ url_for(" auth.login") }}" class="nav-link">Acessar</a>
+                            <a href="{{ url_for("auth.login") }}" class="nav-link">Acessar</a>
                         </li>
                     {% endif %}
                 </ul>
             </div>
             <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for(" screening.index") }}">Em cartaz</a>
+                    <a class="nav-link" href="{{ url_for("screening.index") }}">Em cartaz</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for(" movie.posters") }}">Posters</a>
+                    <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for(" movie.index") }}">Filmes</a>
+                    <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
                 </li>
                 <div class="vr mx-3"></div>
                 {% if g.user %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for(" screening.import_screenings") }}">Importar sessões</a>
+                        <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
                     </li>
                     <div class="vr mx-3"></div>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for(" screening.create") }}">Nova sessão</a>
+                        <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
                     </li>
                     <div class="vr mx-3"></div>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for(" auth.logout") }}">Sair</a>
+                        <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
                     </li>
                 {% else %}
                     <li class="nav-item">
