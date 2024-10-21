@@ -13,3 +13,4 @@ jobs:
                 python-version: '3.10'
             - run: pip install -r requirements.txt
             - run: ruff check
+            - run: ruff format
