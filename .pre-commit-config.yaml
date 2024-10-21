@@ -14,3 +14,5 @@ repos:
     hooks:
       - id: djlint
         args: [--profile=jinja]
+      - id: djlint-reformat
+        args: [--format-css, --format-js]
