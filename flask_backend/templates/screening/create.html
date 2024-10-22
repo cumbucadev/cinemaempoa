@@ -73,6 +73,7 @@
                    name="movie_poster"
                    type="file"
                    id="movie_poster"
+                   data-max-file-size="{{ max_file_size }}"
                    onchange="verifyFileSize(this)"
                    accept="image/*">
             <p class="form-text">
@@ -155,11 +156,8 @@
         };
 
         function getMaxFileSize(in_mb) {
-            const max_file_size_bytes = {
-                {
-                    max_file_size
-                }
-            };
+            const inputEl = document.getElementById("movie_poster");
+            const max_file_size_bytes = inputEl.getAttribute('data-max-file-size');
             if (in_mb) {
                 return max_file_size_bytes / 1024 / 1024;
             }
