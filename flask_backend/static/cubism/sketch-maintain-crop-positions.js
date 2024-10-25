@@ -70,6 +70,13 @@ function setup() {
 
 function _mouseClicked() {
   draw();
+  if (window.goatcounter) {
+    window.goatcounter.count({
+      path: window.location.pathname,
+      title: "Cubism maintain crop positions click",
+      event: true,
+    });
+  }
 }
 
 function draw() {

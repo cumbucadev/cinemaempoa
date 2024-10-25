@@ -1,60 +1,56 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block header %}
-<h1>{% block title %}Posters{% endblock %}</h1>
-<p>
-    Diferentes formas de visualizar os posters de filmes que já passaram pelo cinemaempoa.
-</p>
-
-<!-- Pills -->
-<nav class="navbar mb-3">
-    <ul class="nav nav-pills">
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('movie.posters') }}">Mosaico</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link active" aria-current="true" href="{{ url_for('movie.posters_cubism') }}">Cubismo</a>
-        </li>
-    </ul>
-</nav>
-
-<!-- Inline radio buttons -->
-
-<div class="container mb-3">
-    <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" value="maintain" id="maintain-order" name="crop-position" {% if
-            crop_position=='maintain' %} checked {% endif %}>
-        <label class="form-check-label" for="maintain-order">Ordenado</label>
-    </div>
-    <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" value="random" id="random-order" name="crop-position" {% if
-            crop_position=='random' %} checked {% endif %}>
-        <label class="form-check-label" for="random-order">Aleatório</label>
-    </div>
-</div>
-
-
-{% endblock %}
-{% block content %}
-<noscript>
-    Esta página é um experimento que só funciona com o JavaScript ligado!
-</noscript>
-<div id="canvas-container">
-</div>
-<div id="p5_loading" class="loadingclass">
-    Carregando...
-</div>
-<p>Idealizado por Joel Grigolo.</p>
-<script>
-    const orderRadios = document.querySelectorAll("[name=crop-position]");
-    orderRadios.forEach((r) => r.addEventListener('change', (e) => {
-        const crop_position = e.target.value;
-        window.location.href = `{{ url_for('movie.posters_cubism') }}?crop_position=${crop_position}`
-    }))
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/p5.min.js"></script>
-{% if crop_position == 'maintain' %}
-<script src="{{ url_for('static', filename='cubism/sketch-maintain-crop-positions.js') }}"></script>
-{% else %}
-<script src="{{ url_for('static', filename='cubism/sketch-random-crop-positions.js') }}"></script>
-{% endif %}
-{% endblock %}
+    <h1>
+        {% block title %}
+            Posters
+        {% endblock title %}
+    </h1>
+    <p>Diferentes formas de visualizar os posters de filmes que já passaram pelo cinemaempoa.</p>
+    <!-- Pills -->
+    <nav class="navbar mb-3">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for("movie.posters") }}">Mosaico</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active"
+                   aria-current="true"
+                   href="{{ url_for("movie.posters_cubism") }}">Cubismo</a>
+            </li>
+        </ul>
+    </nav>
+    <!-- Inline radio buttons -->
+    <div class="container mb-3">
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" value="maintain" id="maintain-order" name="crop-position" {% if
+                crop_position=='maintain' %} checked {% endif %}>
+                <label class="form-check-label" for="maintain-order">Ordenado</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" value="random" id="random-order" name="crop-position" {% if
+                    crop_position=='random' %} checked {% endif %}>
+                    <label class="form-check-label" for="random-order">Aleatório</label>
+                </div>
+            </div>
+        {% endblock header %}
+        {% block content %}
+            <noscript>
+                Esta página é um experimento que só funciona com o JavaScript ligado!
+            </noscript>
+            <div id="canvas-container"></div>
+            <div id="p5_loading" class="loadingclass">Carregando...</div>
+            <p>Idealizado por Joel Grigolo.</p>
+            <script>
+                const orderRadios = document.querySelectorAll("[name=crop-position]");
+                orderRadios.forEach((r) => r.addEventListener('change', (e) => {
+                    const crop_position = e.target.value;
+                    window.location.href = `{{ url_for('movie.posters_cubism') }}?crop_position=${crop_position}`
+                }))
+            </script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/p5.min.js"></script>
+            {% if crop_position == 'maintain' %}
+                <script src="{{ url_for('static', filename='cubism/sketch-maintain-crop-positions.js') }}"></script>
+            {% else %}
+                <script src="{{ url_for('static', filename='cubism/sketch-random-crop-positions.js') }}"></script>
+            {% endif %}
+        {% endblock content %}
