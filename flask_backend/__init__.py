@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask
+from flask import Flask, request, send_from_directory
 
 from flask_backend.db import db_session
 from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
@@ -48,6 +48,11 @@ def create_app(test_config=None):
     from .routes import movie
 
     app.register_blueprint(movie.bp)
+
+    @app.route("/robots.txt")
+    def static_from_root():
+        """Taken from https://stackoverflow.com/a/14625619"""
+        return send_from_directory(app.static_folder, request.path[1:])
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
