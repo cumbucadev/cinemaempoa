@@ -1,219 +1,214 @@
-{% extends 'base.html' %} {% block header %}
-<h1 data-goatcounter-skip="true">{% block title %}Editar "{{ screening.movie['title'] }}"{% endblock %}</h1>
-{% endblock %} {% block content %}
-<p>No cinema <strong>{{screening.cinema.name}}</strong></p>
-<form method="post" enctype="multipart/form-data">
-  <div class="mb-3" id="screenings">
-    <p>Exibições</p>
-    {% for screening_date in screening.dates %}
-    <div class="mb-2">
-      <input
-        class="form-control mb-1"
-        type="datetime-local"
-        name="screening_dates"
-        value="{{screening_date.date}}T{{screening_date.time}}"
-        min="2023-01-01T00:00"
-        max="2030-12-31T00:00"
-      />
-      <button onclick="removeScreening(this)" type="button" class="btn btn-sm">
-        Remover
-      </button>
-    </div>
-    {% endfor %}
-  </div>
-  <div class="mb-3">
-    <button type="button" id="add-screening-btn" class="btn btn-secondary">
-      Outra exibição
-    </button>
-  </div>
-  <div class="mb-3">
-    <label class="form-label" for="title">Title</label>
-    <input
-      class="form-control"
-      name="movie_title"
-      id="title"
-      value="{{ request.form['movie_title'] or screening.movie['title'] }}"
-      required
-    />
-  </div>
-  <div class="mb-3">
-    <div class="d-flex mb-2 align-items-center">
-      <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
-      <button type="button" id="gen-alt-btn"
-        class="btn btn-secondary"
-        onclick="fetchImageAltText(event)"
-        >
-        Gerar alt text
-      </button>
-    </div>
-    <input class="form-control" name="movie_poster" type="file" id="movie_poster" onchange="verifyFileSize(this)" accept="image/*" />
-    <input type="hidden" name="current_movie_poster" id="current_movie_poster" value="{{ current_movie_poster }}"/>
-    <p class="form-text">
-      <span id="file-limit-label"></span>
-      <span class="text-danger d-block" id="errorMessage"></span>
+{% extends "base.html" %}
+{% block header %}
+    <h1 data-goatcounter-skip="true">
+        {% block title %}
+            Editar "{{ screening.movie['title'] }}"
+        {% endblock title %}
+    </h1>
+{% endblock header %}
+{% block content %}
+    <p>
+        No cinema <strong>{{ screening.cinema.name }}</strong>
     </p>
-  </div>
-    <div class="mb-3">
-      <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
-      <textarea
-        placeholder="Descreva a imagem adicionada acima"
-        class="form-control"
-        name="image_alt"
-        id="image_alt"
-        >{{ request.form['image_alt'] or screening['image_alt'] }}</textarea>
-  </div>
-  <div class="mb-3">
-    <label class="form-label">Status do cadastro</label>
-    <div class="form-check">
-      <input class="form-check-input" type="radio" value="draft" name="status"
-      id="status-draft" {{ "checked" if request.form['status'] == 'draft' or
-      screening.draft }}>
-      <label class="form-check-label" for="status-draft">
-        Salvar rascunho
-      </label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="radio" value="published"
-      name="status" id="status-published" {{ "checked" if request.form['status']
-      == 'published' or not screening.draft }} />
-      <label class="form-check-label" for="status-published"> Publicar </label>
-    </div>
-  </div>
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3" id="screenings">
+            <p>Exibições</p>
+            {% for screening_date in screening.dates %}
+                <div class="mb-2">
+                    <input class="form-control mb-1"
+                           type="datetime-local"
+                           name="screening_dates"
+                           value="{{ screening_date.date }}T{{ screening_date.time }}"
+                           min="2023-01-01T00:00"
+                           max="2030-12-31T00:00" />
+                    <button onclick="removeScreening(this)" type="button" class="btn btn-sm">Remover</button>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="mb-3">
+            <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="title">Title</label>
+            <input class="form-control"
+                   name="movie_title"
+                   id="title"
+                   value="{{ request.form['movie_title'] or screening.movie['title'] }}"
+                   required />
+        </div>
+        <div class="mb-3">
+            <div class="d-flex mb-2 align-items-center">
+                <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
+                <button type="button"
+                        id="gen-alt-btn"
+                        class="btn btn-secondary"
+                        onclick="fetchImageAltText(event)">Gerar alt text</button>
+            </div>
+            <input class="form-control"
+                   name="movie_poster"
+                   type="file"
+                   id="movie_poster"
+                   data-max-file-size="{{ max_file_size }}"
+                   onchange="verifyFileSize(this)"
+                   accept="image/*" />
+            <input type="hidden"
+                   name="current_movie_poster"
+                   id="current_movie_poster"
+                   value="{{ current_movie_poster }}" />
+            <p class="form-text">
+                <span id="file-limit-label"></span>
+                <span class="text-danger d-block" id="errorMessage"></span>
+            </p>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
+            <textarea placeholder="Descreva a imagem adicionada acima"
+                      class="form-control"
+                      name="image_alt"
+                      id="image_alt">{{ request.form['image_alt'] or screening['image_alt'] }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Status do cadastro</label>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" value="draft" name="status"
+                    id="status-draft" {{ "checked" if request.form['status'] == 'draft' or
+                    screening.draft }}>
+                    <label class="form-check-label" for="status-draft">Salvar rascunho</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" value="published"
+                        name="status" id="status-published" {{ "checked" if request.form['status']
+                        == 'published' or not screening.draft }} />
+                        <label class="form-check-label" for="status-published">Publicar</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="screening-description">Body</label>
+                    <div class="grow-wrap">
+                        <textarea class="form-control" name="description" id="screening-description">
+{{ request.form['description'] or screening['description'] }}</textarea>
+                    </div>
+                </div>
+                <div class="container mb-3 pb-3">
+                    <input class="btn btn-primary" type="submit" value="Save" />
+                    <a id="back-btn"
+                       class="btn btn-secondary"
+                       href="{{ url_for("screening.index") }}">Voltar</a>
+                </div>
+            </form>
+            <script>
+                function removeScreening(e) {
+                    const screeningWrapper = document.getElementById("screenings");
+                    if (screeningWrapper.childElementCount == 2) return;
+                    e.parentElement.remove();
+                }
+                window.onload = () => {
 
-  <div class="mb-3">
-    <label class="form-label" for="screening-description">Body</label>
-    <div class="grow-wrap">
-      <textarea
-        class="form-control"
-        name="description"
-        id="screening-description"
-      >
-{{ request.form['description'] or screening['description'] }}</textarea
-      >
-    </div>
-  </div>
-  <div class="container mb-3 pb-3">
-    <input class="btn btn-primary" type="submit" value="Save" />
-    <a
-      id="back-btn"
-      class="btn btn-secondary"
-      href="{{ url_for('screening.index') }}"
-      >Voltar</a
-    >
-  </div>
-</form>
-<script>
-  function removeScreening(e) {
-    const screeningWrapper = document.getElementById("screenings");
-    if (screeningWrapper.childElementCount == 2) return;
-    e.parentElement.remove();
-  }
-  window.onload = () => {
+                    // Adjusts the "Body" textarea height to show all written text
+                    const description = document.getElementById("screening-description");
+                    description.style.height = `${description.scrollHeight}px`;
 
-    // Adjusts the "Body" textarea height to show all written text
-    const description = document.getElementById("screening-description");
-    description.style.height = `${description.scrollHeight}px`;
+                    // Prevents accidental click on "Voltar" button
+                    const backBtn = document.getElementById("back-btn");
+                    backBtn.addEventListener("click", (e) => {
+                        const proceed = confirm(
+                            "Alterações não salvas serão perdidas. Prosseguir?"
+                        );
+                        if (!proceed) {
+                            e.preventDefault();
+                            return;
+                        }
+                    });
 
-    // Prevents accidental click on "Voltar" button
-    const backBtn = document.getElementById("back-btn");
-    backBtn.addEventListener("click", (e) => {
-      const proceed = confirm(
-        "Alterações não salvas serão perdidas. Prosseguir?"
-      );
-      if (!proceed) {
-        e.preventDefault();
-        return;
-      }
-    });
+                    // Duplicates latest screening by clicking on the "Outra exibição" button
+                    const addScreeningBtn = document.getElementById("add-screening-btn");
+                    addScreeningBtn.addEventListener("click", (e) => {
+                        const screeningWrapper = document.getElementById("screenings");
+                        const screeningDiv = screeningWrapper.lastElementChild;
+                        const newScreeningDiv = screeningDiv.cloneNode(true);
+                        screeningWrapper.appendChild(newScreeningDiv);
+                    });
 
-    // Duplicates latest screening by clicking on the "Outra exibição" button
-    const addScreeningBtn = document.getElementById("add-screening-btn");
-    addScreeningBtn.addEventListener("click", (e) => {
-      const screeningWrapper = document.getElementById("screenings");
-      const screeningDiv = screeningWrapper.lastElementChild;
-      const newScreeningDiv = screeningDiv.cloneNode(true);
-      screeningWrapper.appendChild(newScreeningDiv);
-    });
+                    document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
+                };
 
-    document.getElementById("file-limit-label").innerHTML = `Tamanho máximo de imagem de ${getMaxFileSize(true)}mb!`;
-  };
+                function getMaxFileSize(in_mb) {
+                    const inputEl = document.getElementById("movie_poster");
+                    const max_file_size_bytes = inputEl.getAttribute('data-max-file-size');
+                    if (in_mb) {
+                        return max_file_size_bytes / 1024 / 1024;
+                    }
+                    return max_file_size_bytes;
+                };
 
-  function getMaxFileSize(in_mb) {
-    const max_file_size_bytes = {{ max_file_size }};
-    if (in_mb) {
-      return max_file_size_bytes / 1024 / 1024;
-    }
-    return max_file_size_bytes;
-  };
+                function verifyFileSize(input) {
+                    const max_size_mb = getMaxFileSize() / 1024 / 1024;
+                    const fileSize = input.files[0].size;
+                    const errorMessage = document.getElementById("errorMessage");
 
-  function verifyFileSize(input) {
-    const max_size_mb = getMaxFileSize() / 1024 / 1024;
-    const fileSize = input.files[0].size;
-    const errorMessage = document.getElementById("errorMessage");
+                    if (fileSize > getMaxFileSize(false)) {
+                        input.value = ''; // Limpar o campo de entrada para que o usuário possa selecionar novamente
+                        errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
+                    } else {
+                        errorMessage.innerHTML = '';
+                    }
+                }
 
-    if (fileSize > getMaxFileSize(false)) {
-        input.value = ''; // Limpar o campo de entrada para que o usuário possa selecionar novamente
-        errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
-    } else {
-        errorMessage.innerHTML = '';
-    }
-  }
+                async function getFileFromUrl(url, name, defaultType = 'image/jpeg') {
+                    const response = await fetch(url);
+                    const data = await response.blob();
+                    return new File([data], name, {
+                        type: data.type || defaultType,
+                    });
+                }
 
-  async function getFileFromUrl(url, name, defaultType = 'image/jpeg'){
-    const response = await fetch(url);
-    const data = await response.blob();
-    return new File([data], name, {
-      type: data.type || defaultType,
-    });
-  }
+                async function fetchImageAltText(e) {
+                    const btn = e.target;
 
-  async function fetchImageAltText(e) {
-    const btn = e.target;
+                    const image_input = document.getElementById("movie_poster");
+                    const current_movie_poster = document.getElementById("current_movie_poster")
+                    const image_alt = document.getElementById("image_alt");
 
-    const image_input = document.getElementById("movie_poster");
-    const current_movie_poster = document.getElementById("current_movie_poster")
-    const image_alt = document.getElementById("image_alt");
+                    // prevent accidental overwriting of existing
+                    // image alt text
+                    let confirmation = true;
+                    if (image_alt.value != "") {
+                        confirmation = confirm("Substituir descrição atual?");
+                    }
+                    if (!confirmation) {
+                        return;
+                    }
 
-    // prevent accidental overwriting of existing
-    // image alt text
-    let confirmation = true;
-    if (image_alt.value != "") {
-      confirmation = confirm("Substituir descrição atual?");
-    }
-    if (!confirmation) {
-      return;
-    }
+                    const form = new FormData();
 
-    const form = new FormData();
+                    // if the user selected a new file via input,
+                    // use that
+                    if (image_input.files.length > 0) {
+                        form.append("image", image_input.files[0]);
+                    } else if (current_movie_poster.value != "") {
+                        form.append('image', await getFileFromUrl(current_movie_poster.value))
+                    }
 
-    // if the user selected a new file via input,
-    // use that
-    if (image_input.files.length > 0) {
-      form.append("image", image_input.files[0]);
-    } else if (current_movie_poster.value != "") {
-      form.append('image', await getFileFromUrl(current_movie_poster.value))
-    }
+                    btn.disabled = true;
+                    const response = await fetch("/screening/image/describe", {
+                        method: "POST",
+                        body: form
+                    });
+                    const payload = await response.json();
 
-    btn.disabled = true;
-    const response = await fetch("/screening/image/describe", {
-      method: "POST",
-      body: form
-    });
-    const payload = await response.json();
+                    if (!response.ok) {
+                        alert(payload.details);
+                        if (payload.hasOwnProperty("info")) {
+                            console.log(payload.info);
+                        }
+                    }
 
-    if (!response.ok) {
-      alert(payload.details);
-      if (payload.hasOwnProperty("info")) {
-        console.log(payload.info);
-      }
-    }
+                    if (response.ok) {
+                        image_alt.value = payload.text;
+                    }
 
-    if (response.ok) {
-      image_alt.value = payload.text;
-    }
+                    btn.disabled = false;
 
-    btn.disabled = false;
-
-  }
-</script>
-{% endblock %}
+                }
+            </script>
+        {% endblock content %}

@@ -9,3 +9,10 @@ repos:
       # Run the formatter.
       - id: ruff-format
         name: Ruff Format Code
+  - repo: https://github.com/djlint/djLint
+    rev: v1.35.2
+    hooks:
+      - id: djlint
+        args: [--profile=jinja]
+      - id: djlint-reformat
+        args: [--format-css, --format-js]

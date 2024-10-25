@@ -1,330 +1,310 @@
 <!DOCTYPE html>
-<html lang="en" style="scroll-behavior: smooth" data-bs-core="default">
-  <head>
+<style>
+    html {
+        scroll-behavior: smooth;
+    }
+</style>
+{# djlint:off #}
+<!-- TODO: #95 add meta description -->
+<html lang="en" data-bs-core="default">
+{# djlint:on #}
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block title %}{% endblock %} - Cinema em POA</title>
+    <title>
+        {% block title %}
+        {% endblock title %}
+    - Cinema em POA</title>
     <!-- halfmoon css file -->
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}"
-    />
-
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
     <!-- REMOVE ME AFTER OCTOBER -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='halfmoon/cores/halfmoon.elegant.css') }}" />
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='halfmoon/cores/halfmoon.elegant.css') }}" />
     <style>
-      .glitch {
-        position: relative;
-        z-index: 1;
-      }
+        .glitch {
+            position: relative;
+            z-index: 1;
+        }
 
-      .glitch:before,
-      .glitch:after {
-        display: block;
-        content: attr(data-text);
-        position: absolute;
-        top: 0;
-        left: 0;
-        opacity: 0.8;
-      }
+        .glitch:before,
+        .glitch:after {
+            display: block;
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0.8;
+        }
 
-      .glitch:before {
-        animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
-        color: #780606;
-        z-index: -1;
-      }
+        .glitch:before {
+            animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+            color: #780606;
+            z-index: -1;
+        }
 
-      .glitch:after {
-        animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both infinite;
-        color: #EB5E28;
-        z-index: -2;
-      }
+        .glitch:after {
+            animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both infinite;
+            color: #EB5E28;
+            z-index: -2;
+        }
 
-      @keyframes glitch-it {
-        0% {
-            transform: translate(0);
-        }
-        20% {
-            transform: translate(-2px, 2px);
-        }
-        40% {
-            transform: translate(-2px, -2px);
-        }
-        60% {
-            transform: translate(2px, 2px);
-        }
-        80% {
-            transform: translate(2px, -2px);
-        }
-        to {
-            transform: translate(0);
-        }
-      }
+        @keyframes glitch-it {
+            0% {
+                transform: translate(0);
+            }
 
+            20% {
+                transform: translate(-2px, 2px);
+            }
+
+            40% {
+                transform: translate(-2px, -2px);
+            }
+
+            60% {
+                transform: translate(2px, 2px);
+            }
+
+            80% {
+                transform: translate(2px, -2px);
+            }
+
+            to {
+                transform: translate(0);
+            }
+        }
     </style>
     <!-- REMOVE ME AFTER OCTOBER -->
-  </head>
-  <body class="d-flex flex-column min-vh-100">
+</head>
+<body class="d-flex flex-column min-vh-100">
     <header id="header">
-      <nav
-        class="navbar mb-5"
-        style="
-          background-color: var(--bs-content-bg);
-          border-bottom: var(--bs-border-width) solid
-            var(--bs-content-border-color);
-        "
-      >
+        {# djlint:off #}
+        <nav class="navbar mb-5" style="
+                                                                                              background-color: var(--bs-content-bg);
+                                                                                              border-bottom: var(--bs-border-width) solid
+                                                                                                var(--bs-content-border-color);
+                                                                                            ">
+        {# djlint:on #}
         <div class="container-fluid container align-items-center">
-          <a class="navbar-brand" href="{{ url_for('screening.index') }}">
-            <img
-              id="logo-black"
-              src="{{ url_for('static', filename='cinema.png') }}"
-              alt="Logo"
-              width="24"
-              height="24"
-              class="d-inline-block align-text-top mr-1"
-            />
-            <img
-              id="logo-white"
-              src="{{ url_for('static', filename='cinema-white.png') }}"
-              alt="Logo"
-              width="24"
-              height="24"
-              class="d-inline-block align-text-top mr-1"
-            />
-            Cinema em POA
-          </a>
-          <button
-            class="navbar-toggler d-block d-sm-none"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbar-collapse-9"
-            aria-controls="navbar-collapse-9"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div
-            class="collapse navbar-collapse d-sm-none"
-            id="navbar-collapse-9"
-          >
-            <ul class="navbar-nav">
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('screening.index')}}"
-                  >Em cartaz</a
-                >
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('movie.posters')}}"
-                  >Posters</a
-                >
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('movie.index')}}">Filmes</a>
-              </li>
-              {% if g.user %}
-              <li class="nav-item">
-                <a
-                  class="nav-link"
-                  href="{{url_for('screening.import_screenings')}}"
-                  >Importar sessões</a
-                >
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('screening.create')}}"
-                  >Nova sessão</a
-                >
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
-              </li>
-              {% else %}
-              <li class="nav-item">
-                <a href="{{ url_for('auth.login') }}" class="nav-link"
-                  >Acessar</a
-                >
-              </li>
-              {% endif %}
+            <a class="navbar-brand" href="{{ url_for("screening.index") }}">
+                <img id="logo-black"
+                     src="{{ url_for('static', filename='cinema.png') }}"
+                     alt="Logo"
+                     width="24"
+                     height="24"
+                     class="d-inline-block align-text-top mr-1" />
+                <img id="logo-white"
+                     src="{{ url_for('static', filename='cinema-white.png') }}"
+                     alt="Logo"
+                     width="24"
+                     height="24"
+                     class="d-inline-block align-text-top mr-1" />
+                Cinema em POA
+            </a>
+            <button class="navbar-toggler d-block d-sm-none"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbar-collapse-9"
+                    aria-controls="navbar-collapse-9"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("screening.index") }}">Em cartaz</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                    </li>
+                    {% if g.user %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar
+                            sessões</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a href="{{ url_for("auth.login") }}" class="nav-link">Acessar</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+            <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("screening.index") }}">Em cartaz</a>
+                </li>
+                <div class="vr mx-3"></div>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
+                </li>
+                <div class="vr mx-3"></div>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                </li>
+                <div class="vr mx-3"></div>
+                {% if g.user %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
+                    </li>
+                    <div class="vr mx-3"></div>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
+                    </li>
+                    <div class="vr mx-3"></div>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        {# djlint:off #}
+                        <a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important"
+                            class="nav-link pr-1">Acessar</a>
+                        {# djlint:on #}
+                    </li>
+                {% endif %}
             </ul>
-          </div>
-          <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
-            <li class="nav-item">
-              <a class="nav-link" href="{{url_for('screening.index')}}"
-                >Em cartaz</a
-              >
-            </li>
-            <div class="vr mx-3"></div>
-            <li class="nav-item">
-              <a class="nav-link" href="{{url_for('movie.posters')}}"
-                >Posters</a
-              >
-            </li>
-            <div class="vr mx-3"></div>
-            <li class="nav-item">
-              <a class="nav-link" href="{{url_for('movie.index')}}">Filmes</a>
-            </li>
-            <div class="vr mx-3"></div>
-            {% if g.user %}
-            <li class="nav-item">
-              <a
-                class="nav-link"
-                href="{{url_for('screening.import_screenings')}}"
-                >Importar sessões</a
-              >
-            </li>
-            <div class="vr mx-3"></div>
-            <li class="nav-item">
-              <a class="nav-link" href="{{url_for('screening.create')}}"
-                >Nova sessão</a
-              >
-            </li>
-            <div class="vr mx-3"></div>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a>
-            </li>
-            {% else %}
-            <li class="nav-item">
-              <a
-                href="{{ url_for('auth.login') }}"
-                style="margin-right: 0.5rem !important"
-                class="nav-link pr-1"
-                >Acessar</a
-              >
-            </li>
-            {% endif %}
-          </ul>
         </div>
-      </nav>
-      <!-- REMOVE ME AFTER OCTOBER -->
-      <div class="container-fluid d-flex container align-items-center">
+    </nav>
+    <!-- REMOVE ME AFTER OCTOBER -->
+    <div class="container-fluid d-flex container align-items-center">
         <div class="form-check me-2">
-          <label class="form-check-label" for="sp00k-switch">
-            🪦
-          </label>
+            <label class="form-check-label" for="sp00k-switch">🪦</label>
         </div>
         <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" value="" id="sp00k-switch">
-          <label class="form-check-label" for="sp00k-switch">
-            🎃
-          </label>
+            <input class="form-check-input"
+                   type="checkbox"
+                   role="switch"
+                   value=""
+                   id="sp00k-switch">
+            <label class="form-check-label" for="sp00k-switch">🎃</label>
         </div>
-      </div>
-      <!-- REMOVE ME AFTER OCTOBER -->
-      <script>
+    </div>
+    <!-- REMOVE ME AFTER OCTOBER -->
+    <script>
         const html = document.querySelector("html");
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-          html.setAttribute("data-bs-theme", "dark");
-          document.getElementById("logo-black").remove();
+            html.setAttribute("data-bs-theme", "dark");
+            document.getElementById("logo-black").remove();
         } else {
-          html.setAttribute("data-bs-theme", "light");
-          document.getElementById("logo-white").remove();
+            html.setAttribute("data-bs-theme", "light");
+            document.getElementById("logo-white").remove();
         }
-      </script>
-      <div class="container">{% block header %}{% endblock %}</div>
-    </header>
-    <main class="container">
-      {% for category, message in get_flashed_messages(with_categories=true) %}
-      <div
-        class="alert alert-{{ category }} alert-dismissible fade show"
-        role="alert"
-      >
-        {{ message }}
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
-          aria-label="Close"
-        ></button>
-      </div>
-      {% endfor %} {% block content %}{% endblock %}
-    </main>
-    <footer class="py-3 my-4 mt-auto">
-      <ul class="nav justify-content-center border-bottom pb-3 mb-3">
+    </script>
+    <div class="container">
+        {% block header %}
+        {% endblock header %}
+    </div>
+</header>
+<main class="container">
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show"
+             role="alert">
+            {{ message }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"></button>
+        </div>
+    {% endfor %}
+    {% block content %}
+    {% endblock content %}
+</main>
+<footer class="py-3 my-4 mt-auto">
+    <ul class="nav justify-content-center border-bottom pb-3 mb-3">
         <li class="nav-item">
-          <a
-            href="https://github.com/guites/cinemaempoa"
-            class="nav-link px-2 text-muted"
-            >código fonte</a
-          >
+            <a href="https://github.com/guites/cinemaempoa"
+               class="nav-link px-2 text-muted">código fonte</a>
         </li>
         <li class="nav-item">
-          <a
-            href="https://cinemaempoa.goatcounter.com/"
-            class="nav-link px-2 text-muted"
-            >analytics</a
-          >
+            <a href="https://cinemaempoa.goatcounter.com/"
+               class="nav-link px-2 text-muted">analytics</a>
         </li>
-      </ul>
-      <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
-      <p class="text-center mb-0"><a href="#header">voltar pro topo</a></p>
-    </footer>
-    <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
-    <script>
-      const tooltipTriggerList = document.querySelectorAll(
+    </ul>
+    <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
+    <p class="text-center mb-0">
+        <a href="#header">voltar pro topo</a>
+    </p>
+</footer>
+<script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
+<script>
+    const tooltipTriggerList = document.querySelectorAll(
         "[data-bs-toggle='tooltip']"
-      );
-      const tooltipList = [...tooltipTriggerList].map(
+    );
+    const tooltipList = [...tooltipTriggerList].map(
         (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
-      );
-    </script>
-    <script>
-      // reference: https://www.goatcounter.com/help/skip-path
-      // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
-      window.goatcounter = {
+    );
+</script>
+<script>
+    // reference: https://www.goatcounter.com/help/skip-path
+    // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
+    window.goatcounter = {
         no_onload: document.querySelector("[data-goatcounter-skip]") !== null,
-      }
-    </script>
-    <script data-goatcounter="https://cinemaempoa.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+    }
+</script>
+<script data-goatcounter="https://cinemaempoa.goatcounter.com/count"
+        async
+        src="//gc.zgo.at/count.js"></script>
+<!-- REMOVE ME AFTER OCTOBER -->
+<script src="{{ url_for('static', filename='halloween/bats.js') }}"></script>
+<script>
+    const bats = new BatManager();
 
-    <!-- REMOVE ME AFTER OCTOBER -->
-    <script src="{{ url_for('static', filename='halloween/bats.js') }}"></script>
-    <script>
-      const bats = new BatManager();
-      function makeBats() {
+    function makeBats() {
         bats.makeBats(15);
-      }
-      function killBats() {
+    }
+
+    function killBats() {
         bats.markForDeath();
-      }
-      function switchCallback() {
+    }
+
+    function switchCallback() {
         if (!sp00kyAudio) {
-          sp00kyAudio = new Audio("{{ url_for('static', filename='halloween/ring-48.mp3') }}");
-          sp00kyAudio.loop = true;
-          sp00kyAudio.addEventListener('canplaythrough', () => {
-            if (sp00kySwitch.checked) {
-              sp00kyAudio.play();
-            }
-          });
-          sp00kyAudio.setAttribute('canplay', true);
+            sp00kyAudio = new Audio("{{ url_for('static', filename='halloween/ring-48.mp3') }}");
+            sp00kyAudio.loop = true;
+            sp00kyAudio.addEventListener('canplaythrough', () => {
+                if (sp00kySwitch.checked) {
+                    sp00kyAudio.play();
+                }
+            });
+            sp00kyAudio.setAttribute('canplay', true);
         }
         const isChecked = sp00kySwitch.checked;
         if (isChecked) {
-          // Get sp00ked!
-          makeBats();
-          html.setAttribute("data-bs-core", "elegant");
-          pageTitle.setAttribute('data-text', pageTitle.textContent);
-          pageTitle.classList.add('glitch');
-          if (sp00kyAudio.getAttribute('canplay')) {
-            sp00kyAudio.play();
-          }
+            // Get sp00ked!
+            makeBats();
+            html.setAttribute("data-bs-core", "elegant");
+            pageTitle.setAttribute('data-text', pageTitle.textContent);
+            pageTitle.classList.add('glitch');
+            if (sp00kyAudio.getAttribute('canplay')) {
+                sp00kyAudio.play();
+            }
         } else {
-          // Unsp00k
-          killBats();
-          html.setAttribute("data-bs-core", "default");
-          pageTitle.classList.remove('glitch');
-          sp00kyAudio.pause();
+            // Unsp00k
+            killBats();
+            html.setAttribute("data-bs-core", "default");
+            pageTitle.classList.remove('glitch');
+            sp00kyAudio.pause();
         }
-      }
+    }
 
-      const pageTitle = document.querySelector("h1");
-      const sp00kySwitch = document.getElementById('sp00k-switch');
-      // always untoggle on page load
-      sp00kySwitch.checked = false;
-      let sp00kyAudio = null;
-      sp00kySwitch.addEventListener('change', () => switchCallback());
-
-    </script>
-    <!-- REMOVE ME AFTER OCTOBER -->
-  </body>
+    const pageTitle = document.querySelector("h1");
+    const sp00kySwitch = document.getElementById('sp00k-switch');
+    // always untoggle on page load
+    sp00kySwitch.checked = false;
+    let sp00kyAudio = null;
+    sp00kySwitch.addEventListener('change', () => switchCallback());
+</script>
+<!-- REMOVE ME AFTER OCTOBER -->
+</body>
 </html>

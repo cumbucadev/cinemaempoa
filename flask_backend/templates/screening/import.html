@@ -1,54 +1,61 @@
-{% extends 'base.html' %} {% block header %}
-<h1 data-goatcounter-skip="true">{% block title %}Importar sessões{% endblock %}</h1>
-<p></p>
-{% endblock %} {% block content %}
-<form method="post" enctype="multipart/form-data">
-  <p>Selecione um arquivo .json válido para realizar a importação.</p>
-  <div class="mb-3">
-    <label for="json_file" class="form-label">Arquivo json</label>
-    <input
-      class="form-control"
-      name="json_file"
-      type="file"
-      id="json_file"
-      accept=".json,application/json"
-      required
-    />
-  </div>
-  <div class="container mb-3 pb-3 ps-0">
-    <input class="btn btn-primary" type="submit" value="Enviar" />
-  </div>
-</form>
-<hr />
-<form method="POST" action="/screening/scrap">
-  <h2>Scrapping automático</h2>
-  <p>Selecione os cinemas na listagem abaixo.</p>
-  <div class="form-group">
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="cinebancarios" name="cinebancarios">
-      <label class="form-check-label" for="cinebancarios">
-        CineBancários
-      </label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="capitolio" name="capitolio">
-      <label class="form-check-label" for="capitolio">
-        Cinemateca Capitólio
-      </label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="pauloAmorim" name="pauloAmorim">
-      <label class="form-check-label" for="pauloAmorim">
-        Cinemateca Paulo Amorim
-      </label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="redencao" name="redencao">
-      <label class="form-check-label" for="redencao">
-        Sala Redenção
-      </label>
-    </div>
-  </div>
-  <button class="btn btn-primary mt-2" type="submit">Fazer scrapping dos cinemas selecionados</button>
-</form>
-{% endblock %}
+{% extends "base.html" %}
+{% block header %}
+    <h1 data-goatcounter-skip="true">
+        {% block title %}
+            Importar sessões
+        {% endblock title %}
+    </h1>
+{% endblock header %}
+{% block content %}
+    <form method="post" enctype="multipart/form-data">
+        <p>Selecione um arquivo .json válido para realizar a importação.</p>
+        <div class="mb-3">
+            <label for="json_file" class="form-label">Arquivo json</label>
+            <input class="form-control"
+                   name="json_file"
+                   type="file"
+                   id="json_file"
+                   accept=".json,application/json"
+                   required />
+        </div>
+        <div class="container mb-3 pb-3 ps-0">
+            <input class="btn btn-primary" type="submit" value="Enviar" />
+        </div>
+    </form>
+    <hr />
+    <form method="post" action="{{ url_for("screening.runScrap") }}">
+        <h2>Scrapping automático</h2>
+        <p>Selecione os cinemas na listagem abaixo.</p>
+        <div class="form-group">
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="cinebancarios"
+                       name="cinebancarios">
+                <label class="form-check-label" for="cinebancarios">CineBancários</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="capitolio"
+                       name="capitolio">
+                <label class="form-check-label" for="capitolio">Cinemateca Capitólio</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="pauloAmorim"
+                       name="pauloAmorim">
+                <label class="form-check-label" for="pauloAmorim">Cinemateca Paulo Amorim</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="redencao"
+                       name="redencao">
+                <label class="form-check-label" for="redencao">Sala Redenção</label>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-2" type="submit">Fazer scrapping dos cinemas selecionados</button>
+    </form>
+{% endblock content %}
