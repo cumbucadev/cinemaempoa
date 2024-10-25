@@ -50,15 +50,15 @@ def poster_images():
         abort(400)
 
     user_logged_in = g.user is not None
-    scrennigs_list = get_paginated(page, limit, user_logged_in)
+    screenings_list = get_paginated(page, limit, user_logged_in)
 
-    if len(scrennigs_list) == 0:
+    if len(screenings_list) == 0:
         abort(404)
 
     imgDisplayWidth = 325
     images = []
     image_urls = set()
-    for screening in scrennigs_list:
+    for screening in screenings_list:
         if not screening.image:
             continue
         if screening.image in image_urls:
