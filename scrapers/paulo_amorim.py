@@ -164,7 +164,7 @@ class CinematecaPauloAmorim:
             strong_tag = p_tag.find("strong")
             if strong_tag is None:
                 continue
-            strong_text = unicodedata.normalize("NFKC", strong_tag.text)
+            strong_text = unicodedata.normalize("NFKC", strong_tag.text.replace("º", ""))
             movie_matches_today = strong_text.lower().startswith(
                 today_str
             ) or strong_text.lower().startswith(today_str_no_leading_zero)
