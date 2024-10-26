@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, Column, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, relationship
 
 from flask_backend.db import Base
@@ -9,9 +9,10 @@ from flask_backend.db import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(20), unique=True, nullable=False)
-    password = Column(String, nullable=False)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    username: Mapped[str] = Column(String(20), unique=True, nullable=False)
+    password: Mapped[str] = Column(String, nullable=False)
+    roles: Mapped[List[str]] = Column(JSON, nullable=False)
 
 
 class Movie(Base):

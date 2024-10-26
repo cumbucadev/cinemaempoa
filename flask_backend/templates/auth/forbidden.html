@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+    {# djlint:off #}
+<div class="d-flex flex-column justify-content-center align-items-center"  style="height: 50vh; width: auto;">
+    {# djlint:on #}
+    <div class="d-flex flex-column align-items-center">
+        <h1>
+            {% block title %}
+                Acesso Negado
+            {% endblock title %}
+        </h1>
+        <p>Você não tem as permissões necessárias para acessar esta página.</p>
+    </div>
+    <div class="alert alert-danger text-center" role="alert">
+        <h4 class="alert-heading">Acesso Negado</h4>
+        <p>Infelizmente, sua conta não possui as permissões exigidas para acessar esta área.</p>
+        <hr>
+        <p class="mb-0">Entre em contato com o administrador do sistema caso acredite que isto seja um erro.</p>
+    </div>
+</div>
+{% endblock content %}
