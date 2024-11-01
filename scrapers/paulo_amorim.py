@@ -160,77 +160,40 @@ class CinematecaPauloAmorim:
         )
         grade_soup = BeautifulSoup(grade_html, "html.parser")
         today_str, today_str_no_leading_zero = self._get_today_str()
-        for p_tag in grade_soup.find_all("p"):
-            strong_tag = p_tag.find("strong")
-            if strong_tag is None:
+        
+        # Find the main table containing all days and movies
+        main_table = grade_soup.find('table')
+        if not main_table:
+            return []
+        
+        features = []
+        current_day = None
+        for row in main_table.find_all('tr'):
+            cells = row.find_all('td')
+            if len(cells) == 1 and cells[0].find('strong'):
+                # This row contains the day
+                current_day = unicodedata.normalize("NFKC", cells[0].text.strip().lower())
                 continue
-            strong_text = unicodedata.normalize("NFKC", strong_tag.text)
-            movie_matches_today = strong_text.lower().startswith(
-                today_str
-            ) or strong_text.lower().startswith(today_str_no_leading_zero)
-            if not movie_matches_today:
-                continue
-
-            # they might be using the following html structure
-            # <p>
-            #   <strong> 8 de dezembro | sexta </strong>
-            # </p>
-            # <table border="0" cellpadding="0" cellspacing="0" style="width:567px">
-            #   <tbody>
-            #       <tr>
-            #           <td>14h30</td>
-            #           <td>Sala 2</td>
-            #           <td>Filmes em competição Festival Cinema Negro em Ação</td>
-            #       </tr>
-            #       <tr>
-            #           ...
-            #       </tr>
-            #   </tbody>
-            # </table>
-
-            feature_timetable = p_tag.find_next_sibling("table")
-            if feature_timetable:
-                for feature_tr in feature_timetable.find_all("tr"):
-                    feature_tds = feature_tr.find_all("td")
+            
+            if current_day and (current_day.startswith(today_str) or current_day.startswith(today_str_no_leading_zero)):
+                # This is today's schedule
+                if len(cells) >= 3:
+                    time = cells[0].text.strip()
+                    room = cells[1].text.strip()
+                    title = cells[2].text.strip()
+                    
                     for movie in self.movies:
-                        if movie["title"].lower() == feature_tds[2].text.lower():
+                        if movie['title'].lower() == title.lower():
                             # Movie will be featured today
-                            time_str = (
-                                unicodedata.normalize("NFKC", feature_tds[0].text)
-                                .strip("\n")
-                                .strip()
-                                .split(" ")[0]
-                            )
-                            hour_str, min_str = time_str.split("h")
+                            hour_str, min_str = time.split('h')
                             if min_str:
                                 parsed_time = dt_time(int(hour_str), int(min_str))
                             else:
                                 parsed_time = dt_time(int(hour_str))
-                            movie["time"].append(parsed_time)
-            else:
-                for strong in p_tag.find_all("strong"):
-                    for movie in self.movies:
-                        if movie["title"].lower() != strong.text.lower():
-                            continue
-                        # Movie will be featured today
-                        # Lines are in the format
-                        # 14h30 EH: Retratos Fantasmas, Kleber Mendonça Filho
-                        time_str = (
-                            unicodedata.normalize(
-                                "NFKC", strong.find_previous_sibling(string=True)
-                            )
-                            .strip("\n")
-                            .strip()
-                            .split(" ")[0]
-                        )
-                        hour_str, min_str = time_str.split("h")
-                        if min_str:
-                            parsed_time = dt_time(int(hour_str), int(min_str))
-                        else:
-                            parsed_time = dt_time(int(hour_str))
-
-                        movie["time"].append(parsed_time)
-        features = [movie for movie in self.movies if len(movie["time"]) > 0]
+                            movie['time'].append(parsed_time)
+                            if movie not in features:
+                                features.append(movie)
+        
         sorted_features = sorted(features, key=lambda feature: feature["time"][0])
         for feature in sorted_features:
             feature["time"] = "/ ".join(
