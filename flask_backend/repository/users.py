@@ -12,8 +12,8 @@ def get_by_id(id: int) -> Optional[User]:
     return db_session.query(User).filter(User.id == id).first()
 
 
-def create(username: str, password: str, roles: list[str]) -> User:
-    user = User(username=username, password=password, roles=roles)
+def create(username: str, password: str) -> User:
+    user = User(username=username, password=password)
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)

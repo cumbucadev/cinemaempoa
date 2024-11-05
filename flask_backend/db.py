@@ -71,8 +71,7 @@ def seed_db():
 
     try:
         user_seeds.create_user(db_session)
-    except IntegrityError as e:
-        print("Erro " + str(e))
+    except IntegrityError:
         db_session.rollback()
         print("Users already registered. Skipping...")
 

@@ -43,6 +43,7 @@ from flask_backend.service.screening import (
     save_image,
     validate_image,
 )
+from flask_backend.utils.enums.role import RoleEnum
 from scrapers.capitolio import Capitolio
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
@@ -189,7 +190,8 @@ def create():
             valid_dates.append(f"{parsed_date.date()}T{str(parsed_date.time())[0:5]}")
         except ValueError:
             pass
-    if "ADMIN" in g.user.roles:
+
+    if RoleEnum.ADMIN.role in [role.role for role in g.user.roles]:
         return render_template(
             "screening/create.html",
             cinemas=cinemas,
@@ -418,7 +420,7 @@ def import_screenings():
 
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
-    if "ADMIN" in g.user.roles:
+    if RoleEnum.ADMIN.role in [role.role for role in g.user.roles]:
         return render_template("screening/import.html", suggestions=suggestions)
     else:
         return render_template(

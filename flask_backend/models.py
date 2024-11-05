@@ -33,6 +33,9 @@ class Role(Base):
         "User", secondary=user_has_roles, back_populates="roles"
     )
 
+    def __repr__(self):
+        return f"{self.role}"
+
 
 class Movie(Base):
     __tablename__ = "movies"
