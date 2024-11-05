@@ -5,7 +5,6 @@ from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
 from flask_backend.env_config import (
     ADMIN_PROD_PWD,
-    ADMIN_PROD_ROLES,
     ADMIN_PROD_USERNAME,
     DATABASE_URL,
 )
@@ -31,7 +30,7 @@ def seed_db_prod():
     print("Setting up admin user")
     try:
         user_seeds.create_user_from_data(
-            db_session, ADMIN_PROD_USERNAME, ADMIN_PROD_PWD, ADMIN_PROD_ROLES
+            db_session, ADMIN_PROD_USERNAME, ADMIN_PROD_PWD
         )
     except IntegrityError:
         db_session.rollback()
@@ -72,7 +71,8 @@ def seed_db():
 
     try:
         user_seeds.create_user(db_session)
-    except IntegrityError:
+    except IntegrityError as e:
+        print("Erro " + str(e))
         db_session.rollback()
         print("Users already registered. Skipping...")
 
