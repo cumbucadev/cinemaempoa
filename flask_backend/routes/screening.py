@@ -35,7 +35,7 @@ from flask_backend.repository.screenings import (
     update as update_screening,
     update_screening_dates,
 )
-from flask_backend.routes.auth import login_required
+from flask_backend.routes.auth import admin_only, login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
     build_dates,
@@ -43,7 +43,6 @@ from flask_backend.service.screening import (
     save_image,
     validate_image,
 )
-from flask_backend.utils.enums.role import RoleEnum
 from scrapers.capitolio import Capitolio
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
@@ -118,6 +117,7 @@ def upload(filename):
 
 @bp.route("/screening/new", methods=("GET", "POST"))
 @login_required
+@admin_only
 def create():
     screening_dates = []
     if request.method == "POST":
@@ -191,19 +191,14 @@ def create():
         except ValueError:
             pass
 
-    if RoleEnum.ADMIN.role in [role.role for role in g.user.roles]:
-        return render_template(
-            "screening/create.html",
-            cinemas=cinemas,
-            current_date=current_date,
-            received_dates=valid_dates,
-            max_year=max_year,
-            max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
-        )
-    else:
-        return render_template(
-            "auth/forbidden.html",
-        )
+    return render_template(
+        "screening/create.html",
+        cinemas=cinemas,
+        current_date=current_date,
+        received_dates=valid_dates,
+        max_year=max_year,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
 
 
 @bp.route("/screening/<int:id>/publish", methods=("POST",))
@@ -382,6 +377,7 @@ def runScrap():
 
 @bp.route("/screening/import", methods=("GET", "POST"))
 @login_required
+@admin_only
 def import_screenings():
     suggestions = []
     if request.method == "POST":
@@ -420,12 +416,7 @@ def import_screenings():
 
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
-    if RoleEnum.ADMIN.role in [role.role for role in g.user.roles]:
-        return render_template("screening/import.html", suggestions=suggestions)
-    else:
-        return render_template(
-            "auth/forbidden.html",
-        )
+    return render_template("screening/import.html", suggestions=suggestions)
 
 
 @bp.route("/screening/image/describe", methods=("POST",))
