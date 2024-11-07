@@ -123,7 +123,7 @@
                         <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
                     </li>
                     {% if g.user %}
-                        {% if g.user and "ADMIN" in g.user.roles %}
+                        {% if g.user and RoleEnum.ADMIN.role in g.user.roles %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar
                                 sessões</a>
@@ -156,7 +156,9 @@
                 </li>
                 <div class="vr mx-3"></div>
                 {% if g.user %}
-                    {% if g.user and "ADMINs" in g.user.roles %}
+                    <p>{{ g.user.roles }}</p>
+                    <p>{{ RoleEnum.ADMIN.role }}</p>
+                    {% if g.user and RoleEnum.ADMIN.role in g.user.roles %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
                         </li>
