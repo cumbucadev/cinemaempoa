@@ -6,13 +6,13 @@ from flask_backend.utils.enums.role import RoleEnum
 
 def _build_roles():
     user_role = Role(
-        id=RoleEnum.USER.id,
-        role=RoleEnum.USER.role,
+        id=1,
+        role=RoleEnum.USER,
     )
 
     admin_role = Role(
-        id=RoleEnum.ADMIN.id,
-        role=RoleEnum.ADMIN.role,
+        id=2,
+        role=RoleEnum.ADMIN,
     )
 
     return [user_role, admin_role]

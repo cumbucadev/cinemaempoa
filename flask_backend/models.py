@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, relationship
 
 from flask_backend.db import Base
+from flask_backend.utils.enums.role import RoleEnum
 
 user_has_roles = Table(
     "user_has_roles",
@@ -22,6 +23,9 @@ class User(Base):
     roles: Mapped[List["Role"]] = relationship(
         "Role", secondary=user_has_roles, back_populates="users"
     )
+
+    def is_admin(self):
+        return RoleEnum.ADMIN in [role.role for role in self.roles]
 
 
 class Role(Base):
