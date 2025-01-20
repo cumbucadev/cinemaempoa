@@ -19,7 +19,7 @@ O projeto encoraja contribuições (veja [Contribuições](#contribuicoes)).
 
 O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para coleção de dados e `flask_backend/`, onde fica o código do portal.
 
-O projeto foi desenvolvido em Python 3.10 e funciona com qualquer versão superior.
+O projeto foi desenvolvido em Python 3.11 e funciona com qualquer versão superior.
 
 A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.python.org/3/library/venv.html).
 

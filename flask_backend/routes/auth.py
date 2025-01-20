@@ -113,7 +113,7 @@ def login_required(view):
 def admin_only(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
-        if RoleEnum.ADMIN.role not in [role.role for role in g.user.roles]:
+        if RoleEnum.ADMIN not in [role.role for role in g.user.roles]:
             if request.method == "POST":
                 abort(403)
             return redirect(url_for("auth.forbidden"))
