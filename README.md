@@ -52,6 +52,8 @@ Para rodar o portal, você vai precisar de três comando (todos rodados a partir
     flask --app flask_backend seed-db # optional: popula o banco com dados iniciais
     flask --app flask_backend run --debug # inicia o projeto em modo desenvolvimento
 
+Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto através do docker de desenvolvimento (docker-compose.dev.yml).
+
 O projeto vai rodar em <http://localhost:5000>.
 
 Se você rodou o comando para popular o banco de dados, vai ter um usuário admin criado com login: cinemaempoa e senha: 123123.

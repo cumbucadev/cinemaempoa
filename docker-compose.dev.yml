@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  flask:
+    container_name: cinemaempoa_flask_dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    networks:
+      - dev_network
+
+networks:
+  dev_network:
+    external: false 
