@@ -25,3 +25,6 @@ flask_backend/uploads/*
 !flask_backend/uploads/.gitkeep
 
 .env
+
+.idea
+.python-version

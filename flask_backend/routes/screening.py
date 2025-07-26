@@ -319,7 +319,7 @@ def runScrap():
     # Capitolio
     if "capitolio" in request.form:
         feature = {
-            "url": "http://www.capitolio.org.br",
+            "url": "https://www.capitolio.org.br",
             "cinema": "Cinemateca Capitólio",
             "slug": "capitolio",
         }
