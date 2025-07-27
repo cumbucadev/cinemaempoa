@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 class Capitolio:
     def __init__(self):
-        self.url = "https://www.capitolio.org.br/programacao"
+        self.url = "https://www.capitolio.org.br"
         self.dir = os.path.join("capitolio")
 
         if not os.path.exists(self.dir):
@@ -17,7 +17,10 @@ class Capitolio:
         self.soup = BeautifulSoup(self._todays_schedule_html(), "html.parser")
 
     def _get_todays_url(self):
-        return f"{self.url}?date={self._get_today_ymd()}&room=Sala+de+Cinema"
+        return (
+            f"{self.url}/programacao/?starting_date={self._get_today_ymd()}"
+            f"&date={self._get_today_ymd()}&room=Sala+de+Cinema"
+        )
 
     def _get_todays_file(self):
         return os.path.join(self.dir, f"{self._get_today_ymd()}.html")
@@ -117,7 +120,7 @@ class Capitolio:
             feature_film["excerpt"] = movie_text.get_text()
 
             read_more = movie.css.select_one(".movie-info .read-more")
-            feature_film["read_more"] = ("https://www.capitolio.org.br" + read_more["href"])
+            feature_film["read_more"] = f"{self.url}{read_more['href']}"
             features.append(feature_film)
 
         return features
