@@ -3,7 +3,7 @@ import os
 from flask import Flask, request, send_from_directory
 
 from flask_backend.db import db_session
-from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
+from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR, GEMINI_API_KEY
 from flask_backend.utils.enums.environment import EnvironmentEnum
 
 
@@ -13,6 +13,8 @@ def create_app(test_config=None):
         app.config["UPLOAD_FOLDER"] = UPLOAD_DIR
     else:
         app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
+
+    app.config["GEMINI_API_KEY"] = GEMINI_API_KEY
 
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 5  # max 5mb file uploads
     app.config.from_mapping(SECRET_KEY=SESSION_KEY)
