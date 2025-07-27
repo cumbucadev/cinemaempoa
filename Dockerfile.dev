@@ -17,6 +17,9 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Install development dependencies
 RUN pip3 install --no-cache-dir debugpy
 
+# Install git for code editor integration
+RUN apt-get install git -y
+
 EXPOSE 5000
 
 # Just do nothing
