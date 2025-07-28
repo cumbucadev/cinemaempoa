@@ -21,15 +21,28 @@ O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para 
 
 O projeto foi desenvolvido em Python 3.10 e funciona com qualquer versão superior.
 
+O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
+
+### Instalando o projeto localmente
+
 A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.python.org/3/library/venv.html).
 
     python3 -m venv .venv
     source .venv/bin/activate
     pip3 install -r requirements.txt
 
-O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
+### Instalando o projeto usando Docker
 
-Após fazer suas alterações, rode os comandos abaixo no seu terminal para validar e formatar o código:
+Você pode usar o arquivo `docker-compose.dev.yml` para iniciar um container com todas as dependências necessárias.
+
+    docker compose -f docker-compose.dev.yml up -d
+
+Ao utilizar o docker, os comandos mencionados na seção seguinte devem ser rodados de dentro do container.
+
+    # utilize o `docker exec` para abrir um terminal dentro do container
+    docker exec -it cinemaempoa_flask_dev bash
+
+Antes de abrir um Pull Request, rode os comandos abaixo no seu terminal para validar e formatar o código:
 
 ```bash
 ruff check # roda o linter para código python
@@ -105,7 +118,7 @@ Implementações mais simples estão marcadas com [good first issue](https://git
 
 ## Deploy (produção)
 
-Atualmente o projeto (em <https://cinemaempoa.com.br>) está hospedado em uma máquina virtual no [hetzner](https://www.hetzner.com/).
+Atualmente o projeto (em <https://cinemaempoa.com.br>) está hospedado em uma máquina virtual.
 
 Os arquivos usados para o deployment são:
 
