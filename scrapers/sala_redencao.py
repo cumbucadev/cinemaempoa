@@ -117,13 +117,27 @@ class SalaRedencao:
         content_inner = blog_post_soup.find("div", class_="content-inner")
         p_tags = content_inner.find_all("p")
         feats = []
-        pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)((?:\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]\s*)+)"
+        pattern = r"([\w\s]+)\([Dd]ir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)"
         for p_tag in p_tags:
             matches = re.findall(pattern, p_tag.text, re.DOTALL)
             for movie in matches:
                 screening_dates = re.findall(
-                    r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", movie[6]
+                    r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", p_tag.text
                 )
+                if len(screening_dates) == 0:
+                    continue
+
+                # find the index of the first matching group from `movie`
+                excerpt_start = p_tag.text.find(movie[4])
+                # find the index of the first screening date
+                excerpt_end = p_tag.text.find(screening_dates[0])
+
+                # Consider the text between the `movie` and the `screening_dates`
+                # as the excerpt. Include the `movie` in the excerpt to avoid complex parsing.
+                excerpt = p_tag.text[excerpt_start:excerpt_end]
+                excerpt = movie[4] + " " + excerpt
+                excerpt = excerpt.strip()
+
                 time = []
                 for date in screening_dates:
                     if not string_is_day(date, self.date):
@@ -139,7 +153,6 @@ class SalaRedencao:
                 countries = movie[2].strip()
                 year = movie[3]
                 duration = movie[4].strip()
-                excerpt = movie[5].strip()
 
                 feature = {
                     "poster": "",
