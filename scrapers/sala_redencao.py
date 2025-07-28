@@ -51,13 +51,14 @@ class SalaRedencao:
 
     def _get_events_blog_post_url(self):
         landing_page_soup = BeautifulSoup(self._get_landing_page_html(), "html.parser")
-        events_post_anchor_tag = landing_page_soup.css.select(
-            "a.evcal_evdata_row.evo_clik_row"
+        full_post_links = landing_page_soup.css.select(
+            ".full-post-link"
         )
-        for event_post_anchor_tag in events_post_anchor_tag:
-            event_inner_url = event_post_anchor_tag["href"]
-            if event_inner_url and event_inner_url not in self.events:
-                self.events.append(event_inner_url)
+        for full_post_link in full_post_links:
+            event_url = full_post_link["href"]
+            if event_url and event_url not in self.events:
+                self.events.append(event_url)
+        return self.events
 
     def _parse_blog_post_with_regex(self, event_soup, event_url):
         event_content_inner = event_soup.css.select_one("div.content-inner")
