@@ -51,9 +51,7 @@ class SalaRedencao:
 
     def _get_events_blog_post_url(self):
         landing_page_soup = BeautifulSoup(self._get_landing_page_html(), "html.parser")
-        full_post_links = landing_page_soup.css.select(
-            ".full-post-link"
-        )
+        full_post_links = landing_page_soup.css.select(".full-post-link")
         for full_post_link in full_post_links:
             event_url = full_post_link["href"]
             if event_url and event_url not in self.events:

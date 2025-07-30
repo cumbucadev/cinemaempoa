@@ -1,5 +1,6 @@
 import locale
 import os
+import re
 import unicodedata
 from datetime import date, datetime, time as dt_time
 
@@ -180,6 +181,7 @@ class CinematecaPauloAmorim:
         grade_soup = BeautifulSoup(grade_html, "html.parser")
         today_str, today_str_no_leading_zero = self._get_today_str()
         for p_tag in grade_soup.find_all("p"):
+            # assume the first `<strong>` tag will have the day in the format `30 de julho – quarta-feira`
             strong_tag = p_tag.find("strong")
             if strong_tag is None:
                 continue
@@ -233,6 +235,42 @@ class CinematecaPauloAmorim:
                             parsed_time = dt_time(int(hour_str))
 
                         movie["time"].append(parsed_time)
+            features = [movie for movie in self.movies if len(movie["time"]) > 0]
+            if len(features) == 0:
+                # we might be dealing with unformatted text inside <p> tags
+                # <p>
+                #     <strong>30 de julho – quarta-feira</strong>
+                #     <br>
+                #     14h30&nbsp;– EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2381/dreams">Dreams</a><br>
+                #     14h45 – PA&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2395/vermiglio-a-noiva-da-montanha">Vermiglio </a><a href="https://cinematecapauloamorim.com.br/programacao/2428/iracema-uma-transa-amazonica">–</a><a href="https://cinematecapauloamorim.com.br/programacao/2395/vermiglio-a-noiva-da-montanha"> A Noiva da Montanha</a><br>
+                #     15h&nbsp;– NL –&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2406/um-lobo-entre-os-cisnes">Um Lobo Entre os Cisnes</a><br>
+                #     16h45&nbsp;– EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2405/cazuza-boas-novas">Cazuza: Boas Novas</a><br>
+                #     17h&nbsp;– PA&nbsp;– <a href="https://cinematecapauloamorim.com.br/programacao/2403/uma-bela-vida">Uma Bela Vida</a><br>
+                #     17h15 – NL&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2428/iracema-uma-transa-amazonica">Iracema – Uma Transa Amazônica</a><br>
+                #     18h45 – EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2427/apenas-alguns-dias">Apenas Alguns Dias</a><br>
+                #     19h&nbsp;– PA&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2426/monsieur-aznavour">Monsieur Aznavour</a><br>
+                #     19h15 – NL&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2429/razoes-africanas">Razões Africanas</a>
+                # </p>
+                # feature_time_regex = r"(\d{2}h(?:&nbsp;)?(?:\d{2})?).+<a href=\"(.+)\">.+<\/a>"
+                feature_time_regex = r"(\d{2}h(?:\d{2})?)\s+–\s+\w+\s+–\s+(.*)"
+                feature_time_matches = re.findall(feature_time_regex, p_tag.text)
+                for feature_time_match in feature_time_matches:
+                    time_str = (
+                        unicodedata.normalize("NFKC", feature_time_match[0])
+                        .strip("\n")
+                        .strip()
+                        .split(" ")[0]
+                    )
+                    hour_str, min_str = time_str.split("h")
+                    if min_str:
+                        parsed_time = dt_time(int(hour_str), int(min_str))
+                    else:
+                        parsed_time = dt_time(int(hour_str))
+                    for movie in self.movies:
+                        if movie["title"].lower() != feature_time_match[1].lower():
+                            continue
+                        movie["time"].append(parsed_time)
+
         features = [movie for movie in self.movies if len(movie["time"]) > 0]
         if len(features) == 0:
             # they are probably all in one big unformatted table

@@ -55,7 +55,9 @@ class Capitolio:
             movie_details = movie.css.select(".movie-info .movie-detail-blocks")
             for detail in movie_details:
                 if "Horários: " in detail.get_text():
-                    match = re.search(r"Horários:\s*([0-9]{2}:[0-9]{2}h)", detail.get_text())
+                    match = re.search(
+                        r"Horários:\s*([0-9]{2}:[0-9]{2}h)", detail.get_text()
+                    )
                     if match:
                         feature_film["time"] = match.group(1)
                     else:
@@ -70,10 +72,14 @@ class Capitolio:
             # get film original title
             if movie_subtitle:
                 if re.search(r"[|]", movie_subtitle.get_text()):
-                    movie_original_title = movie_subtitle.get_text().split("|")[0].strip()
+                    movie_original_title = (
+                        movie_subtitle.get_text().split("|")[0].strip()
+                    )
                     feature_film["original_title"] = movie_original_title
                 elif re.search(r"[(]", movie_subtitle.get_text()):
-                    movie_original_title = movie_subtitle.get_text().split("(")[0].strip()
+                    movie_original_title = (
+                        movie_subtitle.get_text().split("(")[0].strip()
+                    )
                     feature_film["original_title"] = movie_original_title
                 else:
                     feature_film["original_title"] = "Não informado"
@@ -89,7 +95,9 @@ class Capitolio:
                     ticket_price = get_price.get_text()
                     feature_film["price"] = ticket_price
             elif re.search(r"[(]", get_price.get_text()):
-                ticket_price = get_price.get_text().split("(")[1].replace(")", "").strip()
+                ticket_price = (
+                    get_price.get_text().split("(")[1].replace(")", "").strip()
+                )
                 feature_film["price"] = ticket_price
             else:
                 feature_film["price"] = "Não informado"
