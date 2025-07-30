@@ -1,8 +1,8 @@
 import locale
 import os
+import re
 import unicodedata
 from datetime import date, datetime, time as dt_time
-import re
 
 import requests
 from bs4 import BeautifulSoup
@@ -256,9 +256,7 @@ class CinematecaPauloAmorim:
                 feature_time_matches = re.findall(feature_time_regex, p_tag.text)
                 for feature_time_match in feature_time_matches:
                     time_str = (
-                        unicodedata.normalize(
-                            "NFKC", feature_time_match[0]
-                        )
+                        unicodedata.normalize("NFKC", feature_time_match[0])
                         .strip("\n")
                         .strip()
                         .split(" ")[0]
@@ -269,7 +267,7 @@ class CinematecaPauloAmorim:
                     else:
                         parsed_time = dt_time(int(hour_str))
                     for movie in self.movies:
-                        if movie['title'].lower() != feature_time_match[1].lower():
+                        if movie["title"].lower() != feature_time_match[1].lower():
                             continue
                         movie["time"].append(parsed_time)
 
