@@ -39,7 +39,11 @@ def get_paginated_with_images(
 ) -> List[Optional[Movie]]:
     offset_value = (current_page - 1) * per_page
 
-    query = db_session.query(Screening).filter(Screening.image.isnot(None)).order_by(Screening.id.desc())
+    query = (
+        db_session.query(Screening)
+        .filter(Screening.image.isnot(None))
+        .order_by(Screening.id.desc())
+    )
 
     if not include_drafts:
         query = query.filter(Screening.draft == False)  # noqa: E712

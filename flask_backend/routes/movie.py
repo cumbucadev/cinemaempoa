@@ -1,13 +1,21 @@
 import math
-import os
 import mimetypes
-from flask import Blueprint, g, jsonify, render_template, request, send_file, current_app
+import os
+
+from flask import (
+    Blueprint,
+    current_app,
+    g,
+    jsonify,
+    render_template,
+    request,
+    send_file,
+)
 from werkzeug.exceptions import abort
 
 from flask_backend.repository.movies import (
     get_all as get_all_movies,
     get_movies_with_similar_titles,
-    get_paginated,
     get_paginated_with_images,
 )
 from flask_backend.routes.auth import login_required
@@ -65,13 +73,15 @@ def poster_images():
             continue
 
         image_urls.add(screening.image)
-        filename = screening.image.split('/')[-1]
+        filename = screening.image.split("/")[-1]
         movie_title = screening.movie.title
-        safe_title = "".join(c for c in movie_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_title = safe_title.replace(' ', '_')
+        safe_title = "".join(
+            c for c in movie_title if c.isalnum() or c in (" ", "-", "_")
+        ).rstrip()
+        safe_title = safe_title.replace(" ", "_")
         file_extension = os.path.splitext(filename)[1]
         download_name = f"{safe_title}{file_extension}"
-        
+
         images.append(
             {
                 "screening_id": screening.id,
@@ -124,33 +134,38 @@ def search_movies():
 def download_poster(filename):
     try:
         file_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-        
+
         if not os.path.exists(file_path):
             abort(404)
-        
+
         mimetype, _ = mimetypes.guess_type(file_path)
         if mimetype is None:
-            mimetype = 'application/octet-stream'
-        
+            mimetype = "application/octet-stream"
+
         from flask_backend.repository.screenings import get_screening_by_image_filename
+
         screening = get_screening_by_image_filename(filename)
-        
+
         if screening:
             movie_title = screening.movie.title
-            safe_title = "".join(c for c in movie_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            safe_title = safe_title.replace(' ', '_')
+            safe_title = "".join(
+                c for c in movie_title if c.isalnum() or c in (" ", "-", "_")
+            ).rstrip()
+            safe_title = safe_title.replace(" ", "_")
             file_extension = os.path.splitext(filename)[1]
             download_name = f"{safe_title}{file_extension}"
         else:
             file_extension = os.path.splitext(filename)[1]
             download_name = f"poster{file_extension}"
-        
+
         return send_file(
             file_path,
             as_attachment=True,
             download_name=download_name,
-            mimetype=mimetype
+            mimetype=mimetype,
         )
     except Exception as e:
-        current_app.logger.error(f"Erro ao fazer download do poster {filename}: {str(e)}")
+        current_app.logger.error(
+            f"Erro ao fazer download do poster {filename}: {str(e)}"
+        )
         abort(500)

@@ -56,22 +56,22 @@ class HtmlBuilder:
                 imgDisplayWidth = 325
                 minHeight = math.ceil(imgDisplayWidth / width * height)
                 movies_list += f"<li class='mb-5' style='min-height: {minHeight}px;'>"
-                movies_list += f"<img src=\"{file_path}\" width={imgDisplayWidth} loading=\"lazy\" alt=\"{item['title']}\" class='img fluid rounded float-sm-start mb-3 mb-sm-0'>"
+                movies_list += f'<img src="{file_path}" width={imgDisplayWidth} loading="lazy" alt="{item["title"]}" class=\'img fluid rounded float-sm-start mb-3 mb-sm-0\'>'
             else:
                 movies_list += "<li class='mb-5'>"
 
             movies_list += f"""
-                    <h3>{item['title']}</h3>
-                    <p>{item['general_info']}</p>
-                    <p>{item['time']}</p>
+                    <h3>{item["title"]}</h3>
+                    <p>{item["general_info"]}</p>
+                    <p>{item["time"]}</p>
             """
             if "director" in item and item["director"] is not False:
                 movies_list += f"<p><strong>Direção</strong>: {item['director']}</p>"
             if "classification" in item and item["classification"] is not False:
                 movies_list += f"<p>{item['classification']}</p>"
             movies_list += f"""
-                    <p>{item['excerpt']}</p>
-                    <a href="{item['read_more']}">Mais informações</a>
+                    <p>{item["excerpt"]}</p>
+                    <a href="{item["read_more"]}">Mais informações</a>
                 </li>
             """
         warnings = ""
@@ -82,11 +82,11 @@ class HtmlBuilder:
         html = f"""
             <article>
                 <header>
-                    <h2 id="{cinema['slug']}">
-                        {cinema['cinema']}
+                    <h2 id="{cinema["slug"]}">
+                        {cinema["cinema"]}
                     </h2>
                     <p>
-                        <a href="{cinema['url']}">Visite o site</a> do cinema.
+                        <a href="{cinema["url"]}">Visite o site</a> do cinema.
                     </p>
                     {warnings}
                 </header>
@@ -143,7 +143,7 @@ class HtmlBuilder:
                         <p>Mostrando filmes para <strong><time datetime="{datetime.now().strftime("%Y-%m-%d")}">{datetime.now().strftime("%d/%m/%Y")}</time></strong>.</p>
                         <aside>
                             <nav>
-                                { "".join(header_content) }
+                                {"".join(header_content)}
                             </nav>
                         </aside>
                     </div>

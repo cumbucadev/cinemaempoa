@@ -3,70 +3,253 @@
     .grid-item {
         width: 325px;
     }
-    
+
     .poster-container {
-        position: relative;
-        display: inline-block;
-        cursor: pointer;
-        width: 325px;
-        overflow: visible;
-        line-height: 0;
+        position: relative !important;
+        display: inline-block !important;
+        cursor: pointer !important;
+        width: 325px !important;
+        overflow: visible !important;
+        line-height: 0 !important;
     }
-    
+
     .poster-container img {
         width: 100%;
         height: auto;
         display: block;
         vertical-align: top;
+        position: relative;
+        z-index: 1;
     }
-    
+
     .download-overlay {
         position: absolute !important;
         bottom: 10px !important;
         right: 3px !important;
         left: auto !important;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        background: rgba(255, 255, 255, 0.95) !important;
-        border-radius: 50%;
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999;
-        pointer-events: auto;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        border: 2px solid rgba(255, 255, 255, 0.9);
-        transform: translateX(0);
+        top: auto !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        width: 44px !important;
+        height: 44px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 99999 !important;
+        pointer-events: auto !important;
+        transform: translateX(0) !important;
     }
-    
+
     .poster-container:hover .download-overlay {
         opacity: 1;
     }
-    
+
     .download-btn {
-        color: #333 !important;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        transition: all 0.2s ease;
+        color: white !important;
+        text-decoration: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+        transition: all 0.2s ease !important;
     }
-    
+
     .download-btn:hover {
-        color: #007bff;
-        background: rgba(0, 0, 0, 0.1);
+        color: white !important;
+        background: rgba(255, 255, 255, 0.2);
         transform: scale(1.1);
     }
-    
+
     .download-btn svg {
         width: 28px;
         height: 28px;
         filter: drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.9));
+    }
+
+    .poster-container .download-overlay {
+        position: absolute !important;
+        bottom: 10px !important;
+        right: 3px !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        pointer-events: auto !important;
+    }
+
+    .poster-container:hover .download-overlay {
+        opacity: 1 !important;
+    }
+
+    .poster-container .download-btn {
+        color: white !important;
+        text-decoration: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* Força o posicionamento mesmo com CSS externo */
+    .poster-container .download-overlay[style*="position: absolute"] {
+        position: absolute !important;
+        bottom: 10px !important;
+        right: 3px !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 999999 !important;
+    }
+
+    /* Classe específica para sobrescrever CSS do Halfmoon */
+    .poster-container .download-overlay.download-overlay-forced {
+        position: absolute !important;
+        bottom: 10px !important;
+        right: 3px !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        pointer-events: auto !important;
+    }
+
+    .poster-container:hover .download-overlay.download-overlay-forced {
+        opacity: 1 !important;
+    }
+
+    .poster-container .download-btn.download-btn-forced {
+        color: white !important;
+        text-decoration: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* Força o posicionamento com especificidade máxima */
+    .poster-container .download-overlay.download-overlay-forced[style*="position: absolute"] {
+        position: absolute !important;
+        bottom: 10px !important;
+        right: 3px !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        pointer-events: auto !important;
+    }
+
+    .poster-container:hover .download-overlay.download-overlay-forced[style*="position: absolute"] {
+        opacity: 1 !important;
+    }
+
+    /* CSS final para forçar posicionamento */
+    .poster-container .download-overlay {
+        position: absolute !important;
+        bottom: 10px !important;
+        right: 3px !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        pointer-events: auto !important;
+    }
+
+    .poster-container:hover .download-overlay {
+        opacity: 1 !important;
+    }
+
+    .poster-container .download-btn {
+        color: white !important;
+        text-decoration: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* Solução alternativa usando transform */
+    .download-overlay-fixed {
+        position: absolute !important;
+        transform: translate(calc(100% - 47px), calc(100% - 54px)) !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        pointer-events: auto !important;
+    }
+
+    .poster-container:hover .download-overlay-fixed {
+        opacity: 1 !important;
+    }
+
+    /* JavaScript vai forçar o posicionamento */
+    .download-overlay-js {
+        position: absolute !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        background: transparent !important;
+        border-radius: 50% !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+        pointer-events: auto !important;
+    }
+
+    .poster-container:hover .download-overlay-js {
+        opacity: 1 !important;
     }
 </style>
 {% block header %}
@@ -222,6 +405,33 @@
             if (containers.length > 0) {
                 observer.observe(containers[containers.length - 1]);
             }
+
+            // Força o posicionamento dos botões de download
+            function positionDownloadButtons() {
+                const downloadOverlays = document.querySelectorAll('.download-overlay-js');
+                downloadOverlays.forEach(overlay => {
+                    const container = overlay.closest('.poster-container');
+                    if (container) {
+                        const rect = container.getBoundingClientRect();
+                        overlay.style.position = 'absolute';
+                        overlay.style.bottom = '10px';
+                        overlay.style.right = '3px';
+                        overlay.style.left = 'auto';
+                        overlay.style.top = 'auto';
+                        overlay.style.zIndex = '999999';
+                    }
+                });
+            }
+
+            // Executa após o layout do Masonry
+            setTimeout(positionDownloadButtons, 100);
+
+            // Observa mudanças no layout
+            const layoutObserver = new MutationObserver(positionDownloadButtons);
+            layoutObserver.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
         });
     </script>
     <script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>

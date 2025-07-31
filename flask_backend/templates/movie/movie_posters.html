@@ -1,20 +1,24 @@
 {% for image in images %}
-    <div class="poster-container grid-item" data-screening-id="{{ image['screening_id'] }}">
+    <div class="poster-container grid-item"
+         data-screening-id="{{ image['screening_id'] }}">
         <img src="{{ image['url'] }}"
              width="325"
              height="{{ image['height'] }}"
              onerror="removeOnError(event)"
              {% if image['image_alt'] %}alt="{{ image['image_alt'] }}"{% endif %} />
-        <div class="download-overlay" style="position: absolute !important; bottom: 10px !important; right: 3px !important; left: auto !important;">
-            <a href="{{ url_for('movie.download_poster', filename=image['filename']) }}" 
-               class="download-btn" 
+        <div class="download-overlay download-overlay-js">
+            <a href="{{ url_for('movie.download_poster', filename=image['filename']) }}"
+               class="download-btn"
                title="Baixar poster"
-               download="{{ image['download_name'] }}"
-               style="color: white !important; text-shadow: 0 0 5px rgba(0, 0, 0, 1), 0 0 5px rgba(0, 0, 0, 1), 0 0 5px rgba(0, 0, 0, 1), 0 0 5px rgba(0, 0, 0, 1), 0 0 5px rgba(0, 0, 0, 1), 0 2px 6px rgba(0, 0, 0, 0.9);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+               download="{{ image['download_name'] }}">
+                <svg width="20"
+                     height="20"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
             </a>
         </div>

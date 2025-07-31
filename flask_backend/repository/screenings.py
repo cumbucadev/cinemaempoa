@@ -114,4 +114,6 @@ def delete(
 
 
 def get_screening_by_image_filename(filename: str) -> Optional[Screening]:
-    return db_session.query(Screening).filter(Screening.image.endswith(filename)).first()
+    return (
+        db_session.query(Screening).filter(Screening.image.endswith(filename)).first()
+    )
