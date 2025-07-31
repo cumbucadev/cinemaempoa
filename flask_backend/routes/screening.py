@@ -340,7 +340,7 @@ def runScrap():
 
     # cinebancarios
     if "cinebancarios" in request.form:
-        cineBancarios = CineBancarios()
+        cineBancarios = CineBancarios(current_app.config["GEMINI_API_KEY"])
         features.append(cineBancarios.get_daily_features_json())
 
     # paulo-amorim
