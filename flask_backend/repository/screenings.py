@@ -111,3 +111,7 @@ def delete(
         db_session.delete(_date)
     db_session.delete(screening)
     db_session.commit()
+
+
+def get_screening_by_image_filename(filename: str) -> Optional[Screening]:
+    return db_session.query(Screening).filter(Screening.image.endswith(filename)).first()

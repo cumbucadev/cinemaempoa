@@ -3,6 +3,71 @@
     .grid-item {
         width: 325px;
     }
+    
+    .poster-container {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        width: 325px;
+        overflow: visible;
+        line-height: 0;
+    }
+    
+    .poster-container img {
+        width: 100%;
+        height: auto;
+        display: block;
+        vertical-align: top;
+    }
+    
+    .download-overlay {
+        position: absolute !important;
+        bottom: 10px !important;
+        right: 3px !important;
+        left: auto !important;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        pointer-events: auto;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        transform: translateX(0);
+    }
+    
+    .poster-container:hover .download-overlay {
+        opacity: 1;
+    }
+    
+    .download-btn {
+        color: #333 !important;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+    
+    .download-btn:hover {
+        color: #007bff;
+        background: rgba(0, 0, 0, 0.1);
+        transform: scale(1.1);
+    }
+    
+    .download-btn svg {
+        width: 28px;
+        height: 28px;
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 4px rgba(0, 0, 0, 1)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.9));
+    }
 </style>
 {% block header %}
     <h1>
@@ -30,7 +95,7 @@
         {% include "movie/movie_posters.html" %}
     </section>
     <script>
-        let masonry, observer, currPage = 0;
+        let masonry, observer, currPage = -1;
 
         async function intersectionCallback(entries, _observer) {
             const entry = entries[0];
@@ -73,16 +138,16 @@
             const nextPageText = await nextPageFetch.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(nextPageText, 'text/html');
-            const nextPageImages = doc.querySelectorAll("img.grid-item");
+            const nextPageContainers = doc.querySelectorAll(".poster-container.grid-item");
 
             section.setAttribute('data-page', nextPage);
-            nextPageImages.forEach((img) => section.appendChild(img));
-            masonry.appended(nextPageImages);
+            nextPageContainers.forEach((container) => section.appendChild(container));
+            masonry.appended(nextPageContainers);
 
-            const imgsObserver = Array.from(section.getElementsByTagName('img'));
-            const lastImage = imgsObserver[imgsObserver.length - 1];
-            lastImage.setAttribute("data-observed", 1);
-            _observer.observe(lastImage);
+            const containersObserver = Array.from(section.getElementsByClassName('poster-container'));
+            const lastContainer = containersObserver[containersObserver.length - 1];
+            lastContainer.setAttribute("data-observed", 1);
+            _observer.observe(lastContainer);
             // register that someone scrolled up to the next page
             // using a goatcounter event
             if (window.goatcounter) {
@@ -96,13 +161,14 @@
 
         function removeOnError(e) {
             const img = e.target;
-            const isObserved = img.getAttribute("data-observed");
-            img.remove();
+            const container = img.closest('.poster-container');
+            const isObserved = container.getAttribute("data-observed");
+            container.remove();
             if (isObserved) {
-                const imgs = Array.from(document.querySelectorAll("section.grid img.grid-item"));
-                const lastImage = imgs[imgs.length - 1];
-                observer.observe(lastImage);
-                lastImage.setAttribute("data-observed", 1);
+                const containers = Array.from(document.querySelectorAll("section.grid .poster-container"));
+                const lastContainer = containers[containers.length - 1];
+                observer.observe(lastContainer);
+                lastContainer.setAttribute("data-observed", 1);
             }
             masonry.layout();
         }
@@ -128,11 +194,11 @@
             const nextPageText = await nextPageFetch.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(nextPageText, 'text/html');
-            const nextPageImages = doc.querySelectorAll("img.grid-item");
+            const nextPageContainers = doc.querySelectorAll(".poster-container.grid-item");
 
             section.setAttribute('data-page', nextPage);
-            nextPageImages.forEach((img) => section.appendChild(img));
-            masonry.appended(nextPageImages);
+            nextPageContainers.forEach((container) => section.appendChild(container));
+            masonry.appended(nextPageContainers);
         }
 
         document.addEventListener("DOMContentLoaded", async (event) => {
@@ -152,8 +218,10 @@
             observer = new IntersectionObserver(intersectionCallback, {
                 threshold: 1
             });
-            const imgs = Array.from(document.querySelectorAll(".grid-item"));
-            observer.observe(imgs[imgs.length - 1]);
+            const containers = Array.from(document.querySelectorAll(".poster-container.grid-item"));
+            if (containers.length > 0) {
+                observer.observe(containers[containers.length - 1]);
+            }
         });
     </script>
     <script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>

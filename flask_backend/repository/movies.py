@@ -34,6 +34,21 @@ def get_paginated(
     return query.all()
 
 
+def get_paginated_with_images(
+    current_page: int, per_page: int, include_drafts: bool = False
+) -> List[Optional[Movie]]:
+    offset_value = (current_page - 1) * per_page
+
+    query = db_session.query(Screening).filter(Screening.image.isnot(None)).order_by(Screening.id.desc())
+
+    if not include_drafts:
+        query = query.filter(Screening.draft == False)  # noqa: E712
+
+    query = query.limit(per_page).offset(offset_value)
+
+    return query.all()
+
+
 def get_by_title(title: str) -> Optional[Movie]:
     return db_session.query(Movie).filter(Movie.title == title).first()
 
