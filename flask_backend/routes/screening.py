@@ -35,7 +35,7 @@ from flask_backend.repository.screenings import (
     update as update_screening,
     update_screening_dates,
 )
-from flask_backend.routes.auth import login_required
+from flask_backend.routes.auth import admin_only, login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
     build_dates,
@@ -117,6 +117,7 @@ def upload(filename):
 
 @bp.route("/screening/new", methods=("GET", "POST"))
 @login_required
+@admin_only
 def create():
     screening_dates = []
     if request.method == "POST":
@@ -376,6 +377,7 @@ def runScrap():
 
 @bp.route("/screening/import", methods=("GET", "POST"))
 @login_required
+@admin_only
 def import_screenings():
     suggestions = []
     if request.method == "POST":
