@@ -49,6 +49,11 @@ def create_app(test_config=None):
 
     app.register_blueprint(movie.bp)
 
+
+    from .routes import redirect  # Adicionado o import
+    
+    app.register_blueprint(redirect.redirect_bp)  # Registrando o blueprint de redirecionamento
+
     @app.route("/robots.txt")
     def static_from_root():
         """Taken from https://stackoverflow.com/a/14625619"""
