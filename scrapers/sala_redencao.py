@@ -16,6 +16,7 @@ class SalaRedencao:
             self.date = self._get_today_ymd()
 
         self.url = "https://www.ufrgs.br/difusaocultural/salaredencao/"
+        self.news_url = "https://www.ufrgs.br/difusaocultural/noticias/"
         self.events = []
 
         self.dir = os.path.join("sala-redencao")
@@ -38,6 +39,12 @@ class SalaRedencao:
     def _get_landing_page_html(self) -> str:
         return self._get_page_html(self._get_lp_file(), self.url)
 
+    def _get_news_page_file(self):
+        return os.path.join(self.scrape_dir, "news.html")
+    
+    def _get_news_page_html(self):
+        return self._get_page_html(self._get_news_page_file(), self.news_url)
+
     def _get_page_html(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
         if os.path.exists(file):
@@ -50,8 +57,8 @@ class SalaRedencao:
         return r.text
 
     def _get_events_blog_post_url(self):
-        landing_page_soup = BeautifulSoup(self._get_landing_page_html(), "html.parser")
-        full_post_links = landing_page_soup.css.select(".full-post-link")
+        landing_page_soup = BeautifulSoup(self._get_news_page_html(), "html.parser")
+        full_post_links = landing_page_soup.css.select(".entire-meta-link")
         for full_post_link in full_post_links:
             event_url = full_post_link["href"]
             if event_url and event_url not in self.events:
