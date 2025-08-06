@@ -267,7 +267,10 @@ class CinematecaPauloAmorim:
                     else:
                         parsed_time = dt_time(int(hour_str))
                     for movie in self.movies:
-                        if movie["title"].strip().lower() != feature_time_match[1].strip().lower():
+                        if (
+                            movie["title"].strip().lower()
+                            != feature_time_match[1].strip().lower()
+                        ):
                             continue
                         movie["time"].append(parsed_time)
 

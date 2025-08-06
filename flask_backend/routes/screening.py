@@ -38,16 +38,13 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
+from flask_backend.service.runner import Runner
 from flask_backend.service.screening import (
     build_dates,
     import_scrapped_results,
     save_image,
     validate_image,
 )
-from scrapers.capitolio import Capitolio
-from scrapers.cinebancarios import CineBancarios
-from scrapers.paulo_amorim import CinematecaPauloAmorim
-from scrapers.sala_redencao import SalaRedencao
 
 bp = Blueprint("screening", __name__)
 
@@ -353,61 +350,44 @@ def delete(id):
 @bp.route("/screening/scrap", methods=["POST"])
 @login_required
 def runScrap():
-    features = []
+    cinemas = []
 
-    # Capitolio
     if "capitolio" in request.form:
-        feature = {
-            "url": "https://www.capitolio.org.br",
-            "cinema": "Cinemateca Capitólio",
-            "slug": "capitolio",
-        }
-        cap = Capitolio()
-        feature["features"] = cap.get_daily_features_json()
-        features.append(feature)
+        cinemas.append("capitolio")
 
-    # Sala-redenção
     if "redencao" in request.form:
-        feature = {
-            "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
-            "cinema": "Sala Redenção",
-            "slug": "sala-redencao",
-        }
-        redencao = SalaRedencao()
-        feature["features"] = redencao.get_daily_features_json()
-        features.append(feature)
+        cinemas.append("redencao")
 
-    # cinebancarios
     if "cinebancarios" in request.form:
-        cineBancarios = CineBancarios()
-        features.append(cineBancarios.get_daily_features_json())
+        cinemas.append("cinebancarios")
 
-    # paulo-amorim
     if "pauloAmorim" in request.form:
-        feature = {
-            "url": "https://www.cinematecapauloamorim.com.br",
-            "cinema": "Cinemateca Paulo Amorim",
-            "slug": "paulo-amorim",
-        }
-        pauloAmorim = CinematecaPauloAmorim()
-        feature["features"] = pauloAmorim.get_daily_features_json()
-        features.append(feature)
+        cinemas.append("pauloAmorim")
+
+    runner = Runner(cinemas)
 
     try:
-        scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(features)
+        runner.scrap()
     except Exception as e:
         flash("Ocorreu um problema no processo de scrapping", "danger")
         print(e)
         return render_template("screening/import.html", suggestions=[])
 
+    try:
+        runner.parse_scrapped_json()
+    except Exception as e:
+        flash("Ocorreu um problema ao processar os dados raspados", "danger")
+        print(e)
+        return render_template("screening/import.html", suggestions=[])
+
     # validate all cinemas exist in db
-    for json_cinema in scrapped_results.cinemas:
+    for json_cinema in runner.scrapped_results.cinemas:
         cinema = get_cinema_by_slug(json_cinema.slug)
         if cinema is None:
             flash(f"Sala {json_cinema.slug} não encontrada.")
             return render_template("screening/import.html", suggestions=[])
 
-    created_features = import_scrapped_results(scrapped_results, current_app)
+    created_features = runner.import_scrapped_results(current_app)
     flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return redirect(url_for("screening.import_screenings"))
@@ -433,23 +413,23 @@ def import_screenings():
         except (json.decoder.JSONDecodeError, UnicodeDecodeError):
             flash("Arquivo .json inválido", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
-
+        runner = Runner()
         try:
-            scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
+            runner.parse_scrapped_json(parsed_json)
         except Exception as e:
             flash("Arquivo .json inválido", "danger")
             print(e)
             return render_template("screening/import.html", suggestions=suggestions)
 
         # validate all cinemas exist in db
-        for json_cinema in scrapped_results.cinemas:
+        for json_cinema in runner.scrapped_results.cinemas:
             cinema = get_cinema_by_slug(json_cinema.slug)
             if cinema is None:
                 flash(f"Sala {json_cinema.slug} não encontrada.")
                 return render_template("screening/import.html", suggestions=suggestions)
 
         # all validations passed, import screenings :)
-        created_features = import_scrapped_results(scrapped_results, current_app)
+        created_features = runner.import_scrapped_results(current_app)
 
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
