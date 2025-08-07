@@ -7,7 +7,7 @@ from flask_backend.service.shared import parse_to_datetime_string
 @dataclass
 class ScrappedFeature:
     poster: Optional[str]
-    time: Optional[str]
+    time: Optional[str | List[str]]
     title: str
     original_title: Optional[str]
     price: Optional[str]
