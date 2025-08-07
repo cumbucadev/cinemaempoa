@@ -31,6 +31,7 @@ from flask_backend.repository.screenings import (
     create as create_screening,
     delete as delete_screening,
     get_days_screenings_by_cinema_id,
+    get_month_screening_dates,
     get_screening_by_id,
     update as update_screening,
     update_screening_dates,
@@ -107,6 +108,44 @@ def index():
         cinemas_with_screenings=cinemas_with_screenings,
         today=datetime.now().strftime("%d/%m/%Y"),
         quicklinks=quicklinks,
+    )
+
+
+@bp.route("/program")
+def programacao():
+    all_cinemas = get_all_cinemas()
+
+    # check if there is a query parameter "cinema" and if so, filter the cinemas by the query parameter
+    queried_cinemas = request.args.getlist("cinema")
+    checked_cinemas = (
+        [cinema.slug for cinema in all_cinemas if cinema.slug in queried_cinemas]
+        if queried_cinemas
+        else [cinema.slug for cinema in all_cinemas]
+    )
+
+    screening_dates = get_month_screening_dates(checked_cinemas)
+    # group by date
+    screening_dates_grouped = {}
+    for screening_date in screening_dates:
+        if screening_date.date not in screening_dates_grouped:
+            screening_dates_grouped[screening_date.date] = []
+        screening_dates_grouped[screening_date.date].append(screening_date)
+
+    # set cinema badge color
+    # TODO: cinema colors could be stored in the database
+    colors = {
+        "capitolio": "#911eb4",
+        "sala-redencao": "#000075",
+        "cinebancarios": "#9A6324",
+        "paulo-amorim": "#469990",
+    }
+
+    return render_template(
+        "screening/programacao.html",
+        screening_dates=screening_dates_grouped,
+        colors=colors,
+        cinemas=all_cinemas,
+        checked_cinemas=checked_cinemas,
     )
 
 
