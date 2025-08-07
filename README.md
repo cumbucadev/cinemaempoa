@@ -110,6 +110,16 @@ Lá, selecione o arquivo gerado na etapa anterior e clique em **Enviar**.
 
 As sessões importadas vão estar disponíveis na home.
 
+### Importando dados pela linha de comandos
+
+Uma alternativa a importação via portal é utilizando a linha de comando.
+
+Dentro do seu ambiente, rode o seguinte comando:
+
+```
+flask --app flask_backend import-json /caminho/ate/o/arquivo.json
+```
+
 <h2 id="contribuicoes">Contribuições</h2>
 
 Veja nossos [issues](https://github.com/guites/cinemaempoa/issues) pra entender o que está sendo feito no projeto.
