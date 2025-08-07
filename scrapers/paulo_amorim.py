@@ -63,50 +63,55 @@ class CinematecaPauloAmorim:
     def _get_movies_on_programacao(self):
         # if a movie is listed under programacao, we
         # assume it is being featured that week
-        programacao_html = self._get_page_html(
-            os.path.join(self.todays_dir, "programacao.html"), self.programacao_url
-        )
-        programacao_soup = BeautifulSoup(programacao_html, "html.parser")
-        ticket_links = programacao_soup.css.select("a.link-default > .ticket")
-        movies = []
-        for ticket_link in ticket_links:
-            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
-                ".generos"
+        programacao_page = 1
+        while True:
+            programacao_html = self._get_page_html(
+                os.path.join(self.todays_dir, f"programacao{programacao_page}.html"), f"{self.programacao_url}/pag/{programacao_page}"
             )
-            if genre is not None:
-                genre = genre.text.strip("\n")
-
-            movie = {
-                "poster": ticket_link.css.select_one(".ticket-foto")["style"]
-                .replace(
-                    "background-image:url(", "https://www.cinematecapauloamorim.com.br/"
+            programacao_soup = BeautifulSoup(programacao_html, "html.parser")
+            ticket_links = programacao_soup.css.select("a.link-default > .ticket")
+            if len(ticket_links) == 0:
+                break
+            movies = []
+            for ticket_link in ticket_links:
+                genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
+                    ".generos"
                 )
-                .rstrip(")"),
-                "title": ticket_link.css.select_one("h5").text,
-                "general_info": ticket_link.css.select_one("h5")
-                .parent.find_next_sibling()
-                .find_next_sibling()
-                .text.strip()
-                .replace("\t", ""),
-                "director": ticket_link.css.select_one("h5")
-                .parent.find_next_sibling()
-                .text.strip("\n"),
-                "classification": ticket_link.css.select_one(".ticket-foto")
-                .css.select_one(".classificacao")
-                .text.strip("\n")
-                .replace("\n", " "),
-                "excerpt": "",
-                "time": [],
-                "read_more": f"{self.url}/{ticket_link.parent['href']}",
-                "genre": genre,
-                "room": ticket_link.css.select_one("h5")
-                .parent.find_next_sibling()
-                .find_next_sibling()
-                .find_next_sibling()
-                .text.strip("\n"),
-            }
-            movies.append(movie)
-        self.movies = movies
+                if genre is not None:
+                    genre = genre.text.strip("\n")
+
+                movie = {
+                    "poster": ticket_link.css.select_one(".ticket-foto")["style"]
+                    .replace(
+                        "background-image:url(", "https://www.cinematecapauloamorim.com.br/"
+                    )
+                    .rstrip(")"),
+                    "title": ticket_link.css.select_one("h5").text,
+                    "general_info": ticket_link.css.select_one("h5")
+                    .parent.find_next_sibling()
+                    .find_next_sibling()
+                    .text.strip()
+                    .replace("\t", ""),
+                    "director": ticket_link.css.select_one("h5")
+                    .parent.find_next_sibling()
+                    .text.strip("\n"),
+                    "classification": ticket_link.css.select_one(".ticket-foto")
+                    .css.select_one(".classificacao")
+                    .text.strip("\n")
+                    .replace("\n", " "),
+                    "excerpt": "",
+                    "time": [],
+                    "read_more": f"{self.url}/{ticket_link.parent['href']}",
+                    "genre": genre,
+                    "room": ticket_link.css.select_one("h5")
+                    .parent.find_next_sibling()
+                    .find_next_sibling()
+                    .find_next_sibling()
+                    .text.strip("\n"),
+                }
+                movies.append(movie)
+            self.movies = self.movies + movies
+            programacao_page += 1
 
     def _get_movie_excerpt(self):
         for movie in self.movies:
