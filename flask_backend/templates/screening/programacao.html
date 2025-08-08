@@ -27,11 +27,19 @@
                 <ul class="list-unstyled mb-3">
                     {% for screening in screenings %}
                         <li class="mb-1">
-                            {{ screening.time.replace(':', 'h') }}: {{ screening.screening.movie.title }} <span class="badge rounded-pill"
+                            {% if not g.user %}
+                                {{ screening.time.replace(':', 'h') }}: {{ screening.screening.movie.title }} <span class="badge rounded-pill"
        style="background-color: {{ colors[screening.screening.cinema.slug] }}"
        data-bs-toggle="tooltip"
        data-bs-placement="top"
        title="{{ screening.screening.cinema.name }}">{{ screening.screening.cinema.slug }}</span>
+                            {% else %}
+                                {{ screening.time.replace(':', 'h') }}: <a href="{{ url_for('screening.update', id=screening.screening_id) }}">{{ screening.screening.movie.title }}</a> <span class="badge rounded-pill"
+       style="background-color: {{ colors[screening.screening.cinema.slug] }}"
+       data-bs-toggle="tooltip"
+       data-bs-placement="top"
+       title="{{ screening.screening.cinema.name }}">{{ screening.screening.cinema.slug }}</span>
+                            {% endif %}
                         </li>
                     {% endfor %}
                 </ul>
