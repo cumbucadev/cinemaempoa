@@ -8,6 +8,8 @@ from typing import List, Optional, Tuple
 import requests
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
@@ -95,7 +97,13 @@ def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]
         hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
     )
 
-    r = requests.get(image_url)
+    session = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    r = session.get(image_url)
     if r.ok is False:
         return None, None
 
