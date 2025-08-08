@@ -39,6 +39,14 @@
        data-bs-toggle="tooltip"
        data-bs-placement="top"
        title="{{ screening.screening.cinema.name }}">{{ screening.screening.cinema.slug }}</span>
+                                {% if screening.screening.draft %}
+                                    <button class="badge text-bg-warning ms-3"
+                                            data-bs-toggle="tooltip"
+                                            data-bs-title="clique para publicar"
+                                            aria-label="Visível apenas para usuários logados"
+                                            data-function="publish"
+                                            data-screening-id="{{ screening.screening_id }}">Rascunho</button>
+                                {% endif %}
                             {% endif %}
                         </li>
                     {% endfor %}
@@ -51,6 +59,30 @@
             checkbox.addEventListener('change', function() {
                 const checkedCinemas = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => `cinema=${checkbox.value}`);
                 window.location.href = window.location.pathname + '?' + checkedCinemas.join('&');
+            });
+        });
+
+        const publishBtns = document.querySelectorAll('[data-function="publish"]');
+        publishBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                // get the buttons screening id
+                const screeningId = btn.dataset.screeningId;
+                // send a post request to the server
+                fetch(`/screening/${screeningId}/publish`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    })
+                    .then((response) => {
+                        // if the response is ok, reload the page
+                        if (response.ok) {
+                            window.location.reload();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
             });
         });
     </script>
