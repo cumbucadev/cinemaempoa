@@ -162,18 +162,20 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                 screenings_dates = build_dates(
                     [datetime.now().strftime("%Y-%m-%dT%H:%M")]
                 )
-
-            image_filename, image_width, image_height = None, None, None
-            if scrapped_feature.poster:
-                img, filename = download_image_from_url(scrapped_feature.poster)
-                image_filename, image_width, image_height = None, None, None
-                if img is not None:
-                    # if we fail to download or validate the image, just ignore it for now
-                    image_filename, image_width, image_height = save_image(
-                        img, current_app, filename
-                    )
             screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
+
             if not screening:
+                # only attempt to download the poster if the screening doesn't previously exists
+                image_filename, image_width, image_height = None, None, None
+                if scrapped_feature.poster:
+                    img, filename = download_image_from_url(scrapped_feature.poster)
+                    image_filename, image_width, image_height = None, None, None
+                    if img is not None:
+                        # if we fail to download or validate the image, just ignore it for now
+                        image_filename, image_width, image_height = save_image(
+                            img, current_app, filename
+                        )
+
                 create_screening(
                     movie_id=movie.id,
                     description=description,
