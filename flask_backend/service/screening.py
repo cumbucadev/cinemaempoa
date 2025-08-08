@@ -7,9 +7,9 @@ from typing import List, Optional, Tuple
 
 import requests
 from PIL import Image, UnidentifiedImageError
-from werkzeug.utils import secure_filename
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
