@@ -56,7 +56,7 @@ def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int
     """Saves the received `file` into disk or uploads it to imgBB API,
     depending on the current environment"""
     # always save images locally on development
-    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
+    if APP_ENVIRONMENT != EnvironmentEnum.PRODUCTION:
         return upload_image_to_local_disk(file, app, filename)
     # on production, attempt to save to the imgBB API
     try:
