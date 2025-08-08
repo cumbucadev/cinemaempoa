@@ -66,7 +66,8 @@ class CinematecaPauloAmorim:
         programacao_page = 1
         while True:
             programacao_html = self._get_page_html(
-                os.path.join(self.todays_dir, f"programacao{programacao_page}.html"), f"{self.programacao_url}/pag/{programacao_page}"
+                os.path.join(self.todays_dir, f"programacao{programacao_page}.html"),
+                f"{self.programacao_url}/pag/{programacao_page}",
             )
             programacao_soup = BeautifulSoup(programacao_html, "html.parser")
             ticket_links = programacao_soup.css.select("a.link-default > .ticket")
@@ -83,7 +84,8 @@ class CinematecaPauloAmorim:
                 movie = {
                     "poster": ticket_link.css.select_one(".ticket-foto")["style"]
                     .replace(
-                        "background-image:url(", "https://www.cinematecapauloamorim.com.br/"
+                        "background-image:url(",
+                        "https://www.cinematecapauloamorim.com.br/",
                     )
                     .rstrip(")"),
                     "title": ticket_link.css.select_one("h5").text,
@@ -413,4 +415,4 @@ class CinematecaPauloAmorim:
                             {"time": parsed_time, "date": current_date}
                         )
                         movie["scrapped"] = True
-                features = [movie for movie in self.movies if len(movie["time"]) > 0]
+                # features = [movie for movie in self.movies if len(movie["time"]) > 0]
