@@ -7,6 +7,8 @@ from typing import List, Optional, Tuple
 
 import requests
 from PIL import Image, UnidentifiedImageError
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import APP_ENVIRONMENT
@@ -56,7 +58,7 @@ def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int
     """Saves the received `file` into disk or uploads it to imgBB API,
     depending on the current environment"""
     # always save images locally on development
-    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
+    if APP_ENVIRONMENT != EnvironmentEnum.PRODUCTION:
         return upload_image_to_local_disk(file, app, filename)
     # on production, attempt to save to the imgBB API
     try:
@@ -95,7 +97,13 @@ def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]
         hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
     )
 
-    r = requests.get(image_url)
+    session = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    r = session.get(image_url)
     if r.ok is False:
         return None, None
 
