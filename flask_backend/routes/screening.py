@@ -17,7 +17,6 @@ from flask import (
 )
 from werkzeug.exceptions import abort
 
-from flask_backend.import_json import ScrappedResult
 from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
@@ -41,7 +40,6 @@ from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.runner import Runner
 from flask_backend.service.screening import (
     build_dates,
-    import_scrapped_results,
     save_image,
     validate_image,
 )

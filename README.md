@@ -45,7 +45,7 @@ Ao utilizar o docker, os comandos mencionados na seção seguinte devem ser roda
 Antes de abrir um Pull Request, rode os comandos abaixo no seu terminal para validar e formatar o código:
 
 ```bash
-ruff check # roda o linter para código python
+ruff check --fix # roda o linter para código python
 ruff format # roda o formatter para código python
 djlint flask_backend/templates --lint --profile=jinja # roda o linter para os arquivos .html
 djlint --reformat flask_backend/templates --format-css --format-js # roda o formatter para os arquivos .html
@@ -109,6 +109,16 @@ Após logar, vá para a página <http://localhost:5000/screening/import>.
 Lá, selecione o arquivo gerado na etapa anterior e clique em **Enviar**.
 
 As sessões importadas vão estar disponíveis na home.
+
+### Importando dados pela linha de comandos
+
+Uma alternativa a importação via portal é utilizando a linha de comando.
+
+Dentro do seu ambiente, rode o seguinte comando:
+
+```
+flask --app flask_backend import-json /caminho/ate/o/arquivo.json
+```
 
 <h2 id="contribuicoes">Contribuições</h2>
 

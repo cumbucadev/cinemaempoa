@@ -7,6 +7,8 @@ from typing import List, Optional, Tuple
 
 import requests
 from PIL import Image, UnidentifiedImageError
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import APP_ENVIRONMENT
@@ -56,7 +58,7 @@ def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int
     """Saves the received `file` into disk or uploads it to imgBB API,
     depending on the current environment"""
     # always save images locally on development
-    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
+    if APP_ENVIRONMENT != EnvironmentEnum.PRODUCTION:
         return upload_image_to_local_disk(file, app, filename)
     # on production, attempt to save to the imgBB API
     try:
@@ -95,7 +97,13 @@ def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]
         hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
     )
 
-    r = requests.get(image_url)
+    session = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    r = session.get(image_url)
     if r.ok is False:
         return None, None
 
@@ -162,18 +170,20 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                 screenings_dates = build_dates(
                     [datetime.now().strftime("%Y-%m-%dT%H:%M")]
                 )
-
-            image_filename, image_width, image_height = None, None, None
-            if scrapped_feature.poster:
-                img, filename = download_image_from_url(scrapped_feature.poster)
-                image_filename, image_width, image_height = None, None, None
-                if img is not None:
-                    # if we fail to download or validate the image, just ignore it for now
-                    image_filename, image_width, image_height = save_image(
-                        img, current_app, filename
-                    )
             screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
+
             if not screening:
+                # only attempt to download the poster if the screening doesn't previously exists
+                image_filename, image_width, image_height = None, None, None
+                if scrapped_feature.poster:
+                    img, filename = download_image_from_url(scrapped_feature.poster)
+                    image_filename, image_width, image_height = None, None, None
+                    if img is not None:
+                        # if we fail to download or validate the image, just ignore it for now
+                        image_filename, image_width, image_height = save_image(
+                            img, current_app, filename
+                        )
+
                 create_screening(
                     movie_id=movie.id,
                     description=description,

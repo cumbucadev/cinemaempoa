@@ -33,6 +33,10 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
+    from . import commands
+
+    commands.register_commands(app)
+
     if APP_ENVIRONMENT == EnvironmentEnum.PRODUCTION:
         db.init_db()
         db.seed_db_prod()
