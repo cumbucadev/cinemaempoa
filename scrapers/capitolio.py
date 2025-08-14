@@ -47,6 +47,8 @@ class Capitolio:
             )
             movies_div = soup.find_all("div", class_="movie")
             if cur_day.weekday() != 0 and len(movies_div) == 0:
+                # remove the latest downloaded file so it is redownloaded again next week
+                os.remove(self._day_file(cur_day.strftime("%Y-%m-%d")))
                 break
             for movie in movies_div:
                 # get film pt-br title
