@@ -41,7 +41,7 @@ class SalaRedencao:
 
     def _get_news_page_file(self):
         return os.path.join(self.scrape_dir, "news.html")
-    
+
     def _get_news_page_html(self):
         return self._get_page_html(self._get_news_page_file(), self.news_url)
 
