@@ -415,7 +415,7 @@ def import_screenings():
         try:
             runner.parse_scrapped_json(parsed_json)
         except Exception as e:
-            flash("Arquivo .json inválido", "danger")
+            flash("Arquivo .json com estrutura inválida para importação", "danger")
             print(e)
             return render_template("screening/import.html", suggestions=suggestions)
 
