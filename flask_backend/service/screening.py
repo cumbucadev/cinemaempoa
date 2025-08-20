@@ -25,6 +25,7 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
+from scrapers.imdb import IMDBScrapper
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -175,14 +176,20 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
             if not screening:
                 # only attempt to download the poster if the screening doesn't previously exists
                 image_filename, image_width, image_height = None, None, None
+
                 if scrapped_feature.poster:
                     img, filename = download_image_from_url(scrapped_feature.poster)
-                    image_filename, image_width, image_height = None, None, None
-                    if img is not None:
-                        # if we fail to download or validate the image, just ignore it for now
-                        image_filename, image_width, image_height = save_image(
-                            img, current_app, filename
-                        )
+                else:
+                    # screening has no poster image url, attempt to scrap it from imdb
+                    imdb_scrapper = IMDBScrapper()
+                    poster_url = imdb_scrapper.get_image(scrapped_feature)
+                    img, filename = download_image_from_url(poster_url)
+
+                if img is not None:
+                    # if we fail to download or validate the image, just ignore it for now
+                    image_filename, image_width, image_height = save_image(
+                        img, current_app, filename
+                    )
 
                 create_screening(
                     movie_id=movie.id,
