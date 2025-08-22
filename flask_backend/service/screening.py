@@ -167,6 +167,8 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
             if scrapped_feature.excerpt:
                 description += f"\n{scrapped_feature.excerpt}"
 
+            description = description.strip()
+
             if screenings_dates is None:
                 screenings_dates = build_dates(
                     [datetime.now().strftime("%Y-%m-%dT%H:%M")]
