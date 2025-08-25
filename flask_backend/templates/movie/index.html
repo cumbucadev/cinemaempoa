@@ -10,37 +10,38 @@
 {% block content %}
     <div class="container d-flex">
         <ul class="list-group list-group-flush">
-        {% for movie in movies %}
-            <li class="list-group-item d-flex justify-content-between align-items-start mb-3 pb-3">
-                <div class="d-flex">
-                    <div class="me-3" style="width: 75px;">
-                        {% if movie.screenings[0].image %}
-                            <img loading="lazy" src="{{ movie.screenings[0].image }}" class="img-fluid rounded" alt="">
-                        {% endif %}
-                    </div>
-                    <div class="">
-                        <div class="card-body">
-                            <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
-                            <p class="card-text">
-                                {% for screening in movie.screenings %}
-                                    <span class="badge rounded-pill"
-                                        style="background-color: {{ colors[screening.cinema.slug] }}"
-                                        data-bs-toggle="tooltip"
-                                        data-bs-placement="top"
-                                        title="{{ screening.cinema.name }}">
-                                            {{ screening.cinema.slug }}
-                                    </span>
-                                {% endfor %}
-                            </p>
+            {% for movie in movies %}
+                <li class="list-group-item d-flex justify-content-between align-items-start mb-3 pb-3">
+                    <div class="d-flex">
+                        <div class="me-3" style="width: 75px;">
+                            {% if movie.screenings[0].image %}
+                                <img loading="lazy"
+                                     src="{{ movie.screenings[0].image }}"
+                                     class="img-fluid rounded"
+                                     alt="">
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="card-body">
+                                <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
+                                <p class="card-text">
+                                    {% for screening in movie.screenings %}
+                                        <span class="badge rounded-pill"
+                                              style="background-color: {{ colors[screening.cinema.slug] }}"
+                                              data-bs-toggle="tooltip"
+                                              data-bs-placement="top"
+                                              title="{{ screening.cinema.name }}">{{ screening.cinema.slug }}</span>
+                                    {% endfor %}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </li>
-        {% else %}
-            <li>
-                <p>Nenhum filme registrado. Volte em breve!</p>
-            </li>
-        {% endfor %}
+                </li>
+            {% else %}
+                <li>
+                    <p>Nenhum filme registrado. Volte em breve!</p>
+                </li>
+            {% endfor %}
         </ul>
     </div>
 {% endblock content %}
