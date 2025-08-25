@@ -33,7 +33,7 @@ def posters():
     user_logged_in = g.user is not None
     images = []
     return render_template(
-        "movie/movies.html", images=images, show_drafts=user_logged_in
+        "movie/posters.html", images=images, show_drafts=user_logged_in
     )
 
 
