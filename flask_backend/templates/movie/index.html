@@ -18,7 +18,18 @@
                                 <img loading="lazy"
                                      src="{{ movie.screenings[0].image }}"
                                      class="img-fluid rounded"
-                                     alt="">
+                                     alt="{{ movie.screenings[0].image_alt }}">
+                            {% else %}
+                                <img loading="lazy"
+                                    id=""
+                                     src="{{ url_for('static', filename='cinema.png') }}"
+                                     class="img-fluid rounded logo-black"
+                                     alt="Logo">
+                                <img loading="lazy"
+                                    id=""
+                                     src="{{ url_for('static', filename='cinema-white.png') }}"
+                                     class="img-fluid rounded logo-white"
+                                     alt="Logo">
                             {% endif %}
                         </div>
                         <div>
@@ -44,4 +55,17 @@
             {% endfor %}
         </ul>
     </div>
+    <script>
+        function dummyImg() {
+            const htmlEl = document.querySelector("html");
+            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                htmlEl.setAttribute("data-bs-theme", "dark");
+                [...document.getElementsByClassName("logo-black")].forEach((el) => el.remove());
+            } else {
+                htmlEl.setAttribute("data-bs-theme", "light");
+                [...document.getElementsByClassName("logo-white")].forEach((el) => el.remove());
+            }
+        }
+        dummyImg();
+    </script>
 {% endblock content %}
