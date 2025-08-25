@@ -17,8 +17,14 @@ bp = Blueprint("movie", __name__)
 def index():
     user_logged_in = g.user is not None
     movies = get_all_movies(user_logged_in)
+    colors = {
+        "capitolio": "#911eb4",
+        "sala-redencao": "#000075",
+        "cinebancarios": "#9A6324",
+        "paulo-amorim": "#469990",
+    }
     return render_template(
-        "movie/index.html", movies=movies, show_drafts=user_logged_in
+        "movie/index.html", movies=movies, show_drafts=user_logged_in, colors=colors
     )
 
 
