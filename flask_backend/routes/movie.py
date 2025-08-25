@@ -4,7 +4,7 @@ from flask import Blueprint, g, jsonify, render_template, request
 from werkzeug.exceptions import abort
 
 from flask_backend.repository.movies import (
-    get_all as get_all_movies,
+    get_all_paginated as get_all_movies_paginated,
     get_movies_with_similar_titles,
     get_paginated,
 )
@@ -16,15 +16,31 @@ bp = Blueprint("movie", __name__)
 @bp.route("/movies")
 def index():
     user_logged_in = g.user is not None
-    movies = get_all_movies(user_logged_in)
+    try:
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 10))
+    except ValueError:
+        abort(400)
+
+    movies, pages = get_all_movies_paginated(page, limit, user_logged_in)
     colors = {
         "capitolio": "#911eb4",
         "sala-redencao": "#000075",
         "cinebancarios": "#9A6324",
         "paulo-amorim": "#469990",
     }
+    prev_page = page - 1 if page > 1 else None
+    next_page = page + 1 if page < pages else None
     return render_template(
-        "movie/index.html", movies=movies, show_drafts=user_logged_in, colors=colors
+        "movie/index.html",
+        movies=movies,
+        show_drafts=user_logged_in,
+        colors=colors,
+        curr_page=page,
+        prev_page=prev_page,
+        next_page=next_page,
+        pages=pages,
+        limit=limit,
     )
 
 

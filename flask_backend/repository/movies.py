@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening
@@ -18,6 +18,27 @@ def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
         query = query.filter(Screening.draft == False)  # noqa: E712
     query = query.order_by(Movie.title)
     return query.all()
+
+
+def get_all_paginated(
+    current_page: int, per_page: int, include_drafts: bool = False
+) -> Tuple[List[Optional[Movie]], int]:
+    offset_value = (current_page - 1) * per_page
+    query = db_session.query(Movie).join(Screening)
+    if include_drafts is False:
+        query = query.filter(Screening.draft == False)  # noqa: E712
+    query = query.order_by(Movie.title)
+    query = query.limit(per_page).offset(offset_value)
+
+    count_query = db_session.query(Movie).count()
+    pages = count_query // per_page
+    print(f"pages: {pages}")
+    remainder = (count_query / per_page) - pages
+    print(f"remainder: {remainder}")
+    if remainder > 0.5:
+        pages = pages + 1
+
+    return (query.all(), pages)
 
 
 def get_paginated(

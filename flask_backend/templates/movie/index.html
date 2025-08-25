@@ -9,51 +9,66 @@
 {% endblock header %}
 {% block content %}
     <div class="container d-flex">
-        <ul class="list-group list-group-flush">
-            {% for movie in movies %}
-                <li class="list-group-item d-flex justify-content-between align-items-start mb-3 pb-3">
-                    <div class="d-flex">
-                        <div class="me-3" style="width: 75px;">
-                            {% if movie.screenings[0].image %}
-                                <img loading="lazy"
-                                     src="{{ movie.screenings[0].image }}"
-                                     class="img-fluid rounded"
-                                     alt="{{ movie.screenings[0].image_alt }}">
-                            {% else %}
-                                <img loading="lazy"
-                                    id=""
-                                     src="{{ url_for('static', filename='cinema.png') }}"
-                                     class="img-fluid rounded logo-black"
-                                     alt="Logo">
-                                <img loading="lazy"
-                                    id=""
-                                     src="{{ url_for('static', filename='cinema-white.png') }}"
-                                     class="img-fluid rounded logo-white"
-                                     alt="Logo">
-                            {% endif %}
-                        </div>
-                        <div>
-                            <div class="card-body">
-                                <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
-                                <p class="card-text">
-                                    {% for screening in movie.screenings %}
-                                        <span class="badge rounded-pill"
-                                              style="background-color: {{ colors[screening.cinema.slug] }}"
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="top"
-                                              title="{{ screening.cinema.name }}">{{ screening.cinema.slug }}</span>
-                                    {% endfor %}
-                                </p>
+        <div class="container">
+            <ul class="list-group list-group-flush">
+                {% for movie in movies %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start mb-3 pb-3">
+                        <div class="d-flex">
+                            <div class="me-3" style="width: 50px;">
+                                {% if movie.screenings[0].image %}
+                                    <img loading="lazy"
+                                         src="{{ movie.screenings[0].image }}"
+                                         class="img-fluid rounded"
+                                         alt="{{ movie.screenings[0].image_alt }}">
+                                {% else %}
+                                    <img loading="lazy"
+                                         src="{{ url_for('static', filename='cinema.png') }}"
+                                         class="img-fluid rounded logo-black"
+                                         alt="Logo">
+                                    <img loading="lazy"
+                                         src="{{ url_for('static', filename='cinema-white.png') }}"
+                                         class="img-fluid rounded logo-white"
+                                         alt="Logo">
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="card-body">
+                                    <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
+                                    <p class="card-text">
+                                        {% for screening in movie.screenings %}
+                                            <span class="badge rounded-pill"
+                                                  style="background-color: {{ colors[screening.cinema.slug] }}"
+                                                  data-bs-toggle="tooltip"
+                                                  data-bs-placement="top"
+                                                  title="{{ screening.cinema.name }}">{{ screening.cinema.slug }}</span>
+                                        {% endfor %}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </li>
-            {% else %}
-                <li>
-                    <p>Nenhum filme registrado. Volte em breve!</p>
-                </li>
-            {% endfor %}
-        </ul>
+                    </li>
+                {% else %}
+                    <li>
+                        <p>Nenhum filme registrado. Volte em breve!</p>
+                    </li>
+                {% endfor %}
+            </ul>
+            <nav aria-label="Navegação das páginas de filmes">
+                <ul class="pagination">
+                    <li class="page-item {{ '' if prev_page else 'disabled' }}">
+                        <a class="page-link" href="?page={{ prev_page }}&limit={{ limit }}">Anterior</a>
+                    </li>
+                    {% for page in range(1, pages + 1) %}
+                        <li class="page-item {{ 'active' if curr_page == page }}">
+                            <a class="page-link" href="?page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="page-item {{ '' if next_page else 'disabled' }}">
+                        <a class="page-link" href="?page={{ next_page }}&limit={{ limit }}">Próximo</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
     </div>
     <script>
         function dummyImg() {
