@@ -18,6 +18,11 @@
     <!-- halfmoon css file -->
     <link rel="stylesheet"
           href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
+    <style>
+        .navbar .dropdown-menu {
+            position: absolute !important;
+        }
+    </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
     <header id="header">
@@ -61,11 +66,20 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle"
+                           href="#"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">Filmes</a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for("movie.index") }}">Títulos</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for("movie.posters") }}">Posters</a>
+                            </li>
+                        </ul>
                     </li>
                     {% if g.user %}
                         <li class="nav-item">
@@ -94,12 +108,20 @@
                     <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
                 </li>
                 <div class="vr mx-3"></div>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
-                </li>
-                <div class="vr mx-3"></div>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                <li class="nav-item dropdown">
+                    <a href="#"
+                       class="nav-link dropdown-toggle"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">Filmes</a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for("movie.index") }}">Títulos</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for("movie.posters") }}">Posters</a>
+                        </li>
+                    </ul>
                 </li>
                 <div class="vr mx-3"></div>
                 {% if g.user %}
