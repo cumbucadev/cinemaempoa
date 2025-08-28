@@ -36,9 +36,7 @@ def get_all_paginated(
 
     count_query = db_session.query(Movie).count()
     pages = count_query // per_page
-    print(f"pages: {pages}")
     remainder = (count_query / per_page) - pages
-    print(f"remainder: {remainder}")
     if remainder > 0.5:
         pages = pages + 1
 
