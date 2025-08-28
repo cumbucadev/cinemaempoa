@@ -19,6 +19,7 @@ class Movie(Base):
 
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False, index=True)
+    slug = Column(String, nullable=True, index=True)
 
     screenings: Mapped[List["Screening"]] = relationship(back_populates="movie")
 

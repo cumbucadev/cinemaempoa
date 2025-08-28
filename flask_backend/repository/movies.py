@@ -1,11 +1,15 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
+from slugify import slugify
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening
 
 
-def create(title: str) -> Movie:
-    movie = Movie(title=title)
+def create(title: str, slug: Optional[str] = None) -> Movie:
+    if slug is None:
+        slug = slugify(title)
+    movie = Movie(title=title, slug=slug)
     db_session.add(movie)
     db_session.commit()
     db_session.refresh(movie)
@@ -16,7 +20,27 @@ def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
     query = db_session.query(Movie).join(Screening)
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
+    query = query.order_by(Movie.title)
     return query.all()
+
+
+def get_all_paginated(
+    current_page: int, per_page: int, include_drafts: bool = False
+) -> Tuple[List[Optional[Movie]], int]:
+    offset_value = (current_page - 1) * per_page
+    query = db_session.query(Movie).join(Screening)
+    if include_drafts is False:
+        query = query.filter(Screening.draft == False)  # noqa: E712
+    query = query.order_by(Movie.title)
+    query = query.limit(per_page).offset(offset_value)
+
+    count_query = db_session.query(Movie).count()
+    pages = count_query // per_page
+    remainder = (count_query / per_page) - pages
+    if remainder > 0.5:
+        pages = pages + 1
+
+    return (query.all(), pages)
 
 
 def get_paginated(
@@ -34,14 +58,15 @@ def get_paginated(
     return query.all()
 
 
-def get_by_title(title: str) -> Optional[Movie]:
-    return db_session.query(Movie).filter(Movie.title == title).first()
+def get_by_slug(slug: str) -> Optional[Movie]:
+    return db_session.query(Movie).filter(Movie.slug == slug).first()
 
 
 def get_by_title_or_create(title: str) -> Movie:
-    movie = get_by_title(title)
+    slug = slugify(title)
+    movie = get_by_slug(slug)
     if not movie:
-        movie = create(title=title)
+        movie = create(title=title, slug=slug)
     return movie
 
 
