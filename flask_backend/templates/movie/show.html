@@ -38,12 +38,14 @@
                 <div class="carousel-inner">
                     {% for screening in movie['screenings'] if screening['image'] %}
                         <div class="carousel-item {{ 'active' if loop.index0 == 0 else '' }}">
+                            {# djlint:off #}
                             <img src="{{ screening['image'] }}"
                                  style="max-height: 100vh;
                                         max-width: {{ screening['image_width'] }}px;
                                         object-position: left"
                                  class="d-block w-100 object-fit-contain"
                                  {% if screening['image_alt'] %}alt="{{ screening['image_alt'] }}"{% endif %} />
+                            {# djlint:on #}
                         </div>
                     {% endfor %}
                 </div>
@@ -65,12 +67,14 @@
                 </button>
             </div>
         {% elif images|length == 1 %}
+            {# djlint:off #}
             <img src="{{ movie['screenings'][0]['image'] }}"
                  style="max-height: 100vh;
                         max-width: {{ movie['screenings'][0]['image_width'] }}px;
                         object-position: left"
                  class="d-block w-100 object-fit-contain mb-4"
                  {% if movie['screenings'][0]['image_alt'] %}alt="{{ movie['screenings'][0]['image_alt'] }}"{% endif %} />
+            {# djlint:on #}
         {% else %}
         {% endif %}
         <h2>Descrições</h2>
@@ -93,7 +97,9 @@
                          aria-labelledby="heading{{ loop.index }}"
                          data-bs-parent="#accordionExample">
                         <div class="accordion-body">
+                            {# djlint:off #}
                             <p style="white-space: break-spaces;">{{ screening['description'] }}</p>
+                            {# djlint:on #}
                         </div>
                     </div>
                 </div>
