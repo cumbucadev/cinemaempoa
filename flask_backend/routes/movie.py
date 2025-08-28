@@ -5,6 +5,7 @@ from werkzeug.exceptions import abort
 
 from flask_backend.repository.movies import (
     get_all_paginated as get_all_movies_paginated,
+    get_by_slug,
     get_movies_with_similar_titles,
     get_paginated,
 )
@@ -134,3 +135,16 @@ def search_movies():
     title = request.args.get("title")
     movies = get_movies_with_similar_titles(title)
     return jsonify([{"title": movie.title} for movie in movies])
+
+
+@bp.route("/movies/<slug>", methods=["GET"])
+def show(slug):
+    movie = get_by_slug(slug)
+    if not movie:
+        abort(400)
+
+    images = []
+    for screening in movie.screenings:
+        if screening.image is not None:
+            images.append(screening.image)
+    return render_template("movie/show.html", movie=movie, images=images)

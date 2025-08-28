@@ -1,11 +1,15 @@
 from typing import List, Optional, Tuple
 
+from slugify import slugify
+
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening
 
 
-def create(title: str) -> Movie:
-    movie = Movie(title=title)
+def create(title: str, slug: Optional[str] = None) -> Movie:
+    if slug is None:
+        slug = slugify(title)
+    movie = Movie(title=title, slug=slug)
     db_session.add(movie)
     db_session.commit()
     db_session.refresh(movie)
@@ -56,14 +60,15 @@ def get_paginated(
     return query.all()
 
 
-def get_by_title(title: str) -> Optional[Movie]:
-    return db_session.query(Movie).filter(Movie.title == title).first()
+def get_by_slug(slug: str) -> Optional[Movie]:
+    return db_session.query(Movie).filter(Movie.slug == slug).first()
 
 
 def get_by_title_or_create(title: str) -> Movie:
-    movie = get_by_title(title)
+    slug = slugify(title)
+    movie = get_by_slug(slug)
     if not movie:
-        movie = create(title=title)
+        movie = create(title=title, slug=slug)
     return movie
 
 
