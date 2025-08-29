@@ -332,13 +332,15 @@ def update(id):
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
 @login_required
 def delete(id):
-    screening = get_screening_by_id(id)
-    movie_title = screening.movie.title
     if not request.method == "POST":
         abort(405)
 
+    screening = get_screening_by_id(id)
+
     if not screening:
         abort(404)
+
+    movie_title = screening.movie.title
 
     delete_screening(screening)
     flash(f"Sessão «{movie_title}» deletado com sucesso!", "success")
