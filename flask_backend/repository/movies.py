@@ -31,7 +31,7 @@ def get_all_paginated(
     query = db_session.query(Movie).join(Screening)
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
-    query = query.order_by(Movie.title)
+    query = query.order_by(Movie.slug)
     query = query.limit(per_page).offset(offset_value)
 
     count_query = db_session.query(Movie).count()
