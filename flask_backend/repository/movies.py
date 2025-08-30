@@ -74,3 +74,14 @@ def get_movies_with_similar_titles(title: str) -> List[Movie]:
     return (
         db_session.query(Movie).filter(Movie.title.ilike(f"%{title}%")).limit(3).all()
     )
+
+
+def delete(movie: Movie) -> None:
+    # delete all related screenings to maintain integrity
+    for _scr in movie.screenings:
+        # delete all related dates
+        for _dt in _scr.dates:
+            db_session.delete(_dt)
+        db_session.delete(_scr)
+    db_session.delete(movie)
+    db_session.commit()
