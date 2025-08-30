@@ -112,6 +112,7 @@
                 <strong>{{ screening['cinema']['name'] }}</strong>
             </p>
             <ul>
+                <p>Exibido {{ screening['dates']|length }} {{ 'vezes' if screening['dates']|length > 1 else 'vez' }}.</p>
                 {% for date in screening['dates']|sort(attribute='date') %}
                     <li>{{ date['date'].strftime("%d/%m/%Y") }} - {{ date['time'] }}</li>
                 {% endfor %}
