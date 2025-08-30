@@ -112,7 +112,7 @@
                 <strong>{{ screening['cinema']['name'] }}</strong>
             </p>
             <ul>
-                {% for date in screening['dates'] %}
+                {% for date in screening['dates']|sort(attribute='date') %}
                     <li>{{ date['date'].strftime("%d/%m/%Y") }} - {{ date['time'] }}</li>
                 {% endfor %}
             </ul>
