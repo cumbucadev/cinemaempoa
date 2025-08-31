@@ -59,7 +59,7 @@ Para utilizá-lo, instale com:
 
 ### Rodando o projeto
 
-Para rodar o portal, você vai precisar de três comando (todos rodados a partir da raíz do projeto):
+Para rodar o portal, você vai precisar de três comandos (todos rodados a partir da raíz do projeto):
 
     flask --app flask_backend init-db # inicializa as tabelas no banco de dados
     flask --app flask_backend seed-db # optional: popula o banco com dados iniciais
