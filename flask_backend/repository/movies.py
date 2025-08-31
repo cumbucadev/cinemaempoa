@@ -1,6 +1,8 @@
+from math import ceil
 from typing import List, Optional, Tuple
 
 from slugify import slugify
+from sqlalchemy import func
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening
@@ -28,19 +30,26 @@ def get_all_paginated(
     current_page: int, per_page: int, include_drafts: bool = False
 ) -> Tuple[List[Optional[Movie]], int]:
     offset_value = (current_page - 1) * per_page
-    query = db_session.query(Movie).join(Screening)
+    # includes the `distinct` clause both on the select and the count queries
+    # to avoid mismatches on pagination
+    query = db_session.query(Movie).join(Screening).distinct(Movie.id)
+
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
-    query = query.order_by(Movie.slug)
-    query = query.limit(per_page).offset(offset_value)
 
-    count_query = db_session.query(Movie).count()
-    pages = count_query // per_page
-    remainder = (count_query / per_page) - pages
-    if remainder > 0.5:
-        pages = pages + 1
+    query = query.order_by(Movie.slug).limit(per_page).offset(offset_value)
+    movies = query.all()
 
-    return (query.all(), pages)
+    count_query = db_session.query(func.count(func.distinct(Movie.id))).join(Screening)
+
+    if include_drafts is False:
+        count_query = count_query.filter(Screening.draft == False)  # noqa: E712
+
+    total_count = count_query.scalar()
+
+    total_pages = ceil(total_count / per_page)
+
+    return (movies, total_pages, total_count)
 
 
 def get_paginated(

@@ -23,7 +23,7 @@ def index():
     except ValueError:
         abort(400)
 
-    movies, pages = get_all_movies_paginated(page, limit, user_logged_in)
+    movies, pages, qtt_movies = get_all_movies_paginated(page, limit, user_logged_in)
     colors = {
         "capitolio": "#911eb4",
         "sala-redencao": "#000075",
@@ -42,6 +42,7 @@ def index():
         next_page=next_page,
         pages=pages,
         limit=limit,
+        qtt_movies=qtt_movies,
     )
 
 
