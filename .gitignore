@@ -23,6 +23,7 @@ build/
 *.sqlite
 flask_backend/uploads/*
 !flask_backend/uploads/.gitkeep
+flask_backend/static/sitemaps.txt
 
 .env
 

@@ -58,6 +58,10 @@ def create_app(test_config=None):
         """Taken from https://stackoverflow.com/a/14625619"""
         return send_from_directory(app.static_folder, request.path[1:])
 
+    @app.route("/sitemaps.txt")
+    def serve_static_sitemap():
+        return send_from_directory(app.static_folder, request.path[1:])
+
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         db_session.remove()

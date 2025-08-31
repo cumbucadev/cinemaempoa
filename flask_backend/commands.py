@@ -8,6 +8,7 @@ from flask_backend.repository.cinemas import (
 )
 from flask_backend.scripts.dedupper import dedupper
 from flask_backend.scripts.dupechecker import dupe_checker
+from flask_backend.scripts.sitemap import sitemap
 from flask_backend.service.runner import Runner
 
 
@@ -15,6 +16,7 @@ def register_commands(app):
     app.cli.add_command(import_json)
     app.cli.add_command(dupe_check)
     app.cli.add_command(run_dedupper)
+    app.cli.add_command(generate_sitemap)
 
 
 @click.command("import-json")
@@ -54,3 +56,8 @@ def dupe_check():
 @click.command("run-dedupper")
 def run_dedupper():
     dedupper()
+
+
+@click.command("generate-sitemap")
+def generate_sitemap():
+    sitemap()
