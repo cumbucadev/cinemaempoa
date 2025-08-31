@@ -3,7 +3,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
-from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABASE_URL
+from flask_backend.env_config import (
+    ADMIN_PROD_PWD,
+    ADMIN_PROD_USERNAME,
+    DATABASE_URL,
+)
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(

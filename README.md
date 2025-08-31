@@ -19,7 +19,7 @@ O projeto encoraja contribuições (veja [Contribuições](#contribuicoes)).
 
 O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para coleção de dados e `flask_backend/`, onde fica o código do portal.
 
-O projeto foi desenvolvido em Python 3.10 e funciona com qualquer versão superior.
+O projeto foi desenvolvido em Python 3.11 e funciona com qualquer versão superior.
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 

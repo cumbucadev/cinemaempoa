@@ -1,17 +1,44 @@
 from typing import List
 
-from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, relationship
 
 from flask_backend.db import Base
+from flask_backend.utils.enums.role import RoleEnum
+
+user_has_roles = Table(
+    "user_has_roles",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("role_id", Integer, ForeignKey("roles.id"), primary_key=True),
+)
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(20), unique=True, nullable=False)
-    password = Column(String, nullable=False)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    username: Mapped[str] = Column(String(20), unique=True, nullable=False)
+    password: Mapped[str] = Column(String, nullable=False)
+    roles: Mapped[List["Role"]] = relationship(
+        "Role", secondary=user_has_roles, back_populates="users"
+    )
+
+    def is_admin(self):
+        return RoleEnum.ADMIN in [role.role for role in self.roles]
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    role: Mapped[str] = Column(String(20), unique=True, nullable=False)
+    users: Mapped[List["User"]] = relationship(
+        "User", secondary=user_has_roles, back_populates="roles"
+    )
+
+    def __repr__(self):
+        return f"{self.role}"
 
 
 class Movie(Base):
