@@ -6,11 +6,15 @@ from flask import current_app
 from flask_backend.repository.cinemas import (
     get_by_slug as get_cinema_by_slug,
 )
+from flask_backend.scripts.dedupper import dedupper
+from flask_backend.scripts.dupechecker import dupe_checker
 from flask_backend.service.runner import Runner
 
 
 def register_commands(app):
     app.cli.add_command(import_json)
+    app.cli.add_command(dupe_check)
+    app.cli.add_command(run_dedupper)
 
 
 @click.command("import-json")
@@ -40,3 +44,13 @@ def import_json(json_path):
     # all validations passed, import screenings :)
     created_features = runner.import_scrapped_results(current_app)
     click.echo(f"«{created_features}» sessões criadas com sucesso!")
+
+
+@click.command("dupe-check")
+def dupe_check():
+    dupe_checker()
+
+
+@click.command("run-dedupper")
+def run_dedupper():
+    dedupper()
