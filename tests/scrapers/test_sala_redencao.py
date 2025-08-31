@@ -1,5 +1,6 @@
 import os
 import unittest
+
 import icalendar
 
 from scrapers.sala_redencao import SalaRedencao
@@ -31,16 +32,16 @@ class TestSalaRedencao(unittest.TestCase):
 
         assert isinstance(gcal, icalendar.Calendar)
         assert "Redenção" in gcal.calendar_name
-    
+
     def test__parse_google_calendar_events(self):
-        sala_redencao = SalaRedencao('2025-08-28')
+        sala_redencao = SalaRedencao("2025-08-28")
         gcal = sala_redencao._fetch_google_calendar()
         features = sala_redencao._parse_google_calendar_events(gcal)
         assert len(features) > 0
-        assert features[0]['title'] == 'EL GRECO, O PINTOR DO INVISÍVEL'
+        assert features[0]["title"] == "EL GRECO, O PINTOR DO INVISÍVEL"
 
     def test__parse_google_calendar_events_when_traditional_technique_fails(self):
-        sala_redencao = SalaRedencao('2025-08-28')
+        sala_redencao = SalaRedencao("2025-08-28")
         gcal = sala_redencao._fetch_google_calendar()
         features_gcal = sala_redencao._parse_google_calendar_events(gcal)
         features_traditional = sala_redencao._get_events_blog_post_html()
@@ -54,4 +55,3 @@ class TestSalaRedencao(unittest.TestCase):
         assert len(features_gcal) > 0
         assert len(features_overall) == len(features_gcal)
         assert features_overall == features_gcal
-

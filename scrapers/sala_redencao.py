@@ -2,9 +2,9 @@ import os
 import re
 from datetime import datetime
 
+import icalendar
 import requests
 from bs4 import BeautifulSoup
-import icalendar
 
 from utils import get_formatted_day_str, string_is_day
 
@@ -18,7 +18,7 @@ class SalaRedencao:
 
         self.url = "https://www.ufrgs.br/difusaocultural/salaredencao/"
         self.news_url = "https://www.ufrgs.br/difusaocultural/noticias/"
-        self.google_calendar_ical_url = "https://calendar.google.com/calendar/ical/calendariosalaredencao%40gmail.com/public/basic.ics"       
+        self.google_calendar_ical_url = "https://calendar.google.com/calendar/ical/calendariosalaredencao%40gmail.com/public/basic.ics"
         self.events = []
 
         self.dir = os.path.join("sala-redencao")
@@ -285,31 +285,31 @@ class SalaRedencao:
 
             features = features + blog_features
         return features
-    
-    def _fetch_google_calendar(self) -> icalendar.Calendar:   
-        """Fetches and returns the Google Calendar as an icalendar.Calendar instance"""     
+
+    def _fetch_google_calendar(self) -> icalendar.Calendar:
+        """Fetches and returns the Google Calendar as an icalendar.Calendar instance"""
         calendar_ics = requests.get(self.google_calendar_ical_url)
         gcal = icalendar.Calendar.from_ical(calendar_ics.content)
         return gcal
-    
+
     def _clean_gcal_html(self, raw_html):
         """Cleans HTML tags from Google Calendar event description"""
         soup = BeautifulSoup(raw_html, "html.parser")
         return soup.get_text(separator="\n", strip=True)
-    
+
     def _parse_google_calendar_events(self, gcal: icalendar.Calendar):
         """Parses events from the fetched Google Calendar"""
         feats = []
-        for event in gcal.walk('vevent'):
-            title = str(event.get('summary'))
-            description = event.get('description')
+        for event in gcal.walk("vevent"):
+            title = str(event.get("summary"))
+            description = event.get("description")
             pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
 
             matches = []
             if description:
                 description_text = self._clean_gcal_html(description)
                 matches = re.findall(pattern, str(description_text), re.DOTALL)
-            
+
             for movie in matches:
                 screening_dates = re.findall(
                     r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", description_text
@@ -318,7 +318,7 @@ class SalaRedencao:
                     continue
 
                 # find the index of the first matching group from `movie`
-                excerpt_start = description_text.find(movie[4]) + len(movie[4]) + 1 
+                excerpt_start = description_text.find(movie[4]) + len(movie[4]) + 1
                 # find the index of the first screening date
                 excerpt_end = description_text.find(screening_dates[0])
 
@@ -341,7 +341,8 @@ class SalaRedencao:
                 countries = movie[1].strip()
                 year = movie[2]
                 duration = movie[3].strip()
-                residual_info = movie[4].strip() #text after duration can display genre, classification and more, but without consistency, thus it will be stored as residual info for now
+                # text after duration can display genre, classification and more, but without consistency, thus it will be stored as residual info for now
+                # residual_info = movie[4].strip()
 
                 feature = {
                     "poster": "",
