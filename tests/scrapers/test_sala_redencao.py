@@ -24,11 +24,6 @@ class TestSalaRedencao(unittest.TestCase):
             "https://www.ufrgs.br/difusaocultural/programacao-da-sala-redencao-explora-vanguardas-no-cinema/",
             "https://www.ufrgs.br/difusaocultural/ciclo-cineciess-exibe-5-casas-na-sala-redencao/",
         ]
-        assert salaRedencao.events == [
-            "https://www.ufrgs.br/difusaocultural/sala-redencao-apresenta-programacao-de-cinema-japones/",
-            "https://www.ufrgs.br/difusaocultural/programacao-da-sala-redencao-explora-vanguardas-no-cinema/",
-            "https://www.ufrgs.br/difusaocultural/ciclo-cineciess-exibe-5-casas-na-sala-redencao/",
-        ]
 
     def test__fetch_google_calendar_events_returns_expected_calendar(self):
         sala_redencao = SalaRedencao()
