@@ -58,6 +58,12 @@ echo "Done. Created $TARGET_DB";
 
 rclone sync "$TARGET_DB" google-drive:/cinemaempoa_backups
 
+if [ $? != "0" ]; then
+	echo "Error syncing file with rclone. Exiting";
+	rm "$TARGET_DB";
+	exit 1;
+fi
+
 echo "Backed up $TARGET_DB over to $DRIVE_URL";
 
 mv "$TARGET_DB" "$BACKUPS_DIR$TARGET_DB" > /dev/null 2>&1
