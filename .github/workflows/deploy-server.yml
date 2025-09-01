@@ -22,4 +22,4 @@ jobs:
           script: |
             cd cinemaempoa
             git pull
-            docker compose -f docker-compose.production.yml up -d --build flask >> $GITHUB_STEP_SUMMARY
+            docker compose -f docker-compose.production.yml up -d --build flask

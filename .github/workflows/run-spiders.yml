@@ -19,5 +19,5 @@ jobs:
           username:  ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           script: |
-            docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim > /app/import.json" >> $GITHUB_STEP_SUMMARY
-            docker exec cinemaempoa_flask bash -c "flask --app flask_backend import-json /app/import.json" >> $GITHUB_STEP_SUMMARY
+            docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim > /app/import.json"
+            docker exec cinemaempoa_flask bash -c "flask --app flask_backend import-json /app/import.json"
