@@ -136,4 +136,15 @@ Os arquivos usados para o deployment são:
 - docker-compose.production.yml
 - Dockerfile.prod
 
-A cada novo merge no branch principal, eu entro na máquina virtual, puxo as alterações e depois reinicio o servidor.
+A cada novo merge no branch principal, o workflow em `.github/workflows/deploy-server.yml` faz o processo de atualização do servidor.
+
+## Backups do banco de dados
+
+Diariamente uma cópia do banco de dados é enviada para o google drive em <https://drive.google.com/drive/u/0/folders/1f9qFHb2Fxdg_EGg3Vq4W-leDaGed9kXk>.
+
+O processo é automatizado pelo script `backup-db.sh` em um _cronjob_ na máquina virtual.
+
+```
+$ crontab -l
+55 23 * * * cd /home/ubuntu/cinemaempoa && ./backup-db.sh
+```
