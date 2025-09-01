@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Creates a backup of the database and sends to google drive
 # this script needs sqlite3 and rclone installed
 
 # apt-get install sqlite3 -y
