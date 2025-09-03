@@ -13,7 +13,14 @@ ENV LANGUAGE pt_BR.UTF-8
 
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
-COPY . .
 
-EXPOSE 8080
-CMD ["gunicorn", "flask_backend:create_app()", "--workers", "4", "--bind", "0.0.0.0:8080", "--timeout", "120"]
+# Install development dependencies
+RUN pip3 install --no-cache-dir debugpy
+
+# Install git for code editor integration
+RUN apt-get install git -y
+
+EXPOSE 5000
+
+# Just do nothing
+CMD ["tail", "-f", "/dev/null"] 

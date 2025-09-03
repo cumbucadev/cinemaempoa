@@ -17,7 +17,6 @@ from flask import (
 )
 from werkzeug.exceptions import abort
 
-from flask_backend.import_json import ScrappedResult
 from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
@@ -31,22 +30,19 @@ from flask_backend.repository.screenings import (
     create as create_screening,
     delete as delete_screening,
     get_days_screenings_by_cinema_id,
+    get_month_screening_dates,
     get_screening_by_id,
     update as update_screening,
     update_screening_dates,
 )
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
+from flask_backend.service.runner import Runner
 from flask_backend.service.screening import (
     build_dates,
-    import_scrapped_results,
     save_image,
     validate_image,
 )
-from scrapers.capitolio import Capitolio
-from scrapers.cinebancarios import CineBancarios
-from scrapers.paulo_amorim import CinematecaPauloAmorim
-from scrapers.sala_redencao import SalaRedencao
 
 bp = Blueprint("screening", __name__)
 
@@ -107,6 +103,44 @@ def index():
         cinemas_with_screenings=cinemas_with_screenings,
         today=datetime.now().strftime("%d/%m/%Y"),
         quicklinks=quicklinks,
+    )
+
+
+@bp.route("/program")
+def programacao():
+    all_cinemas = get_all_cinemas()
+
+    # check if there is a query parameter "cinema" and if so, filter the cinemas by the query parameter
+    queried_cinemas = request.args.getlist("cinema")
+    checked_cinemas = (
+        [cinema.slug for cinema in all_cinemas if cinema.slug in queried_cinemas]
+        if queried_cinemas
+        else [cinema.slug for cinema in all_cinemas]
+    )
+
+    screening_dates = get_month_screening_dates(checked_cinemas)
+    # group by date
+    screening_dates_grouped = {}
+    for screening_date in screening_dates:
+        if screening_date.date not in screening_dates_grouped:
+            screening_dates_grouped[screening_date.date] = []
+        screening_dates_grouped[screening_date.date].append(screening_date)
+
+    # set cinema badge color
+    # TODO: cinema colors could be stored in the database
+    colors = {
+        "capitolio": "#911eb4",
+        "sala-redencao": "#000075",
+        "cinebancarios": "#9A6324",
+        "paulo-amorim": "#469990",
+    }
+
+    return render_template(
+        "screening/programacao.html",
+        screening_dates=screening_dates_grouped,
+        colors=colors,
+        cinemas=all_cinemas,
+        checked_cinemas=checked_cinemas,
     )
 
 
@@ -298,13 +332,15 @@ def update(id):
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
 @login_required
 def delete(id):
-    screening = get_screening_by_id(id)
-    movie_title = screening.movie.title
     if not request.method == "POST":
         abort(405)
 
+    screening = get_screening_by_id(id)
+
     if not screening:
         abort(404)
+
+    movie_title = screening.movie.title
 
     delete_screening(screening)
     flash(f"Sessão «{movie_title}» deletado com sucesso!", "success")
@@ -314,61 +350,44 @@ def delete(id):
 @bp.route("/screening/scrap", methods=["POST"])
 @login_required
 def runScrap():
-    features = []
+    cinemas = []
 
-    # Capitolio
     if "capitolio" in request.form:
-        feature = {
-            "url": "http://www.capitolio.org.br",
-            "cinema": "Cinemateca Capitólio",
-            "slug": "capitolio",
-        }
-        cap = Capitolio()
-        feature["features"] = cap.get_daily_features_json()
-        features.append(feature)
+        cinemas.append("capitolio")
 
-    # Sala-redenção
     if "redencao" in request.form:
-        feature = {
-            "url": "https://www.ufrgs.br/difusaocultural/salaredencao/",
-            "cinema": "Sala Redenção",
-            "slug": "sala-redencao",
-        }
-        redencao = SalaRedencao()
-        feature["features"] = redencao.get_daily_features_json()
-        features.append(feature)
+        cinemas.append("redencao")
 
-    # cinebancarios
     if "cinebancarios" in request.form:
-        cineBancarios = CineBancarios()
-        features.append(cineBancarios.get_daily_features_json())
+        cinemas.append("cinebancarios")
 
-    # paulo-amorim
     if "pauloAmorim" in request.form:
-        feature = {
-            "url": "https://www.cinematecapauloamorim.com.br",
-            "cinema": "Cinemateca Paulo Amorim",
-            "slug": "paulo-amorim",
-        }
-        pauloAmorim = CinematecaPauloAmorim()
-        feature["features"] = pauloAmorim.get_daily_features_json()
-        features.append(feature)
+        cinemas.append("pauloAmorim")
+
+    runner = Runner(cinemas)
 
     try:
-        scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(features)
+        runner.scrap()
     except Exception as e:
         flash("Ocorreu um problema no processo de scrapping", "danger")
         print(e)
         return render_template("screening/import.html", suggestions=[])
 
+    try:
+        runner.parse_scrapped_json()
+    except Exception as e:
+        flash("Ocorreu um problema ao processar os dados raspados", "danger")
+        print(e)
+        return render_template("screening/import.html", suggestions=[])
+
     # validate all cinemas exist in db
-    for json_cinema in scrapped_results.cinemas:
+    for json_cinema in runner.scrapped_results.cinemas:
         cinema = get_cinema_by_slug(json_cinema.slug)
         if cinema is None:
             flash(f"Sala {json_cinema.slug} não encontrada.")
             return render_template("screening/import.html", suggestions=[])
 
-    created_features = import_scrapped_results(scrapped_results, current_app)
+    created_features = runner.import_scrapped_results(current_app)
     flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 
     return redirect(url_for("screening.import_screenings"))
@@ -394,23 +413,23 @@ def import_screenings():
         except (json.decoder.JSONDecodeError, UnicodeDecodeError):
             flash("Arquivo .json inválido", "danger")
             return render_template("screening/import.html", suggestions=suggestions)
-
+        runner = Runner()
         try:
-            scrapped_results: ScrappedResult = ScrappedResult.from_jsonable(parsed_json)
+            runner.parse_scrapped_json(parsed_json)
         except Exception as e:
-            flash("Arquivo .json inválido", "danger")
+            flash("Arquivo .json com estrutura inválida para importação", "danger")
             print(e)
             return render_template("screening/import.html", suggestions=suggestions)
 
         # validate all cinemas exist in db
-        for json_cinema in scrapped_results.cinemas:
+        for json_cinema in runner.scrapped_results.cinemas:
             cinema = get_cinema_by_slug(json_cinema.slug)
             if cinema is None:
                 flash(f"Sala {json_cinema.slug} não encontrada.")
                 return render_template("screening/import.html", suggestions=suggestions)
 
         # all validations passed, import screenings :)
-        created_features = import_scrapped_results(scrapped_results, current_app)
+        created_features = runner.import_scrapped_results(current_app)
 
         flash(f"«{created_features}» sessões criadas com sucesso!", "success")
 

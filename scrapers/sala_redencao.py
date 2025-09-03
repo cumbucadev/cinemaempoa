@@ -2,6 +2,7 @@ import os
 import re
 from datetime import datetime
 
+import icalendar
 import requests
 from bs4 import BeautifulSoup
 
@@ -16,6 +17,8 @@ class SalaRedencao:
             self.date = self._get_today_ymd()
 
         self.url = "https://www.ufrgs.br/difusaocultural/salaredencao/"
+        self.news_url = "https://www.ufrgs.br/difusaocultural/noticias/"
+        self.google_calendar_ical_url = "https://calendar.google.com/calendar/ical/calendariosalaredencao%40gmail.com/public/basic.ics"
         self.events = []
 
         self.dir = os.path.join("sala-redencao")
@@ -38,6 +41,12 @@ class SalaRedencao:
     def _get_landing_page_html(self) -> str:
         return self._get_page_html(self._get_lp_file(), self.url)
 
+    def _get_news_page_file(self):
+        return os.path.join(self.scrape_dir, "news.html")
+
+    def _get_news_page_html(self):
+        return self._get_page_html(self._get_news_page_file(), self.news_url)
+
     def _get_page_html(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
         if os.path.exists(file):
@@ -50,14 +59,13 @@ class SalaRedencao:
         return r.text
 
     def _get_events_blog_post_url(self):
-        landing_page_soup = BeautifulSoup(self._get_landing_page_html(), "html.parser")
-        events_post_anchor_tag = landing_page_soup.css.select(
-            "a.evcal_evdata_row.evo_clik_row"
-        )
-        for event_post_anchor_tag in events_post_anchor_tag:
-            event_inner_url = event_post_anchor_tag["href"]
-            if event_inner_url and event_inner_url not in self.events:
-                self.events.append(event_inner_url)
+        landing_page_soup = BeautifulSoup(self._get_news_page_html(), "html.parser")
+        full_post_links = landing_page_soup.css.select(".entire-meta-link")
+        for full_post_link in full_post_links:
+            event_url = full_post_link["href"]
+            if event_url and event_url not in self.events:
+                self.events.append(event_url)
+        return self.events
 
     def _parse_blog_post_with_regex(self, event_soup, event_url):
         event_content_inner = event_soup.css.select_one("div.content-inner")
@@ -116,13 +124,27 @@ class SalaRedencao:
         content_inner = blog_post_soup.find("div", class_="content-inner")
         p_tags = content_inner.find_all("p")
         feats = []
-        pattern = r"([\w\s]+)\(dir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)\)(.*?)((?:\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH]\s*)+)"
+        pattern = r"([\w\s]+)\([Dd]ir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)"
         for p_tag in p_tags:
             matches = re.findall(pattern, p_tag.text, re.DOTALL)
             for movie in matches:
                 screening_dates = re.findall(
-                    r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", movie[6]
+                    r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", p_tag.text
                 )
+                if len(screening_dates) == 0:
+                    continue
+
+                # find the index of the first matching group from `movie`
+                excerpt_start = p_tag.text.find(movie[4])
+                # find the index of the first screening date
+                excerpt_end = p_tag.text.find(screening_dates[0])
+
+                # Consider the text between the `movie` and the `screening_dates`
+                # as the excerpt. Include the `movie` in the excerpt to avoid complex parsing.
+                excerpt = p_tag.text[excerpt_start:excerpt_end]
+                excerpt = movie[4] + " " + excerpt
+                excerpt = excerpt.strip()
+
                 time = []
                 for date in screening_dates:
                     if not string_is_day(date, self.date):
@@ -138,7 +160,6 @@ class SalaRedencao:
                 countries = movie[2].strip()
                 year = movie[3]
                 duration = movie[4].strip()
-                excerpt = movie[5].strip()
 
                 feature = {
                     "poster": "",
@@ -265,6 +286,85 @@ class SalaRedencao:
             features = features + blog_features
         return features
 
+    def _fetch_google_calendar(self) -> icalendar.Calendar:
+        """Fetches and returns the Google Calendar as an icalendar.Calendar instance"""
+        calendar_ics = requests.get(self.google_calendar_ical_url)
+        gcal = icalendar.Calendar.from_ical(calendar_ics.content)
+        return gcal
+
+    def _clean_gcal_html(self, raw_html):
+        """Cleans HTML tags from Google Calendar event description"""
+        soup = BeautifulSoup(raw_html, "html.parser")
+        return soup.get_text(separator="\n", strip=True)
+
+    def _parse_google_calendar_events(self, gcal: icalendar.Calendar):
+        """Parses events from the fetched Google Calendar"""
+        feats = []
+        for event in gcal.walk("vevent"):
+            title = str(event.get("summary"))
+            description = event.get("description")
+            pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
+
+            matches = []
+            if description:
+                description_text = self._clean_gcal_html(description)
+                matches = re.findall(pattern, str(description_text), re.DOTALL)
+
+            for movie in matches:
+                screening_dates = re.findall(
+                    r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", description_text
+                )
+                if len(screening_dates) == 0:
+                    continue
+
+                # find the index of the first matching group from `movie`
+                excerpt_start = description_text.find(movie[4]) + len(movie[4]) + 1
+                # find the index of the first screening date
+                excerpt_end = description_text.find(screening_dates[0])
+
+                # Consider the text between the `movie` and the `screening_dates`
+                # as the excerpt. Include the `movie` in the excerpt to avoid complex parsing.
+                excerpt = description_text[excerpt_start:excerpt_end]
+                excerpt = excerpt.strip()
+
+                time = []
+                for date in screening_dates:
+                    if not string_is_day(date, self.date):
+                        continue
+                    time.append(date)
+
+                if len(time) == 0:
+                    # no screenings today!
+                    continue
+
+                director = movie[0].strip()
+                countries = movie[1].strip()
+                year = movie[2]
+                duration = movie[3].strip()
+                # text after duration can display genre, classification and more, but without consistency, thus it will be stored as residual info for now
+                # residual_info = movie[4].strip()
+
+                feature = {
+                    "poster": "",
+                    "time": "\n".join(time),
+                    "title": title,
+                    "original_title": "",
+                    "price": "",
+                    "director": director,
+                    "classification": "",
+                    "general_info": countries + " / " + year + " / " + duration,
+                    "excerpt": excerpt,
+                    "read_more": self.google_calendar_ical_url,
+                }
+                feats.append(feature)
+
+        return feats
+
     def get_daily_features_json(self) -> str:
         self._get_events_blog_post_url()
-        return self._get_events_blog_post_html()
+        features = self._get_events_blog_post_html()
+        if len(features) == 0:
+            # try to fetch events from official Google Calendar from Sala Redenção
+            gcal = self._fetch_google_calendar()
+            features = self._parse_google_calendar_events(gcal)
+        return features

@@ -97,7 +97,13 @@ if __name__ == "__main__":
             features.append(feature)
         if "cinebancarios" in args.rooms:
             cineBancarios = CineBancarios()
-            features.append(cineBancarios.get_daily_features_json())
+            feature = {
+                "url": "https://cinebancarios.blogspot.com",
+                "cinema": "CineBancários",
+                "slug": "cinebancarios",
+            }
+            feature["features"] = cineBancarios.get_daily_features_json()
+            features.append(feature)
         if "paulo-amorim" in args.rooms:
             feature = {
                 "url": "https://www.cinematecapauloamorim.com.br",

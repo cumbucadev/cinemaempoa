@@ -2,7 +2,7 @@
 {% block header %}
     <h1>
         {% block title %}
-            Em cartaz
+            Hoje
         {% endblock title %}
     </h1>
     <p>
@@ -86,83 +86,81 @@
                                             </div>
                                         {% endif %}
                                         {# djlint:off #}
-                <p style="white-space: break-spaces;">
+                                        <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>
                                         {# djlint:on #}
-                                        {{ screening_date['description']|safe }}
-                                    </p>
-                                    {% if screening_date['screening_url'] %}
-                                        <p>
-                                            <a href="{{ screening_date['screening_url'] }}">Veja a postagem original</a>
-                                        </p>
-                                    {% endif %}
-                                    <small class="text-muted">
-                                        Achou um erro?
-                                        {% if g.user %}
-                                            <a class="action"
-                                               href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Edite!</a>
-                                        {% else %}
-                                            <a class="action"
-                                               href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Ajude
-                                            a corrigir!</a>
+                                        {% if screening_date['screening_url'] %}
+                                            <p>
+                                                <a href="{{ screening_date['screening_url'] }}">Veja a postagem original</a>
+                                            </p>
                                         {% endif %}
-                                    </small>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <strong class="text-danger">Não há sessões hoje.</strong>
-                    {% endif %}
-                </main>
-            </article>
-            {% if not loop.last %}<hr />{% endif %}
-        {% endfor %}
-        <script>
-            const publishBtns = document.querySelectorAll('[data-function="publish"]');
-            publishBtns.forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    // get the buttons screening id
-                    const screeningId = btn.dataset.screeningId;
-                    // send a post request to the server
-                    fetch(`/screening/${screeningId}/publish`, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        })
-                        .then((response) => {
-                            // if the response is ok, reload the page
-                            if (response.ok) {
-                                window.location.reload();
-                            }
-                        })
-                        .catch((error) => {
-                            console.error("Error:", error);
-                        });
+                                        <small class="text-muted">
+                                            Achou um erro?
+                                            {% if g.user %}
+                                                <a class="action"
+                                                   href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Edite!</a>
+                                            {% else %}
+                                                <a class="action"
+                                                   href="{{ url_for('screening.update', id=screening_date['screening_id']) }}">Ajude
+                                                a corrigir!</a>
+                                            {% endif %}
+                                        </small>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <strong class="text-danger">Não há sessões hoje.</strong>
+                        {% endif %}
+                    </main>
+                </article>
+                {% if not loop.last %}<hr />{% endif %}
+            {% endfor %}
+            <script>
+                const publishBtns = document.querySelectorAll('[data-function="publish"]');
+                publishBtns.forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        // get the buttons screening id
+                        const screeningId = btn.dataset.screeningId;
+                        // send a post request to the server
+                        fetch(`/screening/${screeningId}/publish`, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            })
+                            .then((response) => {
+                                // if the response is ok, reload the page
+                                if (response.ok) {
+                                    window.location.reload();
+                                }
+                            })
+                            .catch((error) => {
+                                console.error("Error:", error);
+                            });
+                    });
                 });
-            });
 
-            const deleteBtns = document.querySelectorAll('[data-function="delete"]');
-            deleteBtns.forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    // get the buttons screening id
-                    const screeningId = btn.dataset.screeningId;
-                    // send a post request to the server
-                    fetch(`/screening/${screeningId}/delete`, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        })
-                        .then((response) => {
-                            // if the response is ok, reload the page
-                            if (response.ok) {
-                                window.location.reload();
-                            }
-                        })
-                        .catch((error) => {
-                            console.error("Error:", error);
-                        });
+                const deleteBtns = document.querySelectorAll('[data-function="delete"]');
+                deleteBtns.forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        // get the buttons screening id
+                        const screeningId = btn.dataset.screeningId;
+                        // send a post request to the server
+                        fetch(`/screening/${screeningId}/delete`, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            })
+                            .then((response) => {
+                                // if the response is ok, reload the page
+                                if (response.ok) {
+                                    window.location.reload();
+                                }
+                            })
+                            .catch((error) => {
+                                console.error("Error:", error);
+                            });
+                    });
                 });
-            });
-        </script>
-    {% endblock content %}
+            </script>
+        {% endblock content %}

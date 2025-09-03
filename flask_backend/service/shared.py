@@ -5,8 +5,9 @@ from datetime import datetime
 from typing import List, Optional
 
 
-def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
+def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
     """Receives string in format:
+    - ["2025-08-08T14:30", "2025-08-10T14:30", "2025-08-13T14:30"]
     - \\n\\n\\nHorários: 12:00h\\n\\n\\n\\nSala de Cinema\\n\\n
     - 16h
     - 15h30/ 19h30
@@ -17,6 +18,11 @@ def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
 
     Attempts to parse it into a list of strings in format:
     - ["2023-11-11T12:00"]"""
+    if isinstance(time_str, list):
+        # assume the strings are in the correct format
+        # TODO: check that each individual list item is correctly parsed
+        return time_str
+
     today_date = datetime.strftime(datetime.now(), "%Y-%m-%d")
     if time_str is None or time_str == "":
         return []

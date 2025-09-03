@@ -21,18 +21,31 @@ O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para 
 
 O projeto foi desenvolvido em Python 3.10 e funciona com qualquer versão superior.
 
+O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
+
+### Instalando o projeto localmente
+
 A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.python.org/3/library/venv.html).
 
     python3 -m venv .venv
     source .venv/bin/activate
     pip3 install -r requirements.txt
 
-O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
+### Instalando o projeto usando Docker
 
-Após fazer suas alterações, rode os comandos abaixo no seu terminal para validar e formatar o código:
+Você pode usar o arquivo `docker-compose.dev.yml` para iniciar um container com todas as dependências necessárias.
+
+    docker compose -f docker-compose.dev.yml up -d
+
+Ao utilizar o docker, os comandos mencionados na seção seguinte devem ser rodados de dentro do container.
+
+    # utilize o `docker exec` para abrir um terminal dentro do container
+    docker exec -it cinemaempoa_flask_dev bash
+
+Antes de abrir um Pull Request, rode os comandos abaixo no seu terminal para validar e formatar o código:
 
 ```bash
-ruff check # roda o linter para código python
+ruff check --fix # roda o linter para código python
 ruff format # roda o formatter para código python
 djlint flask_backend/templates --lint --profile=jinja # roda o linter para os arquivos .html
 djlint --reformat flask_backend/templates --format-css --format-js # roda o formatter para os arquivos .html
@@ -46,11 +59,13 @@ Para utilizá-lo, instale com:
 
 ### Rodando o projeto
 
-Para rodar o portal, você vai precisar de três comando (todos rodados a partir da raíz do projeto):
+Para rodar o portal, você vai precisar de três comandos (todos rodados a partir da raíz do projeto):
 
     flask --app flask_backend init-db # inicializa as tabelas no banco de dados
     flask --app flask_backend seed-db # optional: popula o banco com dados iniciais
     flask --app flask_backend run --debug # inicia o projeto em modo desenvolvimento
+
+Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto através do docker de desenvolvimento (docker-compose.dev.yml).
 
 O projeto vai rodar em <http://localhost:5000>.
 
@@ -95,6 +110,16 @@ Lá, selecione o arquivo gerado na etapa anterior e clique em **Enviar**.
 
 As sessões importadas vão estar disponíveis na home.
 
+### Importando dados pela linha de comandos
+
+Uma alternativa a importação via portal é utilizando a linha de comando.
+
+Dentro do seu ambiente, rode o seguinte comando:
+
+```
+flask --app flask_backend import-json /caminho/ate/o/arquivo.json
+```
+
 <h2 id="contribuicoes">Contribuições</h2>
 
 Veja nossos [issues](https://github.com/guites/cinemaempoa/issues) pra entender o que está sendo feito no projeto.
@@ -103,7 +128,7 @@ Implementações mais simples estão marcadas com [good first issue](https://git
 
 ## Deploy (produção)
 
-Atualmente o projeto (em <https://cinemaempoa.com.br>) está hospedado em uma máquina virtual no [hetzner](https://www.hetzner.com/).
+Atualmente o projeto (em <https://cinemaempoa.com.br>) está hospedado em uma máquina virtual.
 
 Os arquivos usados para o deployment são:
 
@@ -111,4 +136,15 @@ Os arquivos usados para o deployment são:
 - docker-compose.production.yml
 - Dockerfile.prod
 
-A cada novo merge no branch principal, eu entro na máquina virtual, puxo as alterações e depois reinicio o servidor.
+A cada novo merge no branch principal, o workflow em `.github/workflows/deploy-server.yml` faz o processo de atualização do servidor.
+
+## Backups do banco de dados
+
+Diariamente uma cópia do banco de dados é enviada para o google drive em <https://drive.google.com/drive/u/0/folders/1f9qFHb2Fxdg_EGg3Vq4W-leDaGed9kXk>.
+
+O processo é automatizado pelo script `backup-db.sh` em um _cronjob_ na máquina virtual.
+
+```
+$ crontab -l
+55 23 * * * cd /home/ubuntu/cinemaempoa && ./backup-db.sh
+```

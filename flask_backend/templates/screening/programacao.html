@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block header %}
+    <h1>
+        {% block title %}
+            Programação
+        {% endblock title %}
+    </h1>
+{% endblock header %}
+{% block content %}
+    <p>Sessões programadas para o mês atual.</p>
+    <div class="mb-3">
+        {% for cinema in cinemas %}
+            <div class="form-check form-check-inline">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="{{ cinema.slug }}"
+                       value="{{ cinema.slug }}"
+                       {% if cinema.slug in checked_cinemas %}checked{% endif %}>
+                <label class="form-check-label" for="{{ cinema.slug }}">{{ cinema.name }}</label>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="row">
+        {% for date, screenings in screening_dates.items() %}
+            <div class="col-md-8">
+                <strong class="mb-2 fs-5">{{ date.strftime("%d/%m/%Y") }}</strong>
+                <ul class="list-unstyled mb-3">
+                    {% for screening in screenings %}
+                        <li class="mb-1">
+                            {% if not g.user %}
+                                {{ screening.time.replace(':', 'h') }}: {{ screening.screening.movie.title }} <span class="badge rounded-pill"
+       style="background-color: {{ colors[screening.screening.cinema.slug] }}"
+       data-bs-toggle="tooltip"
+       data-bs-placement="top"
+       title="{{ screening.screening.cinema.name }}">{{ screening.screening.cinema.slug }}</span>
+                            {% else %}
+                                {{ screening.time.replace(':', 'h') }}: <a href="{{ url_for('screening.update', id=screening.screening_id) }}">{{ screening.screening.movie.title }}</a> <span class="badge rounded-pill"
+       style="background-color: {{ colors[screening.screening.cinema.slug] }}"
+       data-bs-toggle="tooltip"
+       data-bs-placement="top"
+       title="{{ screening.screening.cinema.name }}">{{ screening.screening.cinema.slug }}</span>
+                                {% if screening.screening.draft %}
+                                    <button class="badge text-bg-warning ms-3"
+                                            data-bs-toggle="tooltip"
+                                            data-bs-title="clique para publicar"
+                                            aria-label="Visível apenas para usuários logados"
+                                            data-function="publish"
+                                            data-screening-id="{{ screening.screening_id }}">Rascunho</button>
+                                {% endif %}
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+    <script>
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const checkedCinemas = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => `cinema=${checkbox.value}`);
+                window.location.href = window.location.pathname + '?' + checkedCinemas.join('&');
+            });
+        });
+
+        const publishBtns = document.querySelectorAll('[data-function="publish"]');
+        publishBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                // get the buttons screening id
+                const screeningId = btn.dataset.screeningId;
+                // send a post request to the server
+                fetch(`/screening/${screeningId}/publish`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    })
+                    .then((response) => {
+                        // if the response is ok, reload the page
+                        if (response.ok) {
+                            window.location.reload();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
+            });
+        });
+    </script>
+{% endblock content %}

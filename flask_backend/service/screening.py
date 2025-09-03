@@ -7,6 +7,8 @@ from typing import List, Optional, Tuple
 
 import requests
 from PIL import Image, UnidentifiedImageError
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import APP_ENVIRONMENT
@@ -23,6 +25,7 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
+from scrapers.imdb import IMDBScrapper
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -56,7 +59,7 @@ def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int
     """Saves the received `file` into disk or uploads it to imgBB API,
     depending on the current environment"""
     # always save images locally on development
-    if APP_ENVIRONMENT == EnvironmentEnum.DEVELOPMENT:
+    if APP_ENVIRONMENT != EnvironmentEnum.PRODUCTION:
         return upload_image_to_local_disk(file, app, filename)
     # on production, attempt to save to the imgBB API
     try:
@@ -75,6 +78,8 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
         ValueError: string elements in received list are not in %Y-%m-%dT%H:%M format"""
     screening_date_objects = []
     for screening_date in screening_dates:
+        # Remove seconds from the string before parsing
+        screening_date = screening_date[:16]  # Keeps up to YYYY-MM-DDTHH:MM
         parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%dT%H:%M")
         screening_date_objects.append(
             ScreeningDate(
@@ -93,7 +98,13 @@ def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]
         hashlib.md5(image_url.encode("utf-8")).hexdigest() + "." + file_extension
     )
 
-    r = requests.get(image_url)
+    session = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    r = session.get(image_url)
     if r.ok is False:
         return None, None
 
@@ -156,22 +167,32 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
             if scrapped_feature.excerpt:
                 description += f"\n{scrapped_feature.excerpt}"
 
+            description = description.strip()
+
             if screenings_dates is None:
                 screenings_dates = build_dates(
                     [datetime.now().strftime("%Y-%m-%dT%H:%M")]
                 )
+            screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
 
-            image_filename, image_width, image_height = None, None, None
-            if scrapped_feature.poster:
-                img, filename = download_image_from_url(scrapped_feature.poster)
+            if not screening:
+                # only attempt to download the poster if the screening doesn't previously exists
                 image_filename, image_width, image_height = None, None, None
+
+                if scrapped_feature.poster:
+                    img, filename = download_image_from_url(scrapped_feature.poster)
+                else:
+                    # screening has no poster image url, attempt to scrap it from imdb
+                    imdb_scrapper = IMDBScrapper()
+                    poster_url = imdb_scrapper.get_image(scrapped_feature)
+                    img, filename = download_image_from_url(poster_url)
+
                 if img is not None:
                     # if we fail to download or validate the image, just ignore it for now
                     image_filename, image_width, image_height = save_image(
                         img, current_app, filename
                     )
-            screening = get_screening_by_movie_id_and_cinema_id(movie.id, cinema.id)
-            if not screening:
+
                 create_screening(
                     movie_id=movie.id,
                     description=description,

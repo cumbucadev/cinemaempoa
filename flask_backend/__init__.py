@@ -33,6 +33,10 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
+    from . import commands
+
+    commands.register_commands(app)
+
     if APP_ENVIRONMENT == EnvironmentEnum.PRODUCTION:
         db.init_db()
         db.seed_db_prod()
@@ -52,6 +56,10 @@ def create_app(test_config=None):
     @app.route("/robots.txt")
     def static_from_root():
         """Taken from https://stackoverflow.com/a/14625619"""
+        return send_from_directory(app.static_folder, request.path[1:])
+
+    @app.route("/sitemaps.txt")
+    def serve_static_sitemap():
         return send_from_directory(app.static_folder, request.path[1:])
 
     @app.teardown_appcontext
