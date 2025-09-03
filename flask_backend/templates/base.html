@@ -22,6 +22,18 @@
         .navbar .dropdown-menu {
             position: absolute !important;
         }
+
+        img.emoji {
+            display: inline !important;
+            border: none !important;
+            box-shadow: none !important;
+            height: 1em !important;
+            width: 1em !important;
+            margin: 0 0.07em !important;
+            vertical-align: -0.1em !important;
+            background: none !important;
+            padding: 0 !important;
+        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -187,8 +199,15 @@
                class="nav-link px-2 text-muted">analytics</a>
         </li>
         <li class="nav-item">
-            <a href="https://cumbuca.dev"
-               class="nav-link px-2 text-warning fw-bold">🌟 Cumbuca.dev</a>
+            <a href="https://cumbuca.dev" class="nav-link px-2 text-muted fw-bold">
+                {# djlint:off H006 #}
+                <img class="emoji"
+                     draggable="false"
+                     role="img"
+                     src="{{ url_for('static', filename='1f49c.svg') }}"
+                     alt="💜">
+                {# djlint:on #}
+            Cumbuca Dev</a>
         </li>
     </ul>
     <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
