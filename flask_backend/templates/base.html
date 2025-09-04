@@ -5,7 +5,6 @@
     }
 </style>
 {# djlint:off #}
-<!-- TODO: #95 add meta description -->
 <html lang="en" data-bs-core="default">
 {# djlint:on #}
 <head>
@@ -15,6 +14,8 @@
         {% block title %}
         {% endblock title %}
     - Cinema em POA</title>
+    {% block meta_tags %}
+    {% endblock meta_tags %}
     <!-- halfmoon css file -->
     <link rel="stylesheet"
           href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
