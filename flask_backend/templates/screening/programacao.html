@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description"
+          content="Programação mensal para as salas de cinema alternativo em Porto Alegre. Atualizada diariamente com novas sessões.">
+{% endblock meta_tags %}
 {% block header %}
     <h1>
         {% block title %}
@@ -7,7 +11,7 @@
     </h1>
 {% endblock header %}
 {% block content %}
-    <p>Sessões programadas para o mês atual.</p>
+    <p>Sessões programadas para o mês atual. Atualizado diariamente com novas sessões.</p>
     <div class="mb-3">
         {% for cinema in cinemas %}
             <div class="form-check form-check-inline">
