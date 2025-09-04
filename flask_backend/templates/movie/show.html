@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block meta_tags %}
-    <meta name="description" content="Veja as exibições de {{ movie['title'] }} em {{ movie['screenings']|length }} {{ 'cinema' if movie['screenings']|length == 1 else 'cinemas' }} de Porto Alegre: posters, divulgação e datas.">
+    <meta name="description"
+          content="Veja as exibições de {{ movie['title'] }} em {{ movie['screenings']|length }} {{ 'cinema' if movie['screenings']|length == 1 else 'cinemas' }} de Porto Alegre: posters, divulgação e datas.">
 {% endblock meta_tags %}
 {% block header %}
     <h1>

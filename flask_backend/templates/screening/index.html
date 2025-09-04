@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block meta_tags %}
-    <meta name="description" content="Saiba quais filmes estão nas salas de cinema alternativo em Porto Alegre: {% for cinema in cinemas_with_screenings %}{{cinema.name}}{{ ',' if not loop.last else '' }}{% endfor %}.">
+    {% set cinemas_list = cinemas_with_screenings | map(attribute='name') | join(', ') %}
+    <meta name="description"
+          content="Saiba quais filmes estão nas salas de cinema alternativo em Porto Alegre: {{ cinemas_list }}.">
 {% endblock meta_tags %}
 {% block header %}
     <h1>
