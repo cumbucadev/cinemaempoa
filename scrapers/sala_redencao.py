@@ -1,6 +1,6 @@
+import datetime
 import os
 import re
-from datetime import datetime
 
 import icalendar
 import requests
@@ -28,7 +28,7 @@ class SalaRedencao:
         os.makedirs(self.scrape_dir, exist_ok=True)
 
     def _get_today_ymd(self):
-        cur_datetime = datetime.now()
+        cur_datetime = datetime.datetime.now()
         cur_date = cur_datetime.strftime("%Y-%m-%d")
         return cur_date
 
@@ -300,43 +300,47 @@ class SalaRedencao:
     def _parse_google_calendar_events(self, gcal: icalendar.Calendar):
         """Parses events from the fetched Google Calendar"""
         feats = []
-        for event in gcal.walk("vevent"):
-            title = str(event.get("summary"))
-            description = event.get("description")
-            pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
+        description_pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
 
-            matches = []
+        for event in gcal.walk("vevent"):
+            if not isinstance(event.start, datetime.datetime):
+                print("Skipping all-day event:", event.get("summary"))
+                continue
+
+            if event.start.strftime("%Y-%m-%d") != self.date:
+                continue
+
+            description = event.get("description")
+
             if description:
                 description_text = self._clean_gcal_html(description)
-                matches = re.findall(pattern, str(description_text), re.DOTALL)
+            else:
+                continue
+
+            matches = re.findall(description_pattern, str(description_text), re.DOTALL)
 
             for movie in matches:
                 screening_dates = re.findall(
                     r"(\d{1,2} de [a-z]+ \| [\w\-]+ \| \d{1,2}[hH])", description_text
                 )
-                if len(screening_dates) == 0:
-                    continue
 
                 # find the index of the first matching group from `movie`
                 excerpt_start = description_text.find(movie[4]) + len(movie[4]) + 1
+
                 # find the index of the first screening date
-                excerpt_end = description_text.find(screening_dates[0])
+                excerpt_end = (
+                    description_text.find(screening_dates[0])
+                    if len(screening_dates) > 0
+                    else None
+                )
 
                 # Consider the text between the `movie` and the `screening_dates`
                 # as the excerpt. Include the `movie` in the excerpt to avoid complex parsing.
                 excerpt = description_text[excerpt_start:excerpt_end]
                 excerpt = excerpt.strip()
 
-                time = []
-                for date in screening_dates:
-                    if not string_is_day(date, self.date):
-                        continue
-                    time.append(date)
-
-                if len(time) == 0:
-                    # no screenings today!
-                    continue
-
+                time = [event.start.strftime("%Y-%m-%dT%H:%M")]
+                title = str(event.get("summary"))
                 director = movie[0].strip()
                 countries = movie[1].strip()
                 year = movie[2]
@@ -346,7 +350,7 @@ class SalaRedencao:
 
                 feature = {
                     "poster": "",
-                    "time": "\n".join(time),
+                    "time": time,
                     "title": title,
                     "original_title": "",
                     "price": "",
