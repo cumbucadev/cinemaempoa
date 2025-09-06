@@ -251,12 +251,21 @@ class CinematecaPauloAmorim:
                 else:
                     parsed_time = dt_time(int(hour_str))
                 for movie in self.movies:
-                    if (
-                        movie["title"].strip().lower()
-                        != feature_time_match[1].strip().lower()
-                    ):
+                    movie_title = movie["title"].strip().lower()
+                    match_title = feature_time_match[1].strip().lower()
+                    title_match = movie_title == match_title
+                    if title_match:
+                        movie["time"].append(
+                            {"time": parsed_time, "date": current_date}
+                        )
                         continue
-                    movie["time"].append({"time": parsed_time, "date": current_date})
+                    partial_match = movie_title.startswith(match_title)
+                    if partial_match:
+                        movie["time"].append(
+                            {"time": parsed_time, "date": current_date}
+                        )
+                        # TODO: warn admin user to check because this might be a mismatch
+                        continue
 
         features = [movie for movie in self.movies if len(movie["time"]) > 0]
 
