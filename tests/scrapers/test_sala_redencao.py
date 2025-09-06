@@ -56,6 +56,24 @@ class TestSalaRedencao(unittest.TestCase):
         assert len(features_overall) == len(features_gcal)
         assert features_overall == features_gcal
 
+    def test__parse_google_calendar_events_when_traditional_technique_works(self):
+        sala_redencao = SalaRedencao("2025-09-11")
+        gcal = sala_redencao._fetch_google_calendar()
+        features_gcal = sala_redencao._parse_google_calendar_events(gcal)
+        sala_redencao._get_events_blog_post_url()
+        features_traditional = sala_redencao._get_events_blog_post_html()
+        features_overall = sala_redencao.get_daily_features_json()
+
+        print(f"Features (gcal): {features_gcal}")
+        print(f"Features (traditional): {features_traditional}")
+        print(f"Features (overall): {features_overall}")
+
+        assert len(features_traditional) > 0
+        assert len(features_gcal) > 0
+        assert len(features_overall) == len(features_gcal)
+        assert len(features_overall) == len(features_traditional)
+        assert features_overall == features_traditional
+
     def test_get_daily_features_json(self):
         salaRedencao = SalaRedencao(date="2025-09-02")
         features = salaRedencao.get_daily_features_json()
