@@ -70,7 +70,6 @@ class TestSalaRedencao(unittest.TestCase):
 
         assert len(features_traditional) > 0
         assert len(features_gcal) > 0
-        assert len(features_overall) == len(features_gcal)
         assert len(features_overall) == len(features_traditional)
         assert features_overall == features_traditional
 

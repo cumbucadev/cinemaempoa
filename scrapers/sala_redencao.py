@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import os
 import re
 
@@ -28,7 +29,7 @@ class SalaRedencao:
         os.makedirs(self.scrape_dir, exist_ok=True)
 
     def _get_today_ymd(self):
-        cur_datetime = datetime.datetime.now()
+        cur_datetime = datetime.now()
         cur_date = cur_datetime.strftime("%Y-%m-%d")
         return cur_date
 
@@ -303,11 +304,12 @@ class SalaRedencao:
         description_pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
 
         for event in gcal.walk("vevent"):
-            if not isinstance(event.start, datetime.datetime):
-                print("Skipping all-day event:", event.get("summary"))
+            if not isinstance(event.start, datetime):
                 continue
 
-            if event.start.strftime("%Y-%m-%d") != self.date:
+            cutoff_date = datetime.strptime(self.date, "%Y-%m-%d").date()
+
+            if event.start.date() < cutoff_date:
                 continue
 
             description = event.get("description")
@@ -339,14 +341,14 @@ class SalaRedencao:
                 excerpt = description_text[excerpt_start:excerpt_end]
                 excerpt = excerpt.strip()
 
-                time = [event.start.strftime("%Y-%m-%dT%H:%M")]
+                time = [event.start.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%dT%H:%M")]
                 title = str(event.get("summary"))
                 director = movie[0].strip()
                 countries = movie[1].strip()
                 year = movie[2]
                 duration = movie[3].strip()
                 # text after duration can display genre, classification and more, but without consistency, thus it will be stored as residual info for now
-                # residual_info = movie[4].strip()
+                residual_info = movie[4].strip()
 
                 feature = {
                     "poster": "",
@@ -356,7 +358,7 @@ class SalaRedencao:
                     "price": "",
                     "director": director,
                     "classification": "",
-                    "general_info": countries + " / " + year + " / " + duration,
+                    "general_info": countries + " / " + year + " / " + duration + " / " + residual_info.replace('|', '/'),
                     "excerpt": excerpt,
                     "read_more": self.google_calendar_ical_url,
                 }
