@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 import os
 import re
+from datetime import datetime
 
 import icalendar
 import requests
 from bs4 import BeautifulSoup
+from zoneinfo import ZoneInfo
 
 from utils import get_formatted_day_str, string_is_day
 
@@ -341,7 +341,11 @@ class SalaRedencao:
                 excerpt = description_text[excerpt_start:excerpt_end]
                 excerpt = excerpt.strip()
 
-                time = [event.start.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%dT%H:%M")]
+                time = [
+                    event.start.astimezone(ZoneInfo("America/Sao_Paulo")).strftime(
+                        "%Y-%m-%dT%H:%M"
+                    )
+                ]
                 title = str(event.get("summary"))
                 director = movie[0].strip()
                 countries = movie[1].strip()
@@ -358,7 +362,13 @@ class SalaRedencao:
                     "price": "",
                     "director": director,
                     "classification": "",
-                    "general_info": countries + " / " + year + " / " + duration + " / " + residual_info.replace('|', '/'),
+                    "general_info": countries
+                    + " / "
+                    + year
+                    + " / "
+                    + duration
+                    + " / "
+                    + residual_info.replace("|", "/"),
                     "excerpt": excerpt,
                     "read_more": self.google_calendar_ical_url,
                 }
