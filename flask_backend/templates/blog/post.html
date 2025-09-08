@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description" content="{{ post.excerpt or post.title }}">
+    <meta property="og:title" content="{{ post.title }}">
+    <meta property="og:description" content="{{ post.excerpt or post.title }}">
+    {% if post.featured_image %}<meta property="og:image" content="{{ post.featured_image }}">{% endif %}
+{% endblock meta_tags %}
+{% block title %}
+    {{ post.title }}
+{% endblock title %}
+{% block header %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for("blog.index") }}">Blog</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">{{ post.title }}</li>
+        </ol>
+    </nav>
+{% endblock header %}
+{% block content %}
+    <article>
+        <header class="mb-4">
+            <h1>{{ post.title }}</h1>
+            <div class="text-muted mb-3">
+                <small>
+                    Por <strong>{{ post.author.username }}</strong> em
+                    <time datetime="{{ post.created_at.isoformat() }}">
+                        {{ post.created_at.strftime("%d/%m/%Y às %H:%M") }}
+                    </time>
+                    {% if post.updated_at %}
+                        <br>
+                        <em>Atualizado em
+                            <time datetime="{{ post.updated_at.isoformat() }}">
+                                {{ post.updated_at.strftime("%d/%m/%Y às %H:%M") }}
+                            </time>
+                        </em>
+                    {% endif %}
+                </small>
+            </div>
+            {% if post.featured_image %}
+                <img src="{{ post.featured_image }}"
+                     class="img-fluid rounded mb-3"
+                     alt="{{ post.featured_image_alt or post.title }}">
+            {% endif %}
+        </header>
+        <main>
+            <div class="content">{{ post.content | safe }}</div>
+        </main>
+        <footer class="mt-5 pt-4 border-top">
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{{ url_for("blog.index") }}" class="btn btn-outline-secondary">← Voltar ao blog</a>
+                {% if g.user %}
+                    <div>
+                        <a href="{{ url_for('blog.admin_edit', post_id=post.id) }}"
+                           class="btn btn-sm btn-outline-primary">Editar post</a>
+                    </div>
+                {% endif %}
+            </div>
+        </footer>
+    </article>
+{% endblock content %}

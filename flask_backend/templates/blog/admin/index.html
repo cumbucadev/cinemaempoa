@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}
+    Gerenciar Blog
+{% endblock title %}
+{% block header %}
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1>Gerenciar Blog</h1>
+            <p>Gerencie os posts do blog</p>
+        </div>
+        <a href="{{ url_for("blog.admin_new") }}" class="btn btn-primary">Novo Post</a>
+    </div>
+{% endblock header %}
+{% block content %}
+    {% if posts %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Autor</th>
+                        <th>Status</th>
+                        <th>Criado</th>
+                        <th>Atualizado</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('blog.post', slug=post.slug) }}"
+                                   class="text-decoration-none">{{ post.title }}</a>
+                            </td>
+                            <td>{{ post.author.username }}</td>
+                            <td>
+                                {% if post.published %}
+                                    <span class="badge bg-success">Publicado</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Rascunho</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <time datetime="{{ post.created_at.isoformat() }}">
+                                    {{ post.created_at.strftime("%d/%m/%Y %H:%M") }}
+                                </time>
+                            </td>
+                            <td>
+                                {% if post.updated_at %}
+                                    <time datetime="{{ post.updated_at.isoformat() }}">
+                                        {{ post.updated_at.strftime("%d/%m/%Y %H:%M") }}
+                                    </time>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('blog.admin_edit', post_id=post.id) }}"
+                                       class="btn btn-outline-primary">Editar</a>
+                                    <form method="POST"
+                                          action="{{ url_for('blog.admin_toggle_publish', post_id=post.id) }}"
+                                          class="d-inline">
+                                        <button type="submit"
+                                                class="btn btn-outline-{% if post.published %}warning{% else %}success{% endif %}">
+                                            {% if post.published %}
+                                                Despublicar
+                                            {% else %}
+                                                Publicar
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    <form method="POST"
+                                          action="{{ url_for('blog.admin_delete', post_id=post.id) }}"
+                                          class="d-inline"
+                                          onsubmit="return confirm('Tem certeza que deseja deletar este post?')">
+                                        <button type="submit" class="btn btn-outline-danger">Deletar</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        {% if pages > 1 %}
+            <nav aria-label="Navegação do admin">
+                <ul class="pagination justify-content-center">
+                    {% if prev_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('blog.admin_index', page=prev_page, limit=limit) }}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    {% for page_num in range(1, pages + 1) %}
+                        <li class="page-item {% if page_num == curr_page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('blog.admin_index', page=page_num, limit=limit) }}">{{ page_num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if next_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('blog.admin_index', page=next_page, limit=limit) }}">Próximo</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <h3>Nenhum post encontrado</h3>
+            <p class="text-muted">Comece criando seu primeiro post!</p>
+            <a href="{{ url_for("blog.admin_new") }}" class="btn btn-primary">Criar Primeiro Post</a>
+        </div>
+    {% endif %}
+{% endblock content %}

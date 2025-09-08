@@ -53,6 +53,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(movie.bp)
 
+    from .routes import blog
+
+    app.register_blueprint(blog.bp)
+
     @app.route("/robots.txt")
     def static_from_root():
         """Taken from https://stackoverflow.com/a/14625619"""
