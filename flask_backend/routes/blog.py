@@ -1,7 +1,6 @@
 import markdown
 from flask import (
     Blueprint,
-    abort,
     g,
     render_template,
     request,
