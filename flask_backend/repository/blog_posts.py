@@ -164,7 +164,6 @@ def toggle_published(post_id: int) -> Optional[BlogPost]:
         return None
 
     post.published = not post.published
-    post.updated_at = datetime.utcnow()
 
     db_session.commit()
     db_session.refresh(post)
