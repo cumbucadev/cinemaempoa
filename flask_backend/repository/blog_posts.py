@@ -18,6 +18,7 @@ def create(
     published: bool = False,
     featured_image: Optional[str] = None,
     featured_image_alt: Optional[str] = None,
+    source_url: Optional[str] = None,
 ) -> BlogPost:
     if slug is None:
         slug = slugify(title)
@@ -39,6 +40,7 @@ def create(
         published=published,
         featured_image=featured_image,
         featured_image_alt=featured_image_alt,
+        source_url=source_url,
     )
 
     db_session.add(blog_post)
@@ -96,6 +98,7 @@ def update(
     published: Optional[bool] = None,
     featured_image: Optional[str] = None,
     featured_image_alt: Optional[str] = None,
+    source_url: Optional[str] = None,
 ) -> Optional[BlogPost]:
     post = get_by_id(post_id)
     if not post:
@@ -134,6 +137,9 @@ def update(
 
     if featured_image_alt is not None:
         post.featured_image_alt = featured_image_alt
+
+    if source_url is not None:
+        post.source_url = source_url
 
     post.updated_at = datetime.utcnow()
 

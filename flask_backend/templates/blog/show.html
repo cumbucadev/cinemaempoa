@@ -28,6 +28,7 @@
                     <time datetime="{{ post.created_at.isoformat() }}">
                         {{ post.created_at.strftime("%d/%m/%Y às %H:%M") }}
                     </time>
+                    {% if not post.published and show_unpublished %}<span class="badge bg-warning ms-2">Rascunho</span>{% endif %}
                     {% if post.updated_at %}
                         <br>
                         <em>Atualizado em
@@ -41,18 +42,22 @@
             {% if post.featured_image %}
                 <img src="{{ post.featured_image }}"
                      class="img-fluid rounded mb-3"
+                     loading="lazy"
                      alt="{{ post.featured_image_alt or post.title }}">
             {% endif %}
         </header>
         <main>
-            <div class="content">{{ post.content | safe }}</div>
+            <div class="content" style="white-space: pre-wrap;">{{ post.content | safe }}</div>
+            {% if post.source_url %}
+                <p class="text-muted mt-3 mb-0">Fonte: <a href="{{ post.source_url }}">{{ post.source_url }}</a></p>
+            {% endif %}
         </main>
         <footer class="mt-5 pt-4 border-top">
             <div class="d-flex justify-content-between align-items-center">
                 <a href="{{ url_for("blog.index") }}" class="btn btn-outline-secondary">← Voltar ao blog</a>
-                {% if g.user %}
+                {% if show_unpublished %}
                     <div>
-                        <a href="{{ url_for('blog.admin_edit', post_id=post.id) }}"
+                        <a href="{{ url_for('admin_blog.edit', post_id=post.id) }}"
                            class="btn btn-sm btn-outline-primary">Editar post</a>
                     </div>
                 {% endif %}

@@ -57,6 +57,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(blog.bp)
 
+    from .routes.admin import blog as admin_blog
+
+    app.register_blueprint(admin_blog.bp)
+
     @app.route("/robots.txt")
     def static_from_root():
         """Taken from https://stackoverflow.com/a/14625619"""

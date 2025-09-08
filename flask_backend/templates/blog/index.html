@@ -19,13 +19,14 @@
                         {% if post.featured_image %}
                             <img src="{{ post.featured_image }}"
                                  class="card-img-top"
+                                 loading="lazy"
                                  alt="{{ post.featured_image_alt or post.title }}"
                                  style="height: 200px;
-                                        object-fit: cover">
+                                        object-fit: cover; object-position: top center;">
                         {% endif %}
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">
-                                <a href="{{ url_for('blog.post', slug=post.slug) }}"
+                                <a href="{{ url_for('blog.show', slug=post.slug) }}"
                                    class="text-decoration-none">{{ post.title }}</a>
                             </h5>
                             {% if post.excerpt %}<p class="card-text flex-grow-1">{{ post.excerpt }}</p>{% endif %}

@@ -75,6 +75,7 @@ class BlogPost(Base):
     slug = Column(String, nullable=True, index=True)
     content = Column(Text, nullable=False)
     excerpt = Column(String, nullable=True)
+    source_url = Column(String, nullable=True)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=True)

@@ -6,7 +6,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
-                <a href="{{ url_for("blog.admin_index") }}">Gerenciar Blog</a>
+                <a href="{{ url_for("blog.index") }}">Gerenciar Blog</a>
             </li>
             <li class="breadcrumb-item active" aria-current="page">Novo Post</li>
         </ol>
@@ -68,6 +68,15 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label for="source_url" class="form-label">URL da Fonte</label>
+                            <input type="url"
+                                   class="form-control"
+                                   id="source_url"
+                                   name="source_url"
+                                   value="{{ request.form.get('source_url', '') }}"
+                                   placeholder="URL da imagem">
+                        </div>
+                        <div class="mb-3">
                             <label for="featured_image" class="form-label">Imagem de Destaque</label>
                             <input type="url"
                                    class="form-control"
@@ -90,7 +99,7 @@
             </div>
         </div>
         <div class="d-flex justify-content-between">
-            <a href="{{ url_for("blog.admin_index") }}" class="btn btn-secondary">Cancelar</a>
+            <a href="{{ url_for("blog.index") }}" class="btn btn-secondary">Cancelar</a>
             <button type="submit" class="btn btn-primary">Criar Post</button>
         </div>
     </form>

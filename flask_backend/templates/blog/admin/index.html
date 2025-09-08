@@ -8,7 +8,7 @@
             <h1>Gerenciar Blog</h1>
             <p>Gerencie os posts do blog</p>
         </div>
-        <a href="{{ url_for("blog.admin_new") }}" class="btn btn-primary">Novo Post</a>
+        <a href="{{ url_for("admin_blog.new") }}" class="btn btn-primary">Novo Post</a>
     </div>
 {% endblock header %}
 {% block content %}
@@ -29,7 +29,7 @@
                     {% for post in posts %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('blog.post', slug=post.slug) }}"
+                                <a href="{{ url_for('blog.show', slug=post.slug) }}"
                                    class="text-decoration-none">{{ post.title }}</a>
                             </td>
                             <td>{{ post.author.username }}</td>
@@ -56,13 +56,13 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('blog.admin_edit', post_id=post.id) }}"
-                                       class="btn btn-outline-primary">Editar</a>
+                                    <a href="{{ url_for('admin_blog.edit', post_id=post.id) }}"
+                                       class="btn btn-outline-primary d-flex align-items-center">Editar</a>
                                     <form method="POST"
-                                          action="{{ url_for('blog.admin_toggle_publish', post_id=post.id) }}"
+                                          action="{{ url_for('admin_blog.toggle_publish', post_id=post.id) }}"
                                           class="d-inline">
                                         <button type="submit"
-                                                class="btn btn-outline-{% if post.published %}warning{% else %}success{% endif %}">
+                                                class="btn btn-outline-{% if post.published %}warning{% else %}success{% endif %} rounded-0">
                                             {% if post.published %}
                                                 Despublicar
                                             {% else %}
@@ -71,10 +71,10 @@
                                         </button>
                                     </form>
                                     <form method="POST"
-                                          action="{{ url_for('blog.admin_delete', post_id=post.id) }}"
+                                          action="{{ url_for('admin_blog.delete', post_id=post.id) }}"
                                           class="d-inline"
                                           onsubmit="return confirm('Tem certeza que deseja deletar este post?')">
-                                        <button type="submit" class="btn btn-outline-danger">Deletar</button>
+                                        <button type="submit" class="btn btn-outline-danger rounded-start-0">Deletar</button>
                                     </form>
                                 </div>
                             </td>
@@ -90,19 +90,19 @@
                     {% if prev_page %}
                         <li class="page-item">
                             <a class="page-link"
-                               href="{{ url_for('blog.admin_index', page=prev_page, limit=limit) }}">Anterior</a>
+                               href="{{ url_for('admin_admin_blog.index', page=prev_page, limit=limit) }}">Anterior</a>
                         </li>
                     {% endif %}
                     {% for page_num in range(1, pages + 1) %}
                         <li class="page-item {% if page_num == curr_page %}active{% endif %}">
                             <a class="page-link"
-                               href="{{ url_for('blog.admin_index', page=page_num, limit=limit) }}">{{ page_num }}</a>
+                               href="{{ url_for('admin_admin_blog.index', page=page_num, limit=limit) }}">{{ page_num }}</a>
                         </li>
                     {% endfor %}
                     {% if next_page %}
                         <li class="page-item">
                             <a class="page-link"
-                               href="{{ url_for('blog.admin_index', page=next_page, limit=limit) }}">Próximo</a>
+                               href="{{ url_for('admin_admin_blog.index', page=next_page, limit=limit) }}">Próximo</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -112,7 +112,7 @@
         <div class="text-center py-5">
             <h3>Nenhum post encontrado</h3>
             <p class="text-muted">Comece criando seu primeiro post!</p>
-            <a href="{{ url_for("blog.admin_new") }}" class="btn btn-primary">Criar Primeiro Post</a>
+            <a href="{{ url_for("admin_blog.new") }}" class="btn btn-primary">Criar Primeiro Post</a>
         </div>
     {% endif %}
 {% endblock content %}
