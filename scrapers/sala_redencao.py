@@ -309,7 +309,7 @@ class SalaRedencao:
 
             cutoff_date = datetime.strptime(self.date, "%Y-%m-%d").date()
 
-            if event.start.date() < cutoff_date:
+            if event.start.date() != cutoff_date:
                 continue
 
             description = event.get("description")
