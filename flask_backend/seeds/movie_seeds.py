@@ -7,7 +7,10 @@ def create_movies(db_session):
         Movie(title="Terra de Deus", slug="terra-de-deus"),
         Movie(title="MARINHEIRO DAS MONTANHAS", slug="marinheiro-das-montanhas"),
         Movie(title="NARDJES A.", slug="nardjes-a"),
-        Movie(title="ELIS & TOM – SÓ TINHA DE SER COM VOCÊ", slug="elis-tom-so-havia-de-ser-com-voce"),
+        Movie(
+            title="ELIS & TOM – SÓ TINHA DE SER COM VOCÊ",
+            slug="elis-e-tom-so-tinha-de-ser-com-voce",
+        ),
         Movie(title="A CASA DOS PRAZERES", slug="a-casa-dos-prazeres"),
         Movie(title="OLDBOY", slug="oldboy"),
         Movie(title="NOSSO SONHO", slug="nosso-sonho"),
