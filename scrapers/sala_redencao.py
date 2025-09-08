@@ -302,12 +302,11 @@ class SalaRedencao:
         """Parses events from the fetched Google Calendar"""
         feats = []
         description_pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
+        cutoff_date = datetime.strptime(self.date, "%Y-%m-%d").date()
 
         for event in gcal.walk("vevent"):
             if not isinstance(event.start, datetime):
                 continue
-
-            cutoff_date = datetime.strptime(self.date, "%Y-%m-%d").date()
 
             if event.start.date() != cutoff_date:
                 continue
