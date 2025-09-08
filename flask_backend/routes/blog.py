@@ -1,18 +1,14 @@
+import markdown
 from flask import (
     Blueprint,
     abort,
-    flash,
     g,
-    redirect,
     render_template,
     request,
-    url_for,
 )
 from werkzeug.exceptions import abort
 
 from flask_backend.repository import blog_posts
-import markdown
-
 
 bp = Blueprint("blog", __name__)
 
@@ -61,4 +57,10 @@ def show(slug):
         abort(404)
     content_html = markdown.markdown(post.content)
     show_updated_at = post.updated_at.date() != post.created_at.date()
-    return render_template("blog/show.html", post=post, show_unpublished=user_logged_in, content_html=content_html, show_updated_at=show_updated_at)
+    return render_template(
+        "blog/show.html",
+        post=post,
+        show_unpublished=user_logged_in,
+        content_html=content_html,
+        show_updated_at=show_updated_at,
+    )

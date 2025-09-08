@@ -1,8 +1,19 @@
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+
 from flask_backend.repository import blog_posts
 from flask_backend.routes.auth import login_required
-from flask import Blueprint, request, redirect, url_for, flash, render_template, abort, g
 
 bp = Blueprint("admin_blog", __name__)
+
 
 @bp.route("/admin/blog")
 @login_required
@@ -31,6 +42,7 @@ def index():
         limit=limit,
         qtt_posts=qtt_posts,
     )
+
 
 @bp.route("/admin/blog/new", methods=("GET", "POST"))
 @login_required
@@ -75,6 +87,7 @@ def new():
         flash(error, "danger")
 
     return render_template("blog/admin/new.html")
+
 
 @bp.route("/admin/blog/<int:post_id>/edit", methods=("GET", "POST"))
 @login_required
@@ -131,6 +144,7 @@ def edit(post_id):
 
     return render_template("blog/admin/edit.html", post=post)
 
+
 @bp.route("/admin/blog/<int:post_id>/delete", methods=("POST",))
 @login_required
 def delete(post_id):
@@ -149,6 +163,7 @@ def delete(post_id):
         flash(f"Erro ao deletar post: {str(e)}", "danger")
 
     return redirect(url_for("admin_blog.index"))
+
 
 @bp.route("/admin/blog/<int:post_id>/toggle-publish", methods=("POST",))
 @login_required

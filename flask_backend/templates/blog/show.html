@@ -54,7 +54,9 @@
             </style>
             {{ content_html | safe }}
             {% if post.source_url %}
-                <p class="text-muted mt-3 mb-0">Fonte: <a href="{{ post.source_url }}">{{ post.source_url }}</a></p>
+                <p class="text-muted mt-3 mb-0">
+                    Fonte: <a href="{{ post.source_url }}">{{ post.source_url }}</a>
+                </p>
             {% endif %}
         </main>
         <footer class="mt-5 pt-4 border-top">
