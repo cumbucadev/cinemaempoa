@@ -87,10 +87,12 @@
             <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.index") }}">Hoje</a>
+                        <a class="nav-link {% if request.path == url_for('screening.index') %}active{% endif %}"
+                           href="{{ url_for("screening.index") }}">Hoje</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
+                        <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
+                           href="{{ url_for("screening.programacao") }}">Programação</a>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle"
@@ -100,38 +102,45 @@
                            aria-expanded="false">Filmes</a>
                         <ul class="dropdown-menu">
                             <li>
-                                <a class="dropdown-item" href="{{ url_for("movie.index") }}">Títulos</a>
+                                <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
+                                   href="{{ url_for("movie.index") }}">Títulos</a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="{{ url_for("movie.posters") }}">Posters</a>
+                                <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
+                                   href="{{ url_for("movie.posters") }}">Posters</a>
                             </li>
                         </ul>
                     </li>
                     {% if g.user %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar
+                            <a class="nav-link {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
+                               href="{{ url_for("screening.import_screenings") }}">Importar
                             sessões</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
+                            <a class="nav-link {% if request.path == url_for('screening.create') %}active{% endif %}"
+                               href="{{ url_for("screening.create") }}">Nova sessão</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a href="{{ url_for("auth.login") }}" class="nav-link">Acessar</a>
+                            <a href="{{ url_for("auth.login") }}"
+                               class="nav-link {% if request.path == url_for('auth.login') %}active{% endif %}">Acessar</a>
                         </li>
                     {% endif %}
                 </ul>
             </div>
             <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("screening.index") }}">Hoje</a>
+                    <a class="nav-link {% if request.path == url_for('screening.index') %}active{% endif %}"
+                       href="{{ url_for("screening.index") }}">Hoje</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
+                    <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
+                       href="{{ url_for("screening.programacao") }}">Programação</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item dropdown">
@@ -142,21 +151,25 @@
                        aria-expanded="false">Filmes</a>
                     <ul class="dropdown-menu">
                         <li>
-                            <a class="dropdown-item" href="{{ url_for("movie.index") }}">Títulos</a>
+                            <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
+                               href="{{ url_for("movie.index") }}">Títulos</a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{{ url_for("movie.posters") }}">Posters</a>
+                            <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
+                               href="{{ url_for("movie.posters") }}">Posters</a>
                         </li>
                     </ul>
                 </li>
                 <div class="vr mx-3"></div>
                 {% if g.user %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
+                        <a class="nav-link {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
+                           href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
                     </li>
                     <div class="vr mx-3"></div>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
+                        <a class="nav-link {% if request.path == url_for('screening.create') %}active{% endif %}"
+                           href="{{ url_for("screening.create") }}">Nova sessão</a>
                     </li>
                     <div class="vr mx-3"></div>
                     <li class="nav-item">
@@ -166,7 +179,7 @@
                     <li class="nav-item">
                         {# djlint:off #}
                         <a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important"
-                            class="nav-link pr-1">Acessar</a>
+                            class="nav-link pr-1 {% if request.path == url_for('auth.login') %}active{% endif %}">Acessar</a>
                         {# djlint:on #}
                     </li>
                 {% endif %}
