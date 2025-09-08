@@ -313,10 +313,10 @@ class SalaRedencao:
 
             description = event.get("description")
 
-            if description:
-                description_text = self._clean_gcal_html(description)
-            else:
+            if not description:
                 continue
+
+            description_text = self._clean_gcal_html(description)
 
             matches = re.findall(description_pattern, str(description_text), re.DOTALL)
 
