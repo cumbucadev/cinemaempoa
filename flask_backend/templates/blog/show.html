@@ -29,7 +29,7 @@
                         {{ post.created_at.strftime("%d/%m/%Y às %H:%M") }}
                     </time>
                     {% if not post.published and show_unpublished %}<span class="badge bg-warning ms-2">Rascunho</span>{% endif %}
-                    {% if post.updated_at %}
+                    {% if post.updated_at and show_updated_at %}
                         <br>
                         <em>Atualizado em
                             <time datetime="{{ post.updated_at.isoformat() }}">
