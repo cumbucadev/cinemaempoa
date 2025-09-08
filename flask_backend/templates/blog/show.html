@@ -46,8 +46,13 @@
                      alt="{{ post.featured_image_alt or post.title }}">
             {% endif %}
         </header>
-        <main>
-            <div class="content" style="white-space: pre-wrap;">{{ post.content | safe }}</div>
+        <main class="text-break">
+            <style>
+                main p {
+                    line-height: 1.6;
+                }
+            </style>
+            {{ content_html | safe }}
             {% if post.source_url %}
                 <p class="text-muted mt-3 mb-0">Fonte: <a href="{{ post.source_url }}">{{ post.source_url }}</a></p>
             {% endif %}

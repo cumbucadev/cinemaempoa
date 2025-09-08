@@ -11,6 +11,8 @@ from flask import (
 from werkzeug.exceptions import abort
 
 from flask_backend.repository import blog_posts
+import markdown
+
 
 bp = Blueprint("blog", __name__)
 
@@ -57,5 +59,5 @@ def show(slug):
     # If post is not published and user is not logged in, show 404
     if not post.published and not user_logged_in:
         abort(404)
-
-    return render_template("blog/show.html", post=post, show_unpublished=user_logged_in)
+    content_html = markdown.markdown(post.content)
+    return render_template("blog/show.html", post=post, show_unpublished=user_logged_in, content_html=content_html)
