@@ -12,34 +12,16 @@ from flask_backend.models import BlogPost, User
 @pytest.fixture()
 def app():
     """Create and configure a new app instance for each test."""
-    # Create a temporary file to serve as the database
-    db_fd, db_path = tempfile.mkstemp()
 
-    # Override the DATABASE_URL environment variable for testing
-    original_db_url = os.environ.get("DATABASE_URL")
-    os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
+    app = create_app({"TESTING": True})
 
-    try:
-        app = create_app({"TESTING": True})
+    # Create the database and tables
+    with app.app_context():
+        from flask_backend.db import init_db
 
-        # Create the database and tables
-        with app.app_context():
-            from flask_backend.db import init_db
+        init_db()
 
-            init_db()
-
-        yield app
-
-    finally:
-        # Clean up
-        os.close(db_fd)
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-        # Restore original DATABASE_URL
-        if original_db_url is not None:
-            os.environ["DATABASE_URL"] = original_db_url
-        elif "DATABASE_URL" in os.environ:
-            del os.environ["DATABASE_URL"]
+    yield app
 
 
 @pytest.fixture(autouse=True)
