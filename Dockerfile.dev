@@ -11,8 +11,8 @@ ENV LC_ALL pt_BR.UTF-8
 ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR.UTF-8
 
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY requirements.dev.txt .
+RUN pip3 install --no-cache-dir -r requirements.dev.txt
 
 # Install development dependencies
 RUN pip3 install --no-cache-dir debugpy
