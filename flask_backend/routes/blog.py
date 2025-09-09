@@ -55,7 +55,7 @@ def show(slug):
     if not post.published and not user_logged_in:
         abort(404)
     content_html = markdown.markdown(post.content)
-    show_updated_at = post.updated_at.date() != post.created_at.date()
+    show_updated_at = post.updated_at.date() != post.created_at.date() if post.updated_at else False
     return render_template(
         "blog/show.html",
         post=post,
