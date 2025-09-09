@@ -1,5 +1,6 @@
-import click
 import os
+
+import click
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
