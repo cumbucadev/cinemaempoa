@@ -111,18 +111,35 @@
                             </li>
                         </ul>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('blog.index') %}active{% endif %}"
+                           href="{{ url_for("blog.index") }}">Blog</a>
+                    </li>
                     {% if g.user %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
-                               href="{{ url_for("screening.import_screenings") }}">Importar
-                            sessões</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('screening.create') %}active{% endif %}"
-                               href="{{ url_for("screening.create") }}">Nova sessão</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">Admin</a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
+                                       href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
+                                       href="{{ url_for("screening.import_screenings") }}">Importar
+                                    sessões</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
+                                       href="{{ url_for("screening.create") }}">Nova sessão</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for("auth.logout") }}">Sair</a>
+                                </li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
@@ -161,19 +178,35 @@
                     </ul>
                 </li>
                 <div class="vr mx-3"></div>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == url_for('blog.index') %}active{% endif %}"
+                       href="{{ url_for("blog.index") }}">Blog</a>
+                </li>
+                <div class="vr mx-3"></div>
                 {% if g.user %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
-                           href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
-                    </li>
-                    <div class="vr mx-3"></div>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('screening.create') %}active{% endif %}"
-                           href="{{ url_for("screening.create") }}">Nova sessão</a>
-                    </li>
-                    <div class="vr mx-3"></div>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                    <li class="nav-item dropdown">
+                        <a href="#"
+                           class="nav-link dropdown-toggle"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">Admin</a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
+                                   href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
+                                   href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
+                                   href="{{ url_for("screening.create") }}">Nova sessão</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for("auth.logout") }}">Sair</a>
+                            </li>
+                        </ul>
                     </li>
                 {% else %}
                     <li class="nav-item">

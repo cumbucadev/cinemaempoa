@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}
+    Editar Post
+{% endblock title %}
+{% block header %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Post</li>
+        </ol>
+    </nav>
+    <h1>Editar Post</h1>
+{% endblock header %}
+{% block content %}
+    <form method="post">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Título *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="title"
+                           name="title"
+                           value="{{ request.form.get('title', post.title) }}"
+                           required>
+                </div>
+                <div class="mb-3">
+                    <label for="slug" class="form-label">Slug</label>
+                    <input type="text"
+                           class="form-control"
+                           id="slug"
+                           name="slug"
+                           value="{{ request.form.get('slug', post.slug) }}"
+                           placeholder="Deixe em branco para gerar automaticamente">
+                    <div class="form-text">
+                        URL amigável para o post. Se deixado em branco, será gerado automaticamente a partir do título.
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="excerpt" class="form-label">Resumo</label>
+                    <textarea class="form-control"
+                              id="excerpt"
+                              name="excerpt"
+                              rows="3"
+                              placeholder="Breve descrição do post">{{ request.form.get('excerpt', post.excerpt or '') }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="content" class="form-label">Conteúdo *</label>
+                    <textarea class="form-control" id="content" name="content" rows="15" required>{{ request.form.get('content', post.content) }}</textarea>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Configurações</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="published"
+                                       name="published"
+                                       {% if request.form.get('published', post.published) %}checked{% endif %}>
+                                <label class="form-check-label" for="published">Publicado</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="source_url" class="form-label">URL da Fonte</label>
+                            <input type="url"
+                                   class="form-control"
+                                   id="source_url"
+                                   name="source_url"
+                                   value="{{ request.form.get('source_url', post.source_url or '') }}"
+                                   placeholder="URL da imagem">
+                        </div>
+                        <div class="mb-3">
+                            <label for="featured_image" class="form-label">Imagem de Destaque</label>
+                            <input type="url"
+                                   class="form-control"
+                                   id="source_url"
+                                   name="featured_image"
+                                   value="{{ request.form.get('featured_image', post.featured_image or '') }}"
+                                   placeholder="URL da imagem">
+                        </div>
+                        <div class="mb-3">
+                            <label for="featured_image_alt" class="form-label">Texto Alternativo da Imagem</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="featured_image_alt"
+                                   name="featured_image_alt"
+                                   value="{{ request.form.get('featured_image_alt', post.featured_image_alt or '') }}"
+                                   placeholder="Descrição da imagem">
+                        </div>
+                        <hr>
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <strong>Criado:</strong>
+                                <br>
+                                {{ post.created_at.strftime("%d/%m/%Y às %H:%M") }}
+                            </small>
+                        </div>
+                        {% if post.updated_at %}
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <strong>Atualizado:</strong>
+                                    <br>
+                                    {{ post.updated_at.strftime("%d/%m/%Y às %H:%M") }}
+                                </small>
+                            </div>
+                        {% endif %}
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <strong>Autor:</strong>
+                                <br>
+                                {{ post.author.username }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between">
+            <div>
+                <a href="{{ url_for("admin_blog.index") }}" class="btn btn-secondary">Cancelar</a>
+                <a href="{{ url_for('blog.show', slug=post.slug) }}"
+                   class="btn btn-outline-info"
+                   target="_blank">Visualizar</a>
+            </div>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+    </form>
+{% endblock content %}

@@ -32,6 +32,7 @@ pathspec==0.12.1
 Pillow==10.0.0
 platformdirs==4.3.6
 pre-commit==3.7.0
+pytest==8.4.2
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 python-slugify==8.0.4

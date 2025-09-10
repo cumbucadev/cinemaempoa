@@ -1,3 +1,5 @@
+import os
+
 import click
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
@@ -5,7 +7,14 @@ from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
 from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABASE_URL
 
-engine = create_engine(DATABASE_URL)
+# TODO: This is a hack to get the database to work with pytest
+# see https://github.com/pytest-dev/pytest/issues/9502#issuecomment-2063572916
+# we should be able to change this in conftest.py app fixture
+if os.environ.get("PYTEST_VERSION"):
+    engine = create_engine("sqlite:///:memory:")
+else:
+    engine = create_engine(DATABASE_URL)
+
 db_session = scoped_session(
     sessionmaker(autocommit=False, autoflush=False, bind=engine)
 )

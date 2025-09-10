@@ -1,6 +1,15 @@
 from typing import List
 
-from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, relationship
 
 from flask_backend.db import Base
@@ -65,3 +74,22 @@ class ScreeningDate(Base):
     time = Column(String, nullable=True)
 
     screening: Mapped["Screening"] = relationship(back_populates="dates")
+
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False, index=True)
+    slug = Column(String, nullable=True, index=True)
+    content = Column(Text, nullable=False)
+    excerpt = Column(String, nullable=True)
+    source_url = Column(String, nullable=True)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=True)
+    published = Column(Boolean, nullable=False, default=False)
+    featured_image = Column(String, nullable=True)
+    featured_image_alt = Column(String, nullable=True)
+
+    author: Mapped["User"] = relationship()

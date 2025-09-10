@@ -120,6 +120,18 @@ Dentro do seu ambiente, rode o seguinte comando:
 flask --app flask_backend import-json /caminho/ate/o/arquivo.json
 ```
 
+### Testes automatizados
+
+O projeto possui alguns (poucos) testes automatizados. Certifique-se de que eles estão atualizados e passando sempre que você fizer alguma modificação no código.
+
+#### Testes do portal
+
+Veja o [README dos testes](./flask_backend/tests/README.md) do portal.
+
+#### Testes dos scrappers
+
+Veja os testes em [./tests](./tests/).
+
 <h2 id="contribuicoes">Contribuições</h2>
 
 Veja nossos [issues](https://github.com/guites/cinemaempoa/issues) pra entender o que está sendo feito no projeto.
