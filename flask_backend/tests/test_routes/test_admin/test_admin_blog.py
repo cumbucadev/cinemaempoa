@@ -262,7 +262,7 @@ class TestAdminBlogTogglePublish:
     ):
         """Test that admin blog toggle publish changes the published status."""
         # Initially published
-        assert test_blog_post["published"] == True
+        assert test_blog_post["published"]
 
         response = auth_headers.post(
             f'/admin/blog/{test_blog_post["id"]}/toggle-publish', follow_redirects=True

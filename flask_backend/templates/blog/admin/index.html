@@ -58,7 +58,7 @@
                                 <div class="btn-group btn-group-sm" role="group">
                                     <a href="{{ url_for('admin_blog.edit', post_id=post.id) }}"
                                        class="btn btn-outline-primary d-flex align-items-center">Editar</a>
-                                    <form method="POST"
+                                    <form method="post"
                                           action="{{ url_for('admin_blog.toggle_publish', post_id=post.id) }}"
                                           class="d-inline">
                                         <button type="submit"
@@ -70,7 +70,7 @@
                                             {% endif %}
                                         </button>
                                     </form>
-                                    <form method="POST"
+                                    <form method="post"
                                           action="{{ url_for('admin_blog.delete', post_id=post.id) }}"
                                           class="d-inline"
                                           onsubmit="return confirm('Tem certeza que deseja deletar este post?')">

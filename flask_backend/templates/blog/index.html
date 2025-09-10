@@ -17,6 +17,7 @@
                 <div class="col-md-6 col-lg-4 mb-4">
                     <article class="card h-100">
                         {% if post.featured_image %}
+                            {# djlint:off #}
                             <img src="{{ post.featured_image }}"
                                  class="card-img-top"
                                  loading="lazy"
@@ -24,6 +25,7 @@
                                  style="height: 200px;
                                         object-fit: cover;
                                         object-position: top center">
+                            {# djlint:on #}
                         {% endif %}
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">

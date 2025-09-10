@@ -40,10 +40,12 @@
                 </small>
             </div>
             {% if post.featured_image %}
+                {# djlint:off #}
                 <img src="{{ post.featured_image }}"
                      class="img-fluid rounded mb-3"
                      loading="lazy"
                      alt="{{ post.featured_image_alt or post.title }}">
+                {# djlint:on #}
             {% endif %}
         </header>
         <main class="text-break">
