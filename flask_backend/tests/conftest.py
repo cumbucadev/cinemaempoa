@@ -4,12 +4,16 @@ import pytest
 
 from flask_backend import create_app
 from flask_backend.db import db_session
+from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.models import BlogPost, User
+from flask_backend.utils.enums.environment import EnvironmentEnum
 
 
 @pytest.fixture()
 def app():
     """Create and configure a new app instance for each test."""
+    if APP_ENVIRONMENT == EnvironmentEnum.PRODUCTION:
+        pytest.exit("Absolutely no testing in production")
 
     app = create_app({"TESTING": True})
 
