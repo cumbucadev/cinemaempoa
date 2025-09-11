@@ -87,8 +87,8 @@
             <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('screening.index') %}active{% endif %}"
-                           href="{{ url_for("screening.index") }}">Hoje</a>
+                        <a class="nav-link {% if request.path == url_for('page.about') %}active{% endif %}"
+                           href="{{ url_for("page.about") }}">Sobre o projeto</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
@@ -151,8 +151,8 @@
             </div>
             <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link {% if request.path == url_for('screening.index') %}active{% endif %}"
-                       href="{{ url_for("screening.index") }}">Hoje</a>
+                    <a class="nav-link {% if request.path == url_for('page.about') %}active{% endif %}"
+                       href="{{ url_for("page.about") }}">Sobre o projeto</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
@@ -251,7 +251,7 @@
 <footer class="py-3 my-4 mt-auto">
     <ul class="nav justify-content-center border-bottom pb-3 mb-3">
         <li class="nav-item">
-            <a href="https://github.com/guites/cinemaempoa"
+            <a href="https://github.com/cumbucadev/cinemaempoa"
                class="nav-link px-2 text-muted">código fonte</a>
         </li>
         <li class="nav-item">

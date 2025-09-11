@@ -3,8 +3,7 @@ import os
 from flask import Flask, request, send_from_directory
 
 from flask_backend.db import db_session
-from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
-from flask_backend.utils.enums.environment import EnvironmentEnum
+from flask_backend.env_config import SESSION_KEY, UPLOAD_DIR
 
 
 def create_app(test_config=None):
@@ -56,6 +55,10 @@ def create_app(test_config=None):
     from .routes.admin import blog as admin_blog
 
     app.register_blueprint(admin_blog.bp)
+
+    from .routes import page
+
+    app.register_blueprint(page.bp)
 
     @app.route("/robots.txt")
     def static_from_root():
