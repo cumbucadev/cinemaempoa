@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description"
+          content="O cinemaempoa é um site que agrega os filmes em exibição nos cinemas alternativos de Porto Alegre. Atualizado diariamente, aqui você tem a programação centralizada dos cinemas CineBancários, Cinemateca Capitólio, Cinemateca Paulo Amorim e Sala Redenção. Saiba mais sobre como o projeto funciona.">
+{% endblock meta_tags %}
+{% block title %}
+    Sobre o Projeto
+{% endblock title %}
+{% block header %}
+    <h1>Sobre o projeto</h1>
+    <div class="alert alert-primary">
+        <p>
+            O cinemaempoa é um site que <strong>agrega os filmes em exibição</strong> nos cinemas alternativos de Porto Alegre.
+        </p>
+        <p class="mb-0">
+            Atualizado diariamente, aqui você tem a programação centralizada dos cinemas <strong>CineBancários, Cinemateca Capitólio, Cinemateca Paulo Amorim e Sala Redenção.</strong>
+        </p>
+    </div>
+{% endblock header %}
+{% block content %}
+    <h2>Por que esse projeto?</h2>
+    <p>
+        Porto Alegre é uma cidade única devido às suas salas de cinema. Dedicadas a uma variedade de filmes que marcaram a história do cinema, que possuem grande teor experimental, que registram a história de um país.
+    </p>
+    <p>
+        Estes filmes têm um teor cultural que educa, mistura e questiona as percepções de diferentes gerações com aquilo que foi produzido, trazendo a reflexão da história, mas também com aquilo que está em plena produção, através de filmes aos quais o público não teria acesso, se não fosse o trabalho destas salas.
+    </p>
+    <p>
+        E o acesso a tudo isso é feito de forma democrática, à moda dos antigos cinemas de rua, com ingressos a preços acessíveis e um convite ao público para conhecer as instalações, usando estratégias como eventos de entrada franca, mostras dedicadas ao público infantil, e exibições repetidas em diferentes turnos.
+    </p>
+    <p>
+        O cinemaempoa é um projeto que homenageia estas iniciativas, feita por quem chegou na capital e teve uma overdose de cultura (literalmente indo parar no capitólio bem numa sessão de <a href="https://www.capitolio.org.br/eventos/4434/beijo-ardente-overdose-online/">Beijo Ardente - Overdose</a>), e através dessas salas pôde aprender mais sobre filmes e a ampla produção cultural que acontece na cidade.
+    </p>
+    <h2>A proposta do projeto</h2>
+    <p>
+        A proposta central do projeto é auxiliar na divulgação dos cinemas alternativos de Porto Alegre e também criar uma base de dados aberta e colaborativa sobre os mesmos.
+    </p>
+    <p>Atualmente, o projeto engloba quatro cinemas:</p>
+    <ul>
+        <li>
+            <a href="https://cinebancarios.blogspot.com/">CineBancários</a>
+        </li>
+        <li>
+            <a href="https://www.capitolio.org.br/">Cinemateca Capitólio</a>
+        </li>
+        <li>
+            <a href="https://www.cinematecapauloamorim.com.br/">Cinemateca Paulo Amorim (na Casa de Cultura Mario Quintana)</a>
+        </li>
+        <li>
+            <a href="https://www.ufrgs.br/difusaocultural/salaredencao/">Sala Redenção</a>
+        </li>
+    </ul>
+    <p>
+        Através de técnicas de automatização, nós reunimos as informações sobre quais filmes estão em cartaz e quais seus horários de exibição, criando um ponto único de divulgação e consulta.
+    </p>
+    <img class="mw-100 h-auto"
+         alt="Diagrama de acesso do cinemaempoa nos sites dos cinemas"
+         src="{{ url_for('static', filename='cinemaempoa-robot.jpeg') }}"
+         loading="lazy"
+         width="1128"
+         height="600" />
+    <p>
+        Mas não basta registrar. Para manter o espírito das salas homenageadas, essa divulgação pretende-se <strong>aberta</strong>, de <strong>fácil acesso</strong>, <strong>acessível</strong> e <strong>respeitosa com a privacidade dos usuários</strong>.
+    </p>
+    <ul>
+        <li>
+            <strong>Aberta</strong>: a visualização das programações não deve exigir nenhum tipo de cadastro, nem restringir acesso a informação baseada em registro.
+        </li>
+        <li>
+            <strong>Fácil acesso</strong> significa que o site deve ser desenvolvido com foco em facilidade de uso, com informações e instruções claras e sempre fornecendo a fonte das informações mostradas. Facilidade também significa reduzir a quantidade de dados trafegados, permitindo o acesso de usuários com redes lentas, dados limitados ou dispositivos com baixa capacidade de processamento.
+        </li>
+        <li>
+            <strong>Acessível</strong> significa utilizar tecnologias que facilitam e promovem o acesso de usuários com deficiências ou limitações.
+        </li>
+        <li>
+            <strong>Respeitar a privacidade</strong> significa coletar o mínimo de dados de utilização, evitando qualquer forma de <em>tracking</em> ou <em>fingerprinting</em> que possa se mostrar danoso à privacidade dos usuários.
+        </li>
+    </ul>
+    <h2>Como participar</h2>
+    <strong>Compartilhe o site!</strong> Envie para amigos e conhecidos.
+    <style>
+        .side-by-side {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 16px;
+            max-width: 640px;
+        }
+
+        .side-by-side-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center
+        }
+
+        .side-by-side-img {
+            max-width: 320px
+        }
+
+        @media screen and (min-width:720px) {
+            .max-size-desktop {
+                max-width: 250px
+            }
+        }
+
+        @media screen and (max-width:720px) {
+            .side-by-side {
+                flex-direction: column
+            }
+
+            .side-by-side-responsive-reverse {
+                flex-direction: column-reverse
+            }
+        }
+    </style>
+    <div class="side-by-side">
+        <div class="side-by-side-text">
+            <strong>Compartilhe o site!</strong> Envie pra amigos e conhecidos.
+        </div>
+        <img class="side-by-side-img mw-100 h-auto"
+             width="502"
+             height="323"
+             src="{{ url_for('static', filename='tche-tu-ficou-crop.png') }}"
+             alt="Boneco de palitos segurando uma cuia: 'tchê tu ouviu falar do cinemaempoa.com.br?'">
+    </div>
+    <div class="side-by-side side-by-side-responsive-reverse">
+        <img class="side-by-side-img mw-100 h-auto"
+             width="501"
+             height="372"
+             src="{{ url_for('static', filename='mas-vi-um-crop-res.png') }}"
+             alt="Boneco de palitos com uma cartola: 'Mas vi um baita filme lá no Mario Quintana...">
+        <div class="side-by-side-text max-size-desktop">
+            <strong>Vá ao cinema!</strong> Não há forma melhor de apoiar as salas do que prestigiando as exibições.
+        </div>
+    </div>
+    <p>
+        <strong>Ajude no desenvolvimento!</strong> Se você é um desenvolvedor de software, seu trabalho pode facilitar o acesso à cultura de muita gente. Entre em contato com o nosso time através do <a href="https://github.com/cumbucadev/cinemaempoa">repositório do github</a>.
+    </p>
+    <p>
+        <strong>Escreva sobre cinema!</strong> Se você gosta de escrever críticas, resenhas ou reflexões sobre filmes e cinema, torne-se um escritor colaborador no nosso <a href="{{ url_for("blog.index") }}">blog</a>. Entre em contato conosco pelo e-mail <a href="mailto:cinemaempoa@guilhermegarcia.dev">cinemaempoa@guilhermegarcia.dev</a>.
+    </p>
+{% endblock content %}
