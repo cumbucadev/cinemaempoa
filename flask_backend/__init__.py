@@ -37,10 +37,6 @@ def create_app(test_config=None):
 
     commands.register_commands(app)
 
-    if APP_ENVIRONMENT == EnvironmentEnum.PRODUCTION:
-        db.init_db()
-        db.seed_db_prod()
-
     from .routes import auth
 
     app.register_blueprint(auth.bp)
