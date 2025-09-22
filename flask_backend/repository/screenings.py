@@ -136,3 +136,20 @@ def delete(
         db_session.delete(_date)
     db_session.delete(screening)
     db_session.commit()
+
+
+def get_weekend_screening_dates() -> Tuple[List[ScreeningDate], date, date, date]:
+    current_date = date.today()
+    curr_weekday = current_date.weekday()
+
+    # if we are on a weekend, we start from last friday
+    # if we are on a weekday, we start from the next friday
+    friday_date = current_date - timedelta(days=4 - curr_weekday)
+    saturday_date = friday_date + timedelta(days=1)
+    sunday_date = friday_date + timedelta(days=2)
+    return db_session.query(ScreeningDate).filter(
+        func.date(ScreeningDate.date) \
+            .between(friday_date, sunday_date)) \
+                .order_by(func.date(ScreeningDate.date)) \
+                .order_by(func.time(ScreeningDate.time)) \
+                .all(), friday_date, saturday_date, sunday_date
