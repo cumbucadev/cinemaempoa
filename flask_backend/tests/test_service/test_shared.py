@@ -21,6 +21,7 @@ class TestParseTimeToDatetimeString:
             "19h30",
             "13 de setembro | quarta-feira | 19h",
             "05 de setembro | terça-feira | 16h",
+            "22 de setembro | segunda-feira | 16h\n22 de setembro | segunda-feira | 19h"
         ]
         expected_outputs = [  # noqa: E231
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T15:00"],
@@ -41,6 +42,11 @@ class TestParseTimeToDatetimeString:
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T19:30"],
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T19:00"],
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T16:00"],
+            [
+                f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T16:00",
+                f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T19:00",
+            ]
+
         ]
         for idx, input_str in enumerate(input_strs):
             expected_output = expected_outputs[idx]
