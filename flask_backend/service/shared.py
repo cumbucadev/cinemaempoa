@@ -33,14 +33,22 @@ def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
 
     # check if time_str is in format DD de MMMM | dia-da-semana | HHhMM,
     # and save the match to a variable
-    format_match = re.match(
-        r"^\d{1,2} de \w+ \| [\w-]+ \| (\d{1,2}h?(?:\d{1,2})?)$", time_str
-    )
-    if format_match:
-        split_match = format_match.group(1).split("h")
-        if len(split_match) == 1 or split_match[1] == "":
-            return [f"{today_date}T{split_match[0]}:00"]
-        return [f"{today_date}T{split_match[0]}:{split_match[1]}"]
+    # there could be multiple "DD de MMMM | dia-da-semana | HHhMM" groups
+    # separated by a new line (when a movie scrapped from sala-redencao has multiple screenings on the same day)
+    time_list = time_str.split("\n")
+    time_matches = []
+    for time_item in time_list:
+        format_match = re.match(
+            r"^\d{1,2} de \w+ \| [\w-]+ \| (\d{1,2}h?(?:\d{1,2})?)$", time_item
+        )
+        if format_match:
+            split_match = format_match.group(1).split("h")
+            if len(split_match) == 1 or split_match[1] == "":
+                time_matches.append(f"{today_date}T{split_match[0]}:00")
+            else:
+                time_matches.append(f"{today_date}T{split_match[0]}:{split_match[1]}")
+    if len(time_matches) > 0:
+        return time_matches
 
     # check if time_str is in format HHhMM using regex
     if re.match(r"^\d{1,2}h\d{1,2}$", time_str):

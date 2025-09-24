@@ -53,7 +53,7 @@
 <body class="d-flex flex-column min-vh-100">
     <header id="header">
         {# djlint:off #}
-        <nav class="navbar mb-5" style="
+        <nav class="navbar" style="
                                                                                               background-color: var(--bs-content-bg);
                                                                                               border-bottom: var(--bs-border-width) solid
                                                                                                 var(--bs-content-border-color);
@@ -219,14 +219,33 @@
             </ul>
         </div>
     </nav>
+    <div class="container mb-5">
+        <a class="link-secondary link-underline link-underline-opacity-0" href="https://www.instagram.com/cinemaempoa">
+            <img id="instagram-black"
+                    src="{{ url_for('static', filename='instagram.svg') }}"
+                    alt="Instagram Logo"
+                    width="18"
+                    height="18"
+                    class="d-inline-block align-text-top mr-1" />
+            <img id="instagram-white"
+                    src="{{ url_for('static', filename='instagram-white.svg') }}"
+                    alt="Instagram Logo"
+                    width="18"
+                    height="18"
+                    class="d-inline-block align-text-top mr-1" />
+            cinemaempoa
+        </a>
+    </div>
     <script>
         const html = document.querySelector("html");
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
             html.setAttribute("data-bs-theme", "dark");
             document.getElementById("logo-black").remove();
+            document.getElementById("instagram-black").remove();
         } else {
             html.setAttribute("data-bs-theme", "light");
             document.getElementById("logo-white").remove();
+            document.getElementById("instagram-white").remove();
         }
     </script>
     <div class="container">
