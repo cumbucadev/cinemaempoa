@@ -31,8 +31,8 @@ from flask_backend.repository.screenings import (
     delete as delete_screening,
     get_days_screenings_by_cinema_id,
     get_month_screening_dates,
-    get_weekend_screening_dates,
     get_screening_by_id,
+    get_weekend_screening_dates,
     update as update_screening,
     update_screening_dates,
 )
@@ -109,8 +109,16 @@ def index():
 
 @bp.route("/weekend")
 def weekend():
-    screening_dates, friday_date, saturday_date, sunday_date = get_weekend_screening_dates()
-    return render_template("screening/weekend.html", screening_dates=screening_dates, friday_date=friday_date, saturday_date=saturday_date, sunday_date=sunday_date)
+    screening_dates, friday_date, saturday_date, sunday_date = (
+        get_weekend_screening_dates()
+    )
+    return render_template(
+        "screening/weekend.html",
+        screening_dates=screening_dates,
+        friday_date=friday_date,
+        saturday_date=saturday_date,
+        sunday_date=sunday_date,
+    )
 
 
 @bp.route("/program")

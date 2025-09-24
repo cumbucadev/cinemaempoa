@@ -12,11 +12,9 @@
 {% endblock header %}
 {% block content %}
     <p>Sessões programadas para o fim de semana. Atualizado toda semana com novas sessões.</p>
-    
     {% set friday_screenings = [] %}
     {% set saturday_screenings = [] %}
     {% set sunday_screenings = [] %}
-    
     {% for screening_date in screening_dates %}
         {% if screening_date.date.weekday() == 4 %}
             {% set _ = friday_screenings.append(screening_date) %}
@@ -26,91 +24,88 @@
             {% set _ = sunday_screenings.append(screening_date) %}
         {% endif %}
     {% endfor %}
-    
-        <!-- Friday -->
-        <div class="col-md-6 mb-4">
-            <h3 class="mb-3">Sexta-feira {{ friday_date.strftime("%d/%m") }}</h3>
-            {% if friday_screenings %}
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
+    <!-- Friday -->
+    <div class="col-md-6 mb-4">
+        <h3 class="mb-3">Sexta-feira {{ friday_date.strftime("%d/%m") }}</h3>
+        {% if friday_screenings %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Filme</th>
+                            <th>Cinema</th>
+                            <th>Horário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for screening_date in friday_screenings %}
                             <tr>
-                                <th>Filme</th>
-                                <th>Cinema</th>
-                                <th>Horário</th>
+                                <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
+                                <td>{{ screening_date.screening.cinema.name.replace('Cinemateca', '') }}</td>
+                                <td>{{ screening_date.time.replace(':', 'h') }}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {% for screening_date in friday_screenings %}
-                                <tr>
-                                    <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
-                                    <td>{{ screening_date.screening.cinema.name.replace("Cinemateca", "") }}</td>
-                                    <td>{{ screening_date.time.replace(':', 'h') }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="text-muted">Nenhuma sessão programada para sexta-feira.</p>
-            {% endif %}
-        </div>
-        
-        <!-- Saturday -->
-        <div class="col-md-6 mb-4">
-            <h3 class="mb-3">Sábado {{ saturday_date.strftime("%d/%m") }}</h3>
-            {% if saturday_screenings %}
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">Nenhuma sessão programada para sexta-feira.</p>
+        {% endif %}
+    </div>
+    <!-- Saturday -->
+    <div class="col-md-6 mb-4">
+        <h3 class="mb-3">Sábado {{ saturday_date.strftime("%d/%m") }}</h3>
+        {% if saturday_screenings %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Filme</th>
+                            <th>Cinema</th>
+                            <th>Horário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for screening_date in saturday_screenings %}
                             <tr>
-                                <th>Filme</th>
-                                <th>Cinema</th>
-                                <th>Horário</th>
+                                <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
+                                <td class="cinema-cell">{{ screening_date.screening.cinema.name.replace('Cinemateca', '') }}</td>
+                                <td>{{ screening_date.time.replace(':', 'h') }}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {% for screening_date in saturday_screenings %}
-                                <tr>
-                                    <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
-                                    <td class="cinema-cell">{{ screening_date.screening.cinema.name.replace("Cinemateca", "") }}</td>
-                                    <td>{{ screening_date.time.replace(':', 'h') }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="text-muted">Nenhuma sessão programada para sábado.</p>
-            {% endif %}
-        </div>
-        
-        <!-- Sunday -->
-        <div class="col-md-6 mb-4">
-            <h3 class="mb-3">Domingo {{ sunday_date.strftime("%d/%m") }}</h3>
-            {% if sunday_screenings %}
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">Nenhuma sessão programada para sábado.</p>
+        {% endif %}
+    </div>
+    <!-- Sunday -->
+    <div class="col-md-6 mb-4">
+        <h3 class="mb-3">Domingo {{ sunday_date.strftime("%d/%m") }}</h3>
+        {% if sunday_screenings %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Filme</th>
+                            <th>Cinema</th>
+                            <th>Horário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for screening_date in sunday_screenings %}
                             <tr>
-                                <th>Filme</th>
-                                <th>Cinema</th>
-                                <th>Horário</th>
+                                <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
+                                <td class="cinema-cell">{{ screening_date.screening.cinema.name.replace('Cinemateca', '') }}</td>
+                                <td>{{ screening_date.time.replace(':', 'h') }}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {% for screening_date in sunday_screenings %}
-                                <tr>
-                                    <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
-                                    <td class="cinema-cell">{{ screening_date.screening.cinema.name.replace("Cinemateca", "") }}</td>
-                                    <td>{{ screening_date.time.replace(':', 'h') }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="text-muted">Nenhuma sessão programada para domingo.</p>
-            {% endif %}
-        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">Nenhuma sessão programada para domingo.</p>
+        {% endif %}
+    </div>
 {% endblock content %}

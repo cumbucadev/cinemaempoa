@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from flask_backend.db import db_session
 from flask_backend.models import Cinema, Screening, ScreeningDate
+from flask_backend.service.shared import get_weekend_dates
 
 
 def get_screening_by_id(screening_id: int) -> Optional[Screening]:
@@ -140,16 +141,15 @@ def delete(
 
 def get_weekend_screening_dates() -> Tuple[List[ScreeningDate], date, date, date]:
     current_date = date.today()
-    curr_weekday = current_date.weekday()
+    friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
 
-    # if we are on a weekend, we start from last friday
-    # if we are on a weekday, we start from the next friday
-    friday_date = current_date - timedelta(days=4 - curr_weekday)
-    saturday_date = friday_date + timedelta(days=1)
-    sunday_date = friday_date + timedelta(days=2)
-    return db_session.query(ScreeningDate).filter(
-        func.date(ScreeningDate.date) \
-            .between(friday_date, sunday_date)) \
-                .order_by(func.date(ScreeningDate.date)) \
-                .order_by(func.time(ScreeningDate.time)) \
-                .all(), friday_date, saturday_date, sunday_date
+    return (
+        db_session.query(ScreeningDate)
+        .filter(func.date(ScreeningDate.date).between(friday_date, sunday_date))
+        .order_by(func.date(ScreeningDate.date))
+        .order_by(func.time(ScreeningDate.time))
+        .all(),
+        friday_date,
+        saturday_date,
+        sunday_date,
+    )
