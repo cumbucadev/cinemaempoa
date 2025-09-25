@@ -125,7 +125,7 @@ class SalaRedencao:
         content_inner = blog_post_soup.find("div", class_="content-inner")
         p_tags = content_inner.find_all("p")
         feats = []
-        pattern = r"([\w\s]+)\([Dd]ir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)"
+        pattern = r"([,\w\s]+)\([Dd]ir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)"
         for p_tag in p_tags:
             matches = re.findall(pattern, p_tag.text, re.DOTALL)
             for movie in matches:
