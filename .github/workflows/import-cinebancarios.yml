@@ -1,4 +1,4 @@
-name: Run Spiders
+name: Import CineBancarios
 
 on:
   schedule:
