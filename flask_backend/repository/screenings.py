@@ -142,7 +142,7 @@ def delete(
 def get_weekend_screening_dates() -> Tuple[List[ScreeningDate], date, date, date]:
     current_date = date.today()
     friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
-
+    # TODO: do not return dates from screenings that are drafted
     return (
         db_session.query(ScreeningDate)
         .filter(func.date(ScreeningDate.date).between(friday_date, sunday_date))
