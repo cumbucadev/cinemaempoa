@@ -378,8 +378,7 @@ class SalaRedencao:
     def get_daily_features_json(self) -> str:
         self._get_events_blog_post_url()
         features = self._get_events_blog_post_html()
-        if len(features) == 0:
-            # try to fetch events from official Google Calendar from Sala Redenção
-            gcal = self._fetch_google_calendar()
-            features = self._parse_google_calendar_events(gcal)
-        return features
+        # try to fetch events from official Google Calendar from Sala Redenção
+        gcal = self._fetch_google_calendar()
+        gcal_features = self._parse_google_calendar_events(gcal)
+        return features + gcal_features
