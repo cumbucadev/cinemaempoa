@@ -12,6 +12,7 @@
 {% endblock header %}
 {% block content %}
     <p>Sessões programadas para o mês atual. Atualizado diariamente com novas sessões.</p>
+    <p><a href="{{ url_for('screening.weekend') }}" class="alert-link">Veja o que está programado para o fim de semana.</a></p>
     <div class="mb-3">
         {% for cinema in cinemas %}
             <div class="form-check form-check-inline">

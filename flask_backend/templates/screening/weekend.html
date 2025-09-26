@@ -9,9 +9,17 @@
             Fim de Semana
         {% endblock title %}
     </h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for("screening.programacao") }}">Programação</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Fim de Semana</li>
+        </ol>
+    </nav>
 {% endblock header %}
 {% block content %}
-    <p>Sessões programadas para o fim de semana. Atualizado toda semana com novas sessões.</p>
+    <p>Filmes que vão passar nos cinemas alternativos de Porto Alegre nesse fim de semana (sexta, sábado e domingo).</p>
     {% set friday_screenings = [] %}
     {% set saturday_screenings = [] %}
     {% set sunday_screenings = [] %}
