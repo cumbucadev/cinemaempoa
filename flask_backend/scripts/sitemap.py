@@ -25,6 +25,7 @@ def sitemap():
     # pages from routes.screening
     urls.append(absolute_url("screening.index"))
     urls.append(absolute_url("screening.programacao"))
+    urls.append(absolute_url("screening.weekend"))
 
     # pages that are not related to any specific resources
     urls.append(absolute_url("page.about"))
