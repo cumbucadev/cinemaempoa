@@ -145,7 +145,7 @@ def get_weekend_screening_dates() -> Tuple[List[ScreeningDate], date, date, date
     return (
         db_session.query(ScreeningDate)
         .join(Screening)
-        .filter(Screening.draft == False)
+        .filter(Screening.draft == False)  # noqa: E712
         .filter(func.date(ScreeningDate.date).between(friday_date, sunday_date))
         .order_by(func.date(ScreeningDate.date))
         .order_by(func.time(ScreeningDate.time))

@@ -48,7 +48,7 @@
                     <tbody>
                         {% for screening_date in friday_screenings %}
                             <tr>
-                                <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
+                                {# djlint:off #}<td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>{# djlint:on #}
                                 <td>{{ screening_date.screening.cinema.name.replace('Cinemateca', '') }}</td>
                                 <td>{{ screening_date.time.replace(':', 'h') }}</td>
                             </tr>
@@ -76,7 +76,7 @@
                     <tbody>
                         {% for screening_date in saturday_screenings %}
                             <tr>
-                                <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
+                                {# djlint:off #}<td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>{# djlint:on #}
                                 <td class="cinema-cell">{{ screening_date.screening.cinema.name.replace('Cinemateca', '') }}</td>
                                 <td>{{ screening_date.time.replace(':', 'h') }}</td>
                             </tr>
@@ -104,7 +104,7 @@
                     <tbody>
                         {% for screening_date in sunday_screenings %}
                             <tr>
-                                <td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>
+                                {# djlint:off #}<td style="max-width: 270px;">{{ screening_date.screening.movie.title }}</td>{# djlint:on #}
                                 <td class="cinema-cell">{{ screening_date.screening.cinema.name.replace('Cinemateca', '') }}</td>
                                 <td>{{ screening_date.time.replace(':', 'h') }}</td>
                             </tr>
