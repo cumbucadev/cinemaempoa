@@ -1,14 +1,14 @@
-name: Run Spiders
+name: Import CineBancarios
 
 on:
   schedule:
-    - cron: "0 3,15 * * *" # At 03:00 and 15:00 UTC every day (every 12 hours)
+    - cron: "0 3 * * 4" # At 03:00 UTC every thursday (every 7 days)
   workflow_dispatch:
 
 jobs:
-  run-spiders:
+  import-cinebancarios:
     if: ${{ github.repository == 'cumbucadev/cinemaempoa' }}
-    name: Run Spiders
+    name: Import CineBancarios
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -19,5 +19,5 @@ jobs:
           username:  ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           script: |
-            docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r capitolio sala-redencao paulo-amorim > /app/import.json"
+            docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r cinebancarios > /app/import.json"
             docker exec cinemaempoa_flask bash -c "flask --app flask_backend import-json /app/import.json"

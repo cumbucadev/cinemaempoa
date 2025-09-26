@@ -125,7 +125,7 @@ class SalaRedencao:
         content_inner = blog_post_soup.find("div", class_="content-inner")
         p_tags = content_inner.find_all("p")
         feats = []
-        pattern = r"([\w\s]+)\([Dd]ir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)"
+        pattern = r"([,\w\s]+)\([Dd]ir\. ([\w\s]+) \| ([\w\s]+) \| (\d{4}) \| (\d+ min)"
         for p_tag in p_tags:
             matches = re.findall(pattern, p_tag.text, re.DOTALL)
             for movie in matches:
@@ -378,8 +378,7 @@ class SalaRedencao:
     def get_daily_features_json(self) -> str:
         self._get_events_blog_post_url()
         features = self._get_events_blog_post_html()
-        if len(features) == 0:
-            # try to fetch events from official Google Calendar from Sala Redenção
-            gcal = self._fetch_google_calendar()
-            features = self._parse_google_calendar_events(gcal)
-        return features
+        # try to fetch events from official Google Calendar from Sala Redenção
+        gcal = self._fetch_google_calendar()
+        gcal_features = self._parse_google_calendar_events(gcal)
+        return features + gcal_features
