@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from flask_backend.service.shared import parse_to_datetime_string
+from flask_backend.service.shared import get_weekend_dates, parse_to_datetime_string
 
 
 class TestParseTimeToDatetimeString:
@@ -50,3 +50,54 @@ class TestParseTimeToDatetimeString:
         for idx, input_str in enumerate(input_strs):
             expected_output = expected_outputs[idx]
             assert parse_to_datetime_string(input_str) == expected_output
+
+
+class TestGetWeekendDates:
+    def test_get_weekend_dates_on_a_monday(self):
+        current_date = date(2025, 9, 22)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)
+
+    def test_get_weekend_dates_on_a_tuesday(self):
+        current_date = date(2025, 9, 24)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)
+
+    def test_get_weekend_dates_on_a_wednesday(self):
+        current_date = date(2025, 9, 25)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)
+
+    def test_get_weekend_dates_on_a_thursday(self):
+        current_date = date(2025, 9, 26)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)
+
+    def test_get_weekend_dates_on_a_friday(self):
+        current_date = date(2025, 9, 27)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)
+
+    def test_get_weekend_dates_on_a_saturday(self):
+        current_date = date(2025, 9, 28)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)
+
+    def test_get_weekend_dates_on_a_sunday(self):
+        current_date = date(2025, 9, 28)
+        friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+        assert friday_date == date(2025, 9, 26)
+        assert saturday_date == date(2025, 9, 27)
+        assert sunday_date == date(2025, 9, 28)

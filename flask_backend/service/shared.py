@@ -1,8 +1,8 @@
 """Functions not bound to any specific database model"""
 
 import re
-from datetime import datetime
-from typing import List, Optional
+from datetime import date, datetime, timedelta
+from typing import List, Optional, Tuple
 
 
 def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
@@ -70,3 +70,13 @@ def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
         return [f"{today_date}T{time_str[:-1]}:00"]
 
     return None
+
+
+def get_weekend_dates(current_date: date) -> Tuple[date, date, date]:
+    # if we are on a weekend, we start from last friday
+    # if we are on a weekday, we start from the next friday
+    curr_weekday = current_date.weekday()
+    friday_date = current_date + timedelta(days=4 - curr_weekday)
+    saturday_date = friday_date + timedelta(days=1)
+    sunday_date = friday_date + timedelta(days=2)
+    return friday_date, saturday_date, sunday_date
