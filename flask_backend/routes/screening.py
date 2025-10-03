@@ -99,11 +99,23 @@ def index():
                 }
             )
         cinemas_with_screenings.append(cinema_obj)
+
+    alert_html = "<p class='mb-0'>O cinemaempoa <strong>mostra os filmes em exibição</strong> no "
+    qtt_links = len(quicklinks)
+    for idx, link in enumerate(quicklinks):
+        alert_html += f"<a href='#{link[0]}' class='alert-link'>{ link[1] }</a>"
+        if qtt_links > 0 and idx < len(quicklinks) - 1:
+            if idx < len(quicklinks) - 2:
+                alert_html += ", "
+            else:
+                alert_html += " e "
+    alert_html += " em Porto Alegre. <a href='/about'>Saiba mais.</a></p>"
+
     return render_template(
         "screening/index.html",
         cinemas_with_screenings=cinemas_with_screenings,
         today=datetime.now().strftime("%d/%m/%Y"),
-        quicklinks=quicklinks,
+        alert_html=alert_html,
     )
 
 

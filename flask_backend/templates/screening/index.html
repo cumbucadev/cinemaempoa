@@ -5,31 +5,15 @@
           content="Saiba quais filmes estão nas salas de cinema alternativo em Porto Alegre: {{ cinemas_list }}.">
 {% endblock meta_tags %}
 {% block header %}
+    {# djlint:off #}<div style="width: fit-content;" class="alert alert-primary">{{ alert_html | safe }}</div>{# djlint:on #}
     <h1>
         {% block title %}
-            Hoje
+            Programação do dia
         {% endblock title %}
     </h1>
     <p>
         Filmes em cartaz hoje, <time><strong>{{ today }}</strong></time>, em Porto Alegre.
     </p>
-    <div class="dropdown mb-5">
-        <a href="#"
-           class="btn btn-link dropdown-toggle"
-           role="button"
-           data-bs-toggle="dropdown"
-           aria-expanded="false">Acesso rápido</a>
-        <ul class="dropdown-menu">
-            <li>
-                <h6 class="dropdown-header">Ir para...</h6>
-            </li>
-            {% for link in quicklinks %}
-                <li>
-                    <a href="#{{ link[0] }}" class="dropdown-item">{{ link[1] }}</a>
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
 {% endblock header %}
 {% block content %}
     {% for cinema in cinemas_with_screenings %}
