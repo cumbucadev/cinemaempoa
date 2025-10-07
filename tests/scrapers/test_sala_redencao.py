@@ -74,7 +74,7 @@ class TestSalaRedencao(unittest.TestCase):
     def test_get_daily_features_json(self):
         salaRedencao = SalaRedencao(date="2025-09-02")
         features = salaRedencao.get_daily_features_json()
-        
+
         assert len(features) == 54
         titles = [f["title"] for f in features]
         self.assertIn("Nu entre lobos", titles)
