@@ -19,7 +19,7 @@ O projeto encoraja contribuições (veja [Contribuições](#contribuicoes)).
 
 O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para coleção de dados e `flask_backend/`, onde fica o código do portal.
 
-O projeto foi desenvolvido em Python 3.10 e necessita que esta versão esteja instalada, pois não funciona em algumas versões superiores.
+Este projeto requer Python 3.10.x ou 3.11.x. Versões superiores não são suportadas no momento. Recomendamos utilizar a série 3.10 (por exemplo, 3.10.19).
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 
@@ -29,7 +29,7 @@ A instalação recomendada é usando um [ambiente virtual (venv)](https://docs.p
 
     python3 -m venv .venv
     source .venv/bin/activate
-    pip3 install -r requirements.dev.txt
+    pip3 install -r requirements.txt
 
 ### Instalando o projeto usando Docker
 
