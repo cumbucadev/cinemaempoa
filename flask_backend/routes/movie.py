@@ -18,12 +18,15 @@ bp = Blueprint("movie", __name__)
 def index():
     user_logged_in = g.user is not None
     try:
+        movie = request.args.get("movie", "")
         page = int(request.args.get("page", 1))
         limit = int(request.args.get("limit", 10))
     except ValueError:
         abort(400)
 
-    movies, pages, qtt_movies = get_all_movies_paginated(page, limit, user_logged_in)
+    movies, pages, qtt_movies = get_all_movies_paginated(
+        movie, page, limit, user_logged_in
+    )
     colors = {
         "capitolio": "#911eb4",
         "sala-redencao": "#000075",
@@ -40,6 +43,7 @@ def index():
         curr_page=page,
         prev_page=prev_page,
         next_page=next_page,
+        movie=movie,
         pages=pages,
         limit=limit,
         qtt_movies=qtt_movies,
