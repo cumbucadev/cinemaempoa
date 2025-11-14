@@ -9,8 +9,26 @@
             Filmes
         {% endblock title %}
     </h1>
-    <p>Filmes que já passaram nas cinematecas de Porto Alegre.</p>
-    <p>Total de filmes registrados: {{ qtt_movies }}.</p>
+    <div class="d-flex flex-column flex-sm-row justify-content-between mb-3">
+        <div class="me-3">
+            <p>Filmes que já passaram nas cinematecas de Porto Alegre.</p>
+            <p>Total de filmes encontrados: {{ qtt_movies }}.</p>
+        </div>
+        <form class="d-flex align-items-end mb-3"
+              action="{{ url_for("movie.index") }}"
+              method="get">
+            <div class="specific-w-250 me-2">
+                <label class="form-label pb-1" for="movie">Buscar por filme</label>
+                <input type="text"
+                       class="form-control me-2 p-2"
+                       name="movie"
+                       id="movie"
+                       placeholder="Digite o nome do filme..."
+                       value="{{ movie }}">
+            </div>
+            <button class="h-auto btn btn-primary p-2" type="submit">Buscar</button>
+        </form>
+    </div>
 {% endblock header %}
 {% block content %}
     <div class="container d-flex">
@@ -68,15 +86,18 @@
     <nav aria-label="Navegação das páginas de filmes">
         <ul class="pagination">
             <li class="page-item {{ '' if prev_page else 'disabled' }}">
-                <a class="page-link" href="?page={{ prev_page }}&limit={{ limit }}">Anterior</a>
+                <a class="page-link"
+                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ prev_page }}&limit={{ limit }}">Anterior</a>
             </li>
             {% for page in range(1, pages + 1) %}
                 <li class="page-item {{ 'active' if curr_page == page }}">
-                    <a class="page-link" href="?page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                    <a class="page-link"
+                       href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
                 </li>
             {% endfor %}
             <li class="page-item {{ '' if next_page else 'disabled' }}">
-                <a class="page-link" href="?page={{ next_page }}&limit={{ limit }}">Próximo</a>
+                <a class="page-link"
+                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ next_page }}&limit={{ limit }}">Próximo</a>
             </li>
         </ul>
     </nav>
