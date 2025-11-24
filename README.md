@@ -69,6 +69,10 @@ Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto atra
 
 O projeto vai rodar em <http://localhost:5000>.
 
+**Nota para usuários macOS:** Se você estiver usando macOS e encontrar um erro 403 ao reiniciar a aplicação, a porta 5000 pode estar sendo usada pelo AirPlay Receiver. Nesse caso, use uma porta alternativa:
+
+    flask --app flask_backend run --debug --port=5001
+
 Se você rodou o comando para popular o banco de dados, vai ter um usuário admin criado com login: cinemaempoa e senha: 123123.
 
 Você pode fazer login via <http://localhost:5000/auth/login>.
