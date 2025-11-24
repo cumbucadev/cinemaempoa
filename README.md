@@ -73,6 +73,35 @@ Se você rodou o comando para popular o banco de dados, vai ter um usuário admi
 
 Você pode fazer login via <http://localhost:5000/auth/login>.
 
+### Migrações do Banco de Dados
+
+O projeto utiliza [Alembic](https://alembic.sqlalchemy.org/) para gerenciar migrações do banco de dados. Isso permite que alterações no schema sejam versionadas e aplicadas de forma controlada.
+
+#### Comandos disponíveis:
+
+- `flask --app flask_backend init-db` - Aplica todas as migrações pendentes (inicializa ou atualiza o banco)
+- `flask --app flask_backend db-upgrade [revision]` - Aplica migrações até uma revisão específica (padrão: head)
+- `flask --app flask_backend db-downgrade [revision]` - Reverte migrações até uma revisão específica
+- `flask --app flask_backend db-revision --autogenerate -m "mensagem"` - Cria uma nova migração automaticamente baseada nas mudanças nos modelos
+- `flask --app flask_backend db-current` - Mostra a revisão atual do banco de dados
+- `flask --app flask_backend db-history` - Mostra o histórico de migrações
+
+#### Criando uma nova migração:
+
+Quando você modificar os modelos em `flask_backend/models.py`, crie uma nova migração:
+
+    flask --app flask_backend db-revision --autogenerate -m "Descrição da mudança"
+
+Revise o arquivo gerado em `migrations/versions/` antes de aplicar:
+
+    flask --app flask_backend db-upgrade
+
+#### Em produção:
+
+Ao fazer deploy, sempre execute as migrações antes de iniciar a aplicação:
+
+    flask --app flask_backend db-upgrade
+
 ### Utilizando os scrappers
 
 Os scrappers podem ser disparados através da interface web na URL <http://127.0.0.1:5000/screening/import>, clicando no botão "Fazer Scrapping dos cinemas selecionados".
