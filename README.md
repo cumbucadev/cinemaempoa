@@ -19,7 +19,7 @@ O projeto encoraja contribuições (veja [Contribuições](#contribuicoes)).
 
 O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para coleção de dados e `flask_backend/`, onde fica o código do portal.
 
-O projeto foi desenvolvido em Python 3.10 e funciona com qualquer versão superior.
+Este projeto requer Python 3.10.x ou 3.11.x. Versões superiores não são suportadas no momento. Recomendamos utilizar a série 3.10 (por exemplo, 3.10.19).
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 
@@ -45,7 +45,7 @@ Ao utilizar o docker, os comandos mencionados na seção seguinte devem ser roda
 Antes de abrir um Pull Request, rode os comandos abaixo no seu terminal para validar e formatar o código:
 
 ```bash
-ruff check # roda o linter para código python
+ruff check --fix # roda o linter para código python
 ruff format # roda o formatter para código python
 djlint flask_backend/templates --lint --profile=jinja # roda o linter para os arquivos .html
 djlint --reformat flask_backend/templates --format-css --format-js # roda o formatter para os arquivos .html
@@ -59,7 +59,7 @@ Para utilizá-lo, instale com:
 
 ### Rodando o projeto
 
-Para rodar o portal, você vai precisar de três comando (todos rodados a partir da raíz do projeto):
+Para rodar o portal, você vai precisar de três comandos (todos rodados a partir da raíz do projeto):
 
     flask --app flask_backend init-db # inicializa as tabelas no banco de dados
     flask --app flask_backend seed-db # optional: popula o banco com dados iniciais
@@ -68,6 +68,10 @@ Para rodar o portal, você vai precisar de três comando (todos rodados a partir
 Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto através do docker de desenvolvimento (docker-compose.dev.yml).
 
 O projeto vai rodar em <http://localhost:5000>.
+
+**Nota para usuários macOS:** Se você estiver usando macOS e encontrar um erro 403 ao reiniciar a aplicação, a porta 5000 pode estar sendo usada pelo AirPlay Receiver. Nesse caso, use uma porta alternativa:
+
+    flask --app flask_backend run --debug --port=5001
 
 Se você rodou o comando para popular o banco de dados, vai ter um usuário admin criado com login: cinemaempoa e senha: 123123.
 
@@ -110,6 +114,28 @@ Lá, selecione o arquivo gerado na etapa anterior e clique em **Enviar**.
 
 As sessões importadas vão estar disponíveis na home.
 
+### Importando dados pela linha de comandos
+
+Uma alternativa a importação via portal é utilizando a linha de comando.
+
+Dentro do seu ambiente, rode o seguinte comando:
+
+```
+flask --app flask_backend import-json /caminho/ate/o/arquivo.json
+```
+
+### Testes automatizados
+
+O projeto possui alguns (poucos) testes automatizados. Certifique-se de que eles estão atualizados e passando sempre que você fizer alguma modificação no código.
+
+#### Testes do portal
+
+Veja o [README dos testes](./flask_backend/tests/README.md) do portal.
+
+#### Testes dos scrappers
+
+Veja os testes em [./tests](./tests/).
+
 <h2 id="contribuicoes">Contribuições</h2>
 
 Veja nossos [issues](https://github.com/guites/cinemaempoa/issues) pra entender o que está sendo feito no projeto.
@@ -126,4 +152,15 @@ Os arquivos usados para o deployment são:
 - docker-compose.production.yml
 - Dockerfile.prod
 
-A cada novo merge no branch principal, eu entro na máquina virtual, puxo as alterações e depois reinicio o servidor.
+A cada novo merge no branch principal, o workflow em `.github/workflows/deploy-server.yml` faz o processo de atualização do servidor.
+
+## Backups do banco de dados
+
+Diariamente uma cópia do banco de dados é enviada para o google drive em <https://drive.google.com/drive/u/0/folders/1f9qFHb2Fxdg_EGg3Vq4W-leDaGed9kXk>.
+
+O processo é automatizado pelo script `backup-db.sh` em um _cronjob_ na máquina virtual.
+
+```
+$ crontab -l
+55 23 * * * cd /home/ubuntu/cinemaempoa && ./backup-db.sh
+```

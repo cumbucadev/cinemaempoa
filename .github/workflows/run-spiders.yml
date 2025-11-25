@@ -1,0 +1,23 @@
+name: Run Spiders
+
+on:
+  schedule:
+    - cron: "0 3,15 * * *" # At 03:00 and 15:00 UTC every day (every 12 hours)
+  workflow_dispatch:
+
+jobs:
+  run-spiders:
+    if: ${{ github.repository == 'cumbucadev/cinemaempoa' }}
+    name: Run Spiders
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username:  ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r capitolio sala-redencao paulo-amorim > /app/import.json"
+            docker exec cinemaempoa_flask bash -c "flask --app flask_backend import-json /app/import.json"

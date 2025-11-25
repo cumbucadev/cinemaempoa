@@ -1,4 +1,3 @@
-import locale
 import os
 import re
 import unicodedata
@@ -64,50 +63,57 @@ class CinematecaPauloAmorim:
     def _get_movies_on_programacao(self):
         # if a movie is listed under programacao, we
         # assume it is being featured that week
-        programacao_html = self._get_page_html(
-            os.path.join(self.todays_dir, "programacao.html"), self.programacao_url
-        )
-        programacao_soup = BeautifulSoup(programacao_html, "html.parser")
-        ticket_links = programacao_soup.css.select("a.link-default > .ticket")
-        movies = []
-        for ticket_link in ticket_links:
-            genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
-                ".generos"
+        programacao_page = 1
+        while True:
+            programacao_html = self._get_page_html(
+                os.path.join(self.todays_dir, f"programacao{programacao_page}.html"),
+                f"{self.programacao_url}/pag/{programacao_page}",
             )
-            if genre is not None:
-                genre = genre.text.strip("\n")
-
-            movie = {
-                "poster": ticket_link.css.select_one(".ticket-foto")["style"]
-                .replace(
-                    "background-image:url(", "https://www.cinematecapauloamorim.com.br/"
+            programacao_soup = BeautifulSoup(programacao_html, "html.parser")
+            ticket_links = programacao_soup.css.select("a.link-default > .ticket")
+            if len(ticket_links) == 0:
+                break
+            movies = []
+            for ticket_link in ticket_links:
+                genre = ticket_link.css.select_one(".ticket-foto").css.select_one(
+                    ".generos"
                 )
-                .rstrip(")"),
-                "title": ticket_link.css.select_one("h5").text,
-                "general_info": ticket_link.css.select_one("h5")
-                .parent.find_next_sibling()
-                .find_next_sibling()
-                .text.strip()
-                .replace("\t", ""),
-                "director": ticket_link.css.select_one("h5")
-                .parent.find_next_sibling()
-                .text.strip("\n"),
-                "classification": ticket_link.css.select_one(".ticket-foto")
-                .css.select_one(".classificacao")
-                .text.strip("\n")
-                .replace("\n", " "),
-                "excerpt": "",
-                "time": [],
-                "read_more": f"{self.url}/{ticket_link.parent['href']}",
-                "genre": genre,
-                "room": ticket_link.css.select_one("h5")
-                .parent.find_next_sibling()
-                .find_next_sibling()
-                .find_next_sibling()
-                .text.strip("\n"),
-            }
-            movies.append(movie)
-        self.movies = movies
+                if genre is not None:
+                    genre = genre.text.strip("\n")
+
+                movie = {
+                    "poster": ticket_link.css.select_one(".ticket-foto")["style"]
+                    .replace(
+                        "background-image:url(",
+                        "https://www.cinematecapauloamorim.com.br/",
+                    )
+                    .rstrip(")"),
+                    "title": ticket_link.css.select_one("h5").text,
+                    "general_info": ticket_link.css.select_one("h5")
+                    .parent.find_next_sibling()
+                    .find_next_sibling()
+                    .text.strip()
+                    .replace("\t", ""),
+                    "director": ticket_link.css.select_one("h5")
+                    .parent.find_next_sibling()
+                    .text.strip("\n"),
+                    "classification": ticket_link.css.select_one(".ticket-foto")
+                    .css.select_one(".classificacao")
+                    .text.strip("\n")
+                    .replace("\n", " "),
+                    "excerpt": "",
+                    "time": [],
+                    "read_more": f"{self.url}/{ticket_link.parent['href']}",
+                    "genre": genre,
+                    "room": ticket_link.css.select_one("h5")
+                    .parent.find_next_sibling()
+                    .find_next_sibling()
+                    .find_next_sibling()
+                    .text.strip("\n"),
+                }
+                movies.append(movie)
+            self.movies = self.movies + movies
+            programacao_page += 1
 
     def _get_movie_excerpt(self):
         for movie in self.movies:
@@ -144,12 +150,184 @@ class CinematecaPauloAmorim:
                 .text
             )
 
-    def _get_movies_from_table(self, feature_timetable):
+    def _parse_date_from_strong_text(self, strong_text):
+        """Parse date from strong tag text like '30 de julho – quarta-feira' or '8 de dezembro | sexta'"""
+        # Normalize the text
+        normalized_text = unicodedata.normalize("NFKC", strong_text.lower())
+
+        # Extract the date part (before the separator)
+        if "–" in normalized_text:
+            date_part = normalized_text.split("–")[0].strip()
+        elif "|" in normalized_text:
+            date_part = normalized_text.split("|")[0].strip()
+        else:
+            return None
+
+        # Parse day and month
+        try:
+            # Handle formats like "30 de julho" or "8 de dezembro"
+            parts = date_part.split(" de ")
+            if len(parts) != 2:
+                return None
+
+            day = int(parts[0])
+            month_name = parts[1]
+
+            # Map month names to numbers
+            month_map = {
+                "janeiro": 1,
+                "fevereiro": 2,
+                "março": 3,
+                "abril": 4,
+                "maio": 5,
+                "junho": 6,
+                "julho": 7,
+                "agosto": 8,
+                "setembro": 9,
+                "outubro": 10,
+                "novembro": 11,
+                "dezembro": 12,
+            }
+
+            if month_name not in month_map:
+                return None
+
+            month = month_map[month_name]
+            year = datetime.now().year
+
+            # Create date object
+            return date(year, month, day)
+        except (ValueError, KeyError):
+            return None
+
+    def _get_weekly_features(self):
+        grade_html = self._get_page_html(
+            os.path.join(self.todays_dir, "grade.html"), self.grade_url
+        )
+        grade_soup = BeautifulSoup(grade_html, "html.parser")
+
+        # Reset movie times for new scraping
+        for movie in self.movies:
+            movie["time"] = []
+
+        for p_tag in grade_soup.find_all("p"):
+            # assume the first `<strong>` tag will have the day in the format `30 de julho – quarta-feira`
+            strong_tag = p_tag.find("strong")
+            if strong_tag is None:
+                continue
+            strong_text = unicodedata.normalize("NFKC", strong_tag.text)
+
+            # Parse the date from the strong tag
+            current_date = self._parse_date_from_strong_text(strong_text)
+            if current_date is None:
+                continue
+
+            # we might be dealing with unformatted text inside <p> tags
+            # <p>
+            #     <strong>30 de julho – quarta-feira</strong>
+            #     <br>
+            #     14h30&nbsp;– EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2381/dreams">Dreams</a><br>
+            #     14h45 – PA&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2395/vermiglio-a-noiva-da-montanha">Vermiglio </a><a href="https://cinematecapauloamorim.com.br/programacao/2428/iracema-uma-transa-amazonica">–</a><a href="https://cinematecapauloamorim.com.br/programacao/2395/vermiglio-a-noiva-da-montanha"> A Noiva da Montanha</a><br>
+            #     15h&nbsp;– NL –&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2406/um-lobo-entre-os-cisnes">Um Lobo Entre os Cisnes</a><br>
+            #     16h45&nbsp;– EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2405/cazuza-boas-novas">Cazuza: Boas Novas</a><br>
+            #     17h&nbsp;– PA&nbsp;– <a href="https://cinematecapauloamorim.com.br/programacao/2403/uma-bela-vida">Uma Bela Vida</a><br>
+            #     17h15 – NL&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2428/iracema-uma-transa-amazonica">Iracema – Uma Transa Amazônica</a><br>
+            #     18h45 – EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2427/apenas-alguns-dias">Apenas Alguns Dias</a><br>
+            #     19h&nbsp;– PA&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2426/monsieur-aznavour">Monsieur Aznavour</a><br>
+            #     19h15 – NL&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2429/razoes-africanas">Razões Africanas</a>
+            # </p>
+            feature_time_regex = r"(\d{2}h(?:\d{2})?)\s+–\s+\w+\s+–\s+(.*)"
+            feature_time_matches = re.findall(feature_time_regex, p_tag.text)
+            for feature_time_match in feature_time_matches:
+                time_str = (
+                    unicodedata.normalize("NFKC", feature_time_match[0])
+                    .strip("\n")
+                    .strip()
+                    .split(" ")[0]
+                )
+                hour_str, min_str = time_str.split("h")
+                if min_str:
+                    parsed_time = dt_time(int(hour_str), int(min_str))
+                else:
+                    parsed_time = dt_time(int(hour_str))
+                for movie in self.movies:
+                    movie_title = movie["title"].strip().lower()
+                    match_title = feature_time_match[1].strip().lower()
+                    title_match = movie_title == match_title
+                    if title_match:
+                        movie["time"].append(
+                            {"time": parsed_time, "date": current_date}
+                        )
+                        continue
+                    partial_match = movie_title.startswith(match_title)
+                    if partial_match:
+                        movie["time"].append(
+                            {"time": parsed_time, "date": current_date}
+                        )
+                        # TODO: warn admin user to check because this might be a mismatch
+                        continue
+
+        features = [movie for movie in self.movies if len(movie["time"]) > 0]
+
+        # Sort features by date and time
+        sorted_features = sorted(
+            features,
+            key=lambda feature: (
+                feature["time"][0]["date"],
+                feature["time"][0]["time"],
+            ),
+        )
+
+        # Format the time strings to include date information
+        for feature in sorted_features:
+            formatted_times = []
+            for time_entry in feature["time"]:
+                time_str = time_entry["time"].strftime("%H:%M")
+                date_str = time_entry["date"].strftime("%Y-%m-%d")
+                formatted_times.append(f"{date_str}T{time_str}")
+            feature["time"] = formatted_times
+
+        return sorted_features
+
+    def get_weekly_features_json(self):
+        self._get_movies_on_programacao()
+        self._get_movie_excerpt()
+        return self._get_weekly_features()
+
+    # Keep the old method for backward compatibility
+    def get_daily_features_json(self):
+        """Deprecated: Use get_weekly_features_json() instead"""
+        return self.get_weekly_features_json()
+
+    # Deprecated HTML structure
+    def deprecated_strong_tag_followed_by_table(self, p_tag, current_date):
+        # <p>
+        #   <strong> 8 de dezembro | sexta </strong>
+        # </p>
+        # <table border="0" cellpadding="0" cellspacing="0" style="width:567px">
+        #   <tbody>
+        #       <tr>
+        #           <td>14h30</td>
+        #           <td>Sala 2</td>
+        #           <td>Filmes em competição Festival Cinema Negro em Ação</td>
+        #       </tr>
+        #       <tr>
+        #           ...
+        #       </tr>
+        #   </tbody>
+        # </table>
+
+        feature_timetable = p_tag.find_next_sibling("table")
+        if feature_timetable:
+            self._get_movies_from_table(feature_timetable, current_date)
+
+    # Deprecated HTML structure
+    def _get_movies_from_table(self, feature_timetable, current_date):
         for feature_tr in feature_timetable.find_all("tr"):
             feature_tds = feature_tr.find_all("td")
             for movie in self.movies:
                 if movie["title"].lower() == feature_tds[2].text.lower():
-                    # Movie will be featured today
+                    # Movie will be featured on the specified date
                     time_str = (
                         unicodedata.normalize("NFKC", feature_tds[0].text)
                         .strip("\n")
@@ -161,69 +339,78 @@ class CinematecaPauloAmorim:
                         parsed_time = dt_time(int(hour_str), int(min_str))
                     else:
                         parsed_time = dt_time(int(hour_str))
-                    movie["time"].append(parsed_time)
 
-    def _get_today_str(self):
-        """returns de current day in
-        {XX de mês} format, with and without a leading zero
-        on the day. ex
-            03 de setembro, 3 de setembro"""
-        locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
-        today_str = date.today().strftime("%d de %B")
-        today_str_no_leading_zero = date.today().strftime("%-d de %B")
-        locale.setlocale(locale.LC_ALL, locale.getdefaultlocale())
-        return today_str.lower(), today_str_no_leading_zero.lower()
+                    # Add date information to the time entry
+                    movie["time"].append({"time": parsed_time, "date": current_date})
 
-    def _get_todays_features(self):
-        grade_html = self._get_page_html(
-            os.path.join(self.todays_dir, "grade.html"), self.grade_url
-        )
-        grade_soup = BeautifulSoup(grade_html, "html.parser")
-        today_str, today_str_no_leading_zero = self._get_today_str()
-        for p_tag in grade_soup.find_all("p"):
-            # assume the first `<strong>` tag will have the day in the format `30 de julho – quarta-feira`
-            strong_tag = p_tag.find("strong")
-            if strong_tag is None:
-                continue
+    # Deprecated HTML structure
+    def deprecated_huge_html_table(self, grade_soup):
+        # <table border="0" cellpadding="0" cellspacing="0" style="width:461px">
+        #     <tbody>
+        #         <tr>
+        #             <td colspan="3"><strong>31 de outubro&nbsp;| quinta</strong></td>
+        #         </tr>
+        #         <tr>
+        #             <td colspan="3">&nbsp;</td>
+        #         </tr>
+        #         <tr>
+        #             <td>14h15</td>
+        #             <td>PA</td>
+        #             <td><a href="https://www.cinematecapauloamorim.com.br/programacao/2111/megalopolis">Megal&oacute;polis</a></td>
+        #         </tr>
+        #         <tr>
+        #            ...
+        #         </tr>
+        #         <tr>
+        #            ...
+        #         </tr>
+        #           ...
+        #         <tr>
+        #             <td colspan="3" rowspan="2">&nbsp;</td>
+        #         </tr>
+        #         <tr>
+        #         </tr>
+        #         <tr>
+        #             <td colspan="3"><strong>1 de novembro&nbsp;| sexta</strong></td>
+        #         </tr>
+        #         <tr>
+        #             <td colspan="3">&nbsp;</td>
+        #         </tr>
+        #         <tr>
+        #             <td>14h15</td>
+        #             <td>PA</td>
+        #             <td><a href="...">...</td>
+        #         </tr>
+        for strong_tag in grade_soup.find_all("strong"):
             strong_text = unicodedata.normalize("NFKC", strong_tag.text)
-            movie_matches_today = strong_text.lower().startswith(
-                today_str
-            ) or strong_text.lower().startswith(today_str_no_leading_zero)
-            if not movie_matches_today:
+
+            # Parse the date from the strong tag
+            current_date = self._parse_date_from_strong_text(strong_text)
+            if current_date is None:
                 continue
 
-            # they might be using the following html structure
-            # <p>
-            #   <strong> 8 de dezembro | sexta </strong>
-            # </p>
-            # <table border="0" cellpadding="0" cellspacing="0" style="width:567px">
-            #   <tbody>
-            #       <tr>
-            #           <td>14h30</td>
-            #           <td>Sala 2</td>
-            #           <td>Filmes em competição Festival Cinema Negro em Ação</td>
-            #       </tr>
-            #       <tr>
-            #           ...
-            #       </tr>
-            #   </tbody>
-            # </table>
-
-            feature_timetable = p_tag.find_next_sibling("table")
-            if feature_timetable:
-                self._get_movies_from_table(feature_timetable)
-            else:
-                for strong in p_tag.find_all("strong"):
-                    for movie in self.movies:
-                        if movie["title"].lower() != strong.text.lower():
-                            continue
-                        # Movie will be featured today
-                        # Lines are in the format
-                        # 14h30 EH: Retratos Fantasmas, Kleber Mendonça Filho
+            strong_tag_tr = strong_tag.parent.parent
+            # get all trs after the current one
+            rows_after = strong_tag_tr.find_next_siblings("tr")
+            for feature_tr in rows_after:
+                feature_tds = feature_tr.find_all("td")
+                # needs to be in the following format
+                # <tr>
+                #    <td>19h</td>
+                #    <td>PA</td>
+                #    <td><a href="...">Movie name</a></td>
+                # </tr>
+                if len(feature_tds) != 3:
+                    # not in the format we expect
+                    continue
+                for movie in self.movies:
+                    # make sure we only get the first occurence of that movie
+                    if movie.get("scrapped", False) is True:
+                        continue
+                    if movie["title"].lower() == feature_tds[2].text.lower():
+                        # Movie will be featured on the specified date
                         time_str = (
-                            unicodedata.normalize(
-                                "NFKC", strong.find_previous_sibling(string=True)
-                            )
+                            unicodedata.normalize("NFKC", feature_tds[0].text)
                             .strip("\n")
                             .strip()
                             .split(" ")[0]
@@ -233,136 +420,8 @@ class CinematecaPauloAmorim:
                             parsed_time = dt_time(int(hour_str), int(min_str))
                         else:
                             parsed_time = dt_time(int(hour_str))
-
-                        movie["time"].append(parsed_time)
-            features = [movie for movie in self.movies if len(movie["time"]) > 0]
-            if len(features) == 0:
-                # we might be dealing with unformatted text inside <p> tags
-                # <p>
-                #     <strong>30 de julho – quarta-feira</strong>
-                #     <br>
-                #     14h30&nbsp;– EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2381/dreams">Dreams</a><br>
-                #     14h45 – PA&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2395/vermiglio-a-noiva-da-montanha">Vermiglio </a><a href="https://cinematecapauloamorim.com.br/programacao/2428/iracema-uma-transa-amazonica">–</a><a href="https://cinematecapauloamorim.com.br/programacao/2395/vermiglio-a-noiva-da-montanha"> A Noiva da Montanha</a><br>
-                #     15h&nbsp;– NL –&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2406/um-lobo-entre-os-cisnes">Um Lobo Entre os Cisnes</a><br>
-                #     16h45&nbsp;– EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2405/cazuza-boas-novas">Cazuza: Boas Novas</a><br>
-                #     17h&nbsp;– PA&nbsp;– <a href="https://cinematecapauloamorim.com.br/programacao/2403/uma-bela-vida">Uma Bela Vida</a><br>
-                #     17h15 – NL&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2428/iracema-uma-transa-amazonica">Iracema – Uma Transa Amazônica</a><br>
-                #     18h45 – EH&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2427/apenas-alguns-dias">Apenas Alguns Dias</a><br>
-                #     19h&nbsp;– PA&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2426/monsieur-aznavour">Monsieur Aznavour</a><br>
-                #     19h15 – NL&nbsp;–&nbsp;<a href="https://cinematecapauloamorim.com.br/programacao/2429/razoes-africanas">Razões Africanas</a>
-                # </p>
-                # feature_time_regex = r"(\d{2}h(?:&nbsp;)?(?:\d{2})?).+<a href=\"(.+)\">.+<\/a>"
-                feature_time_regex = r"(\d{2}h(?:\d{2})?)\s+–\s+\w+\s+–\s+(.*)"
-                feature_time_matches = re.findall(feature_time_regex, p_tag.text)
-                for feature_time_match in feature_time_matches:
-                    time_str = (
-                        unicodedata.normalize("NFKC", feature_time_match[0])
-                        .strip("\n")
-                        .strip()
-                        .split(" ")[0]
-                    )
-                    hour_str, min_str = time_str.split("h")
-                    if min_str:
-                        parsed_time = dt_time(int(hour_str), int(min_str))
-                    else:
-                        parsed_time = dt_time(int(hour_str))
-                    for movie in self.movies:
-                        if movie["title"].lower() != feature_time_match[1].lower():
-                            continue
-                        movie["time"].append(parsed_time)
-
-        features = [movie for movie in self.movies if len(movie["time"]) > 0]
-        if len(features) == 0:
-            # they are probably all in one big unformatted table
-            # <table border="0" cellpadding="0" cellspacing="0" style="width:461px">
-            #     <tbody>
-            #         <tr>
-            #             <td colspan="3"><strong>31 de outubro&nbsp;| quinta</strong></td>
-            #         </tr>
-            #         <tr>
-            #             <td colspan="3">&nbsp;</td>
-            #         </tr>
-            #         <tr>
-            #             <td>14h15</td>
-            #             <td>PA</td>
-            #             <td><a href="https://www.cinematecapauloamorim.com.br/programacao/2111/megalopolis">Megal&oacute;polis</a></td>
-            #         </tr>
-            #         <tr>
-            #            ...
-            #         </tr>
-            #         <tr>
-            #            ...
-            #         </tr>
-            #           ...
-            #         <tr>
-            #             <td colspan="3" rowspan="2">&nbsp;</td>
-            #         </tr>
-            #         <tr>
-            #         </tr>
-            #         <tr>
-            #             <td colspan="3"><strong>1 de novembro&nbsp;| sexta</strong></td>
-            #         </tr>
-            #         <tr>
-            #             <td colspan="3">&nbsp;</td>
-            #         </tr>
-            #         <tr>
-            #             <td>14h15</td>
-            #             <td>PA</td>
-            #             <td><a href="...">...</td>
-            #         </tr>
-            for strong_tag in grade_soup.find_all("strong"):
-                strong_text = unicodedata.normalize("NFKC", strong_tag.text)
-                movie_matches_today = strong_text.lower().startswith(
-                    today_str
-                ) or strong_text.lower().startswith(today_str_no_leading_zero)
-                if not movie_matches_today:
-                    continue
-
-                strong_tag_tr = strong_tag.parent.parent
-                # get all trs after the current one
-                rows_after = strong_tag_tr.find_next_siblings("tr")
-                for feature_tr in rows_after:
-                    feature_tds = feature_tr.find_all("td")
-                    # needs to be in the following format
-                    # <tr>
-                    #    <td>19h</td>
-                    #    <td>PA</td>
-                    #    <td><a href="...">Movie name</a></td>
-                    # </tr>
-                    if len(feature_tds) != 3:
-                        # not in the format we expect
-                        continue
-                    for movie in self.movies:
-                        # make sure we only get the first occurence of that movie
-                        if movie.get("scrapped", False) is True:
-                            continue
-                        if movie["title"].lower() == feature_tds[2].text.lower():
-                            # Movie will be featured today
-                            time_str = (
-                                unicodedata.normalize("NFKC", feature_tds[0].text)
-                                .strip("\n")
-                                .strip()
-                                .split(" ")[0]
-                            )
-                            hour_str, min_str = time_str.split("h")
-                            if min_str:
-                                parsed_time = dt_time(int(hour_str), int(min_str))
-                            else:
-                                parsed_time = dt_time(int(hour_str))
-                            movie["time"].append(parsed_time)
-                            movie["scrapped"] = True
-                    features = [
-                        movie for movie in self.movies if len(movie["time"]) > 0
-                    ]
-
-        sorted_features = sorted(features, key=lambda feature: feature["time"][0])
-        for feature in sorted_features:
-            feature["time"] = "/ ".join(
-                [parsed_time.strftime("%Hh%M") for parsed_time in feature["time"]]
-            )
-        return sorted_features
-
-    def get_daily_features_json(self):
-        self._get_movies_on_programacao()
-        self._get_movie_excerpt()
-        return self._get_todays_features()
+                        movie["time"].append(
+                            {"time": parsed_time, "date": current_date}
+                        )
+                        movie["scrapped"] = True
+                # features = [movie for movie in self.movies if len(movie["time"]) > 0]

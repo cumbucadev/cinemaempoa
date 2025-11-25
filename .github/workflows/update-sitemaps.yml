@@ -1,0 +1,22 @@
+name: Update Sitemaps
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # Everyday at noon
+  workflow_dispatch:
+
+jobs:
+  update-sitemaps:
+    if: ${{ github.repository == 'cumbucadev/cinemaempoa' }}
+    name: Update Sitemaps
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username:  ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            docker exec cinemaempoa_flask bash -c "flask --app flask_backend generate-sitemap > /app/flask_backend/static/sitemaps.txt"

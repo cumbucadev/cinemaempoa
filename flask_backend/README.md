@@ -1,8 +1,8 @@
 Quick scripts:
 
 ```
-rm flask_backend.sqlite
+rm development.sqlite
 flask --app flask_backend init-db
 flask --app flask_backend seed-db
-flask --app flask_backend run --debug
+flask --app flask_backend run --debug --host=0.0.0.0
 ```

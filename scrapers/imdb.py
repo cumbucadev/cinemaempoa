@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 from country_list import countries_for_language
 from Levenshtein import distance
 
+from flask_backend.import_json import ScrappedFeature
+
 
 def infer_movie_country(general_info):
     country_names_pt_br = {code: name for code, name in countries_for_language("pt-br")}
@@ -63,9 +65,9 @@ class IMDBScrapper:
         # couldn't find anything :^/
         return []
 
-    def get_image(self, movie):
-        movie_name = movie["title"]
-        director = movie["director"]
+    def get_image(self, movie: ScrappedFeature):
+        movie_name = movie.title
+        director = movie.director
         search_request = requests.get(
             f"https://www.imdb.com/find/?q={movie_name}", headers=self.headers
         )

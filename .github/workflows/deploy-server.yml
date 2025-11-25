@@ -1,0 +1,39 @@
+name: Remote SSH Command
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy-cinemaempoa:
+    if: ${{ github.repository == 'cumbucadev/cinemaempoa' }}
+    name: Deploy Cinema Em POA
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: checkout
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            cd cinemaempoa
+            git pull
+            docker compose -f docker-compose.production.yml up -d --build flask
+
+            echo "🔎 Truncating Docker container logs..."
+            truncate -s 0 /var/lib/docker/containers/*/*-json.log
+            echo "✅ Logs cleared."
+            
+            echo "🗑️  Removing all stopped containers..."
+            docker container prune -f
+            echo "✅ Stopped containers removed."
+            
+            echo "🧹 Cleaning up old Docker images (older than 12h)..."
+            docker image prune -a -f --filter "until=12h"
+            echo "✅ Old unused images cleaned up."
+            
+            echo "🎉 Docker cleanup complete!"

@@ -1,12 +1,13 @@
 """Functions not bound to any specific database model"""
 
 import re
-from datetime import datetime
-from typing import List, Optional
+from datetime import date, datetime, timedelta
+from typing import List, Optional, Tuple
 
 
-def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
+def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
     """Receives string in format:
+    - ["2025-08-08T14:30", "2025-08-10T14:30", "2025-08-13T14:30"]
     - \\n\\n\\nHorários: 12:00h\\n\\n\\n\\nSala de Cinema\\n\\n
     - 16h
     - 15h30/ 19h30
@@ -17,6 +18,11 @@ def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
 
     Attempts to parse it into a list of strings in format:
     - ["2023-11-11T12:00"]"""
+    if isinstance(time_str, list):
+        # assume the strings are in the correct format
+        # TODO: check that each individual list item is correctly parsed
+        return time_str
+
     today_date = datetime.strftime(datetime.now(), "%Y-%m-%d")
     if time_str is None or time_str == "":
         return []
@@ -27,14 +33,22 @@ def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
 
     # check if time_str is in format DD de MMMM | dia-da-semana | HHhMM,
     # and save the match to a variable
-    format_match = re.match(
-        r"^\d{1,2} de \w+ \| [\w-]+ \| (\d{1,2}h?(?:\d{1,2})?)$", time_str
-    )
-    if format_match:
-        split_match = format_match.group(1).split("h")
-        if len(split_match) == 1 or split_match[1] == "":
-            return [f"{today_date}T{split_match[0]}:00"]
-        return [f"{today_date}T{split_match[0]}:{split_match[1]}"]
+    # there could be multiple "DD de MMMM | dia-da-semana | HHhMM" groups
+    # separated by a new line (when a movie scrapped from sala-redencao has multiple screenings on the same day)
+    time_list = time_str.split("\n")
+    time_matches = []
+    for time_item in time_list:
+        format_match = re.match(
+            r"^\d{1,2} de \w+ \| [\w-]+ \| (\d{1,2}h?(?:\d{1,2})?)$", time_item
+        )
+        if format_match:
+            split_match = format_match.group(1).split("h")
+            if len(split_match) == 1 or split_match[1] == "":
+                time_matches.append(f"{today_date}T{split_match[0]}:00")
+            else:
+                time_matches.append(f"{today_date}T{split_match[0]}:{split_match[1]}")
+    if len(time_matches) > 0:
+        return time_matches
 
     # check if time_str is in format HHhMM using regex
     if re.match(r"^\d{1,2}h\d{1,2}$", time_str):
@@ -56,3 +70,13 @@ def parse_to_datetime_string(time_str: str) -> Optional[List[str]]:
         return [f"{today_date}T{time_str[:-1]}:00"]
 
     return None
+
+
+def get_weekend_dates(current_date: date) -> Tuple[date, date, date]:
+    # if we are on a weekend, we start from last friday
+    # if we are on a weekday, we start from the next friday
+    curr_weekday = current_date.weekday()
+    friday_date = current_date + timedelta(days=4 - curr_weekday)
+    saturday_date = friday_date + timedelta(days=1)
+    sunday_date = friday_date + timedelta(days=2)
+    return friday_date, saturday_date, sunday_date

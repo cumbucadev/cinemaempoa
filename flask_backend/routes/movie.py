@@ -4,7 +4,8 @@ from flask import Blueprint, g, jsonify, render_template, request
 from werkzeug.exceptions import abort
 
 from flask_backend.repository.movies import (
-    get_all as get_all_movies,
+    get_all_paginated as get_all_movies_paginated,
+    get_by_slug,
     get_movies_with_similar_titles,
     get_paginated,
 )
@@ -16,9 +17,36 @@ bp = Blueprint("movie", __name__)
 @bp.route("/movies")
 def index():
     user_logged_in = g.user is not None
-    movies = get_all_movies(user_logged_in)
+    try:
+        movie = request.args.get("movie", "")
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 10))
+    except ValueError:
+        abort(400)
+
+    movies, pages, qtt_movies = get_all_movies_paginated(
+        movie, page, limit, user_logged_in
+    )
+    colors = {
+        "capitolio": "#911eb4",
+        "sala-redencao": "#000075",
+        "cinebancarios": "#9A6324",
+        "paulo-amorim": "#469990",
+    }
+    prev_page = page - 1 if page > 1 else None
+    next_page = page + 1 if page < pages else None
     return render_template(
-        "movie/index.html", movies=movies, show_drafts=user_logged_in
+        "movie/index.html",
+        movies=movies,
+        show_drafts=user_logged_in,
+        colors=colors,
+        curr_page=page,
+        prev_page=prev_page,
+        next_page=next_page,
+        movie=movie,
+        pages=pages,
+        limit=limit,
+        qtt_movies=qtt_movies,
     )
 
 
@@ -27,7 +55,7 @@ def posters():
     user_logged_in = g.user is not None
     images = []
     return render_template(
-        "movie/movies.html", images=images, show_drafts=user_logged_in
+        "movie/posters.html", images=images, show_drafts=user_logged_in
     )
 
 
@@ -112,3 +140,16 @@ def search_movies():
     title = request.args.get("title")
     movies = get_movies_with_similar_titles(title)
     return jsonify([{"title": movie.title} for movie in movies])
+
+
+@bp.route("/movies/<slug>", methods=["GET"])
+def show(slug):
+    movie = get_by_slug(slug)
+    if not movie:
+        abort(400)
+
+    images = []
+    for screening in movie.screenings:
+        if screening.image is not None:
+            images.append(screening.image)
+    return render_template("movie/show.html", movie=movie, images=images)

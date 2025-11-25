@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description"
+          content="Veja as exibições de {{ movie['title'] }} em {{ movie['screenings']|length }} {{ 'cinema' if movie['screenings']|length == 1 else 'cinemas' }} de Porto Alegre: posters, divulgação e datas.">
+{% endblock meta_tags %}
+{% block header %}
+    <h1>
+        {% block title %}
+            {{ movie['title'] }}
+        {% endblock title %}
+    </h1>
+    <!-- <p>XXXX — XX — Xh XX min</p>
+    <p>
+        <span class="badge rounded-pill text-bg-primary">Fantasia</span>
+        <span class="badge rounded-pill text-bg-primary">Ação</span>
+    </p>
+    <dl>
+        <div class="d-flex">
+            <dt class="me-2">Direção</dt>
+            <dd>
+                --
+            </dd>
+        </div>
+        <div class="d-flex">
+            <dt class="me-2">Roteiristas</dt>
+            <dd>
+                --
+            </dd>
+        </div>
+        <div class="d-flex">
+            <dt class="me-2">Artistas</dt>
+            <dd>
+                ---
+            </dd>
+        </div>
+    </dl> -->
+{% endblock header %}
+{% block content %}
+    <div class="container">
+        {% if images|length > 1 %}
+            <div id="carouselExample" class="carousel slide mb-4">
+                <div class="carousel-inner">
+                    {% for screening in movie['screenings'] if screening['image'] %}
+                        <div class="carousel-item {{ 'active' if loop.index0 == 0 else '' }}">
+                            {# djlint:off #}
+                            <img src="{{ screening['image'] }}"
+                                 style="max-height: 100vh;
+                                        max-width: {{ screening['image_width'] }}px;
+                                        object-position: left"
+                                 class="d-block w-100 object-fit-contain"
+                                 {% if screening['image_alt'] %}alt="{{ screening['image_alt'] }}"{% endif %} />
+                            {# djlint:on #}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="d-flex justify-content-around">
+                <button class="carousel-control-prev position-static"
+                        type="button"
+                        data-bs-target="#carouselExample"
+                        data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next position-static"
+                        type="button"
+                        data-bs-target="#carouselExample"
+                        data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+            </div>
+        {% elif images|length == 1 %}
+            {# djlint:off #}
+            <img src="{{ movie['screenings'][0]['image'] }}"
+                 style="max-height: 100vh;
+                        max-width: {{ movie['screenings'][0]['image_width'] }}px;
+                        object-position: left"
+                 class="d-block w-100 object-fit-contain mb-4"
+                 {% if movie['screenings'][0]['image_alt'] %}alt="{{ movie['screenings'][0]['image_alt'] }}"{% endif %} />
+            {# djlint:on #}
+        {% else %}
+        {% endif %}
+        <h2>Descrições</h2>
+        <p>Como o filme foi divulgado nos cinemas.</p>
+        <div class="accordion accordion-flush mb-4" id="accordionExample">
+            {% for screening in movie['screenings'] %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ loop.index }}">
+                        <button class="accordion-button {{ '' if loop.index == 1 else 'collapsed' }}"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapse{{ loop.index }}"
+                                aria-expanded="{{ 'true' if loop.index == 1 else 'false' }}"
+                                aria-controls="collapse{{ loop.index }}">
+                            <strong>{{ screening['cinema']['name'] }}</strong>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ loop.index }}"
+                         class="accordion-collapse collapse {{ 'show' if loop.index == 1 else '' }}"
+                         aria-labelledby="heading{{ loop.index }}"
+                         data-bs-parent="#accordionExample">
+                        <div class="accordion-body">
+                            {# djlint:off #}
+                            <p style="white-space: break-spaces;">{{ screening['description'] }}</p>
+                            {# djlint:on #}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <h2>Exibições</h2>
+        <p>Datas de exibição do filme nos cinemas.</p>
+        {% for screening in movie['screenings'] %}
+            <p>
+                <strong>{{ screening['cinema']['name'] }}</strong>
+            </p>
+            <ul>
+                <p>Exibido {{ screening['dates']|length }} {{ 'vezes' if screening['dates']|length > 1 else 'vez' }}.</p>
+                {% for date in screening['dates']|sort(attribute='date') %}
+                    <li>{{ date['date'].strftime("%d/%m/%Y") }} - {{ date['time'] }}</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </div>
+{% endblock content %}

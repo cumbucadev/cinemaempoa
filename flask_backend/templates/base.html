@@ -5,7 +5,6 @@
     }
 </style>
 {# djlint:off #}
-<!-- TODO: #95 add meta description -->
 <html lang="en" data-bs-core="default">
 {# djlint:on #}
 <head>
@@ -15,72 +14,46 @@
         {% block title %}
         {% endblock title %}
     - Cinema em POA</title>
+    {% block meta_tags %}
+    {% endblock meta_tags %}
+    <link rel="apple-touch-icon"
+          sizes="180x180"
+          href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest"
+          href="{{ url_for('static', filename='site.webmanifest') }}">
     <!-- halfmoon css file -->
     <link rel="stylesheet"
           href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
-    <!-- REMOVE ME AFTER OCTOBER -->
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='halfmoon/cores/halfmoon.elegant.css') }}" />
     <style>
-        .glitch {
-            position: relative;
-            z-index: 1;
+        .navbar .dropdown-menu {
+            position: absolute !important;
         }
 
-        .glitch:before,
-        .glitch:after {
-            display: block;
-            content: attr(data-text);
-            position: absolute;
-            top: 0;
-            left: 0;
-            opacity: 0.8;
-        }
-
-        .glitch:before {
-            animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
-            color: #780606;
-            z-index: -1;
-        }
-
-        .glitch:after {
-            animation: glitch-it 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both infinite;
-            color: #EB5E28;
-            z-index: -2;
-        }
-
-        @keyframes glitch-it {
-            0% {
-                transform: translate(0);
-            }
-
-            20% {
-                transform: translate(-2px, 2px);
-            }
-
-            40% {
-                transform: translate(-2px, -2px);
-            }
-
-            60% {
-                transform: translate(2px, 2px);
-            }
-
-            80% {
-                transform: translate(2px, -2px);
-            }
-
-            to {
-                transform: translate(0);
-            }
+        img.emoji {
+            display: inline !important;
+            border: none !important;
+            box-shadow: none !important;
+            height: 1em !important;
+            width: 1em !important;
+            margin: 0 0.07em !important;
+            vertical-align: -0.1em !important;
+            background: none !important;
+            padding: 0 !important;
         }
     </style>
-    <!-- REMOVE ME AFTER OCTOBER -->
 </head>
 <body class="d-flex flex-column min-vh-100">
     <header id="header">
         {# djlint:off #}
-        <nav class="navbar mb-5" style="
+        <nav class="navbar" style="
                                                                                               background-color: var(--bs-content-bg);
                                                                                               border-bottom: var(--bs-border-width) solid
                                                                                                 var(--bs-content-border-color);
@@ -114,91 +87,166 @@
             <div class="collapse navbar-collapse d-sm-none" id="navbar-collapse-9">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.index") }}">Em cartaz</a>
+                        <a class="nav-link {% if request.path == url_for('page.about') %}active{% endif %}"
+                           href="{{ url_for("page.about") }}">Sobre o projeto</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
+                        <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
+                           href="{{ url_for("screening.programacao") }}">Programação</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle"
+                           href="#"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">Filmes</a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
+                                   href="{{ url_for("movie.index") }}">Títulos</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
+                                   href="{{ url_for("movie.posters") }}">Posters</a>
+                            </li>
+                        </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                        <a class="nav-link {% if request.path == url_for('blog.index') %}active{% endif %}"
+                           href="{{ url_for("blog.index") }}">Blog</a>
                     </li>
                     {% if g.user %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar
-                            sessões</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">Admin</a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
+                                       href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
+                                       href="{{ url_for("screening.import_screenings") }}">Importar
+                                    sessões</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
+                                       href="{{ url_for("screening.create") }}">Nova sessão</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for("auth.logout") }}">Sair</a>
+                                </li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a href="{{ url_for("auth.login") }}" class="nav-link">Acessar</a>
+                            <a href="{{ url_for("auth.login") }}"
+                               class="nav-link {% if request.path == url_for('auth.login') %}active{% endif %}">Acessar</a>
                         </li>
                     {% endif %}
                 </ul>
             </div>
             <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("screening.index") }}">Em cartaz</a>
+                    <a class="nav-link {% if request.path == url_for('page.about') %}active{% endif %}"
+                       href="{{ url_for("page.about") }}">Sobre o projeto</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("movie.posters") }}">Posters</a>
+                    <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
+                       href="{{ url_for("screening.programacao") }}">Programação</a>
+                </li>
+                <div class="vr mx-3"></div>
+                <li class="nav-item dropdown">
+                    <a href="#"
+                       class="nav-link dropdown-toggle"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">Filmes</a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
+                               href="{{ url_for("movie.index") }}">Títulos</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
+                               href="{{ url_for("movie.posters") }}">Posters</a>
+                        </li>
+                    </ul>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                    <a class="nav-link {% if request.path == url_for('blog.index') %}active{% endif %}"
+                       href="{{ url_for("blog.index") }}">Blog</a>
                 </li>
                 <div class="vr mx-3"></div>
                 {% if g.user %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
-                    </li>
-                    <div class="vr mx-3"></div>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("screening.create") }}">Nova sessão</a>
-                    </li>
-                    <div class="vr mx-3"></div>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                    <li class="nav-item dropdown">
+                        <a href="#"
+                           class="nav-link dropdown-toggle"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">Admin</a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
+                                   href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
+                                   href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
+                                   href="{{ url_for("screening.create") }}">Nova sessão</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for("auth.logout") }}">Sair</a>
+                            </li>
+                        </ul>
                     </li>
                 {% else %}
                     <li class="nav-item">
                         {# djlint:off #}
                         <a href="{{ url_for('auth.login') }}" style="margin-right: 0.5rem !important"
-                            class="nav-link pr-1">Acessar</a>
+                            class="nav-link pr-1 {% if request.path == url_for('auth.login') %}active{% endif %}">Acessar</a>
                         {# djlint:on #}
                     </li>
                 {% endif %}
             </ul>
         </div>
     </nav>
-    <!-- REMOVE ME AFTER OCTOBER -->
-    <div class="container-fluid d-flex container align-items-center">
-        <div class="form-check me-2">
-            <label class="form-check-label" for="sp00k-switch">🪦</label>
-        </div>
-        <div class="form-check form-switch">
-            <input class="form-check-input"
-                   type="checkbox"
-                   role="switch"
-                   value=""
-                   id="sp00k-switch">
-            <label class="form-check-label" for="sp00k-switch">🎃</label>
-        </div>
+    <div class="container mb-5">
+        <a class="link-secondary link-underline link-underline-opacity-0"
+           href="https://www.instagram.com/cinemaempoa">
+            <img id="instagram-black"
+                 src="{{ url_for('static', filename='instagram.svg') }}"
+                 alt="Instagram Logo"
+                 width="18"
+                 height="18"
+                 class="d-inline-block align-text-top mr-1" />
+            <img id="instagram-white"
+                 src="{{ url_for('static', filename='instagram-white.svg') }}"
+                 alt="Instagram Logo"
+                 width="18"
+                 height="18"
+                 class="d-inline-block align-text-top mr-1" />
+            cinemaempoa
+        </a>
     </div>
-    <!-- REMOVE ME AFTER OCTOBER -->
     <script>
         const html = document.querySelector("html");
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
             html.setAttribute("data-bs-theme", "dark");
             document.getElementById("logo-black").remove();
+            document.getElementById("instagram-black").remove();
         } else {
             html.setAttribute("data-bs-theme", "light");
             document.getElementById("logo-white").remove();
+            document.getElementById("instagram-white").remove();
         }
     </script>
     <div class="container">
@@ -223,12 +271,23 @@
 <footer class="py-3 my-4 mt-auto">
     <ul class="nav justify-content-center border-bottom pb-3 mb-3">
         <li class="nav-item">
-            <a href="https://github.com/guites/cinemaempoa"
+            <a href="https://github.com/cumbucadev/cinemaempoa"
                class="nav-link px-2 text-muted">código fonte</a>
         </li>
         <li class="nav-item">
             <a href="https://cinemaempoa.goatcounter.com/"
                class="nav-link px-2 text-muted">analytics</a>
+        </li>
+        <li class="nav-item">
+            <a href="https://cumbuca.dev" class="nav-link px-2 text-muted fw-bold">
+                {# djlint:off H006 #}
+                <img class="emoji"
+                     draggable="false"
+                     role="img"
+                     src="{{ url_for('static', filename='1f49c.svg') }}"
+                     alt="💜">
+                {# djlint:on #}
+            Cumbuca Dev</a>
         </li>
     </ul>
     <p class="text-center text-muted">Feito com ♥ por Porto Alegre</p>
@@ -255,56 +314,5 @@
 <script data-goatcounter="https://cinemaempoa.goatcounter.com/count"
         async
         src="//gc.zgo.at/count.js"></script>
-<!-- REMOVE ME AFTER OCTOBER -->
-<script src="{{ url_for('static', filename='halloween/bats.js') }}"></script>
-<script>
-    const bats = new BatManager();
-
-    function makeBats() {
-        bats.makeBats(15);
-    }
-
-    function killBats() {
-        bats.markForDeath();
-    }
-
-    function switchCallback() {
-        if (!sp00kyAudio) {
-            sp00kyAudio = new Audio("{{ url_for('static', filename='halloween/ring-48.mp3') }}");
-            sp00kyAudio.loop = true;
-            sp00kyAudio.addEventListener('canplaythrough', () => {
-                if (sp00kySwitch.checked) {
-                    sp00kyAudio.play();
-                }
-            });
-            sp00kyAudio.setAttribute('canplay', true);
-        }
-        const isChecked = sp00kySwitch.checked;
-        if (isChecked) {
-            // Get sp00ked!
-            makeBats();
-            html.setAttribute("data-bs-core", "elegant");
-            pageTitle.setAttribute('data-text', pageTitle.textContent);
-            pageTitle.classList.add('glitch');
-            if (sp00kyAudio.getAttribute('canplay')) {
-                sp00kyAudio.play();
-            }
-        } else {
-            // Unsp00k
-            killBats();
-            html.setAttribute("data-bs-core", "default");
-            pageTitle.classList.remove('glitch');
-            sp00kyAudio.pause();
-        }
-    }
-
-    const pageTitle = document.querySelector("h1");
-    const sp00kySwitch = document.getElementById('sp00k-switch');
-    // always untoggle on page load
-    sp00kySwitch.checked = false;
-    let sp00kyAudio = null;
-    sp00kySwitch.addEventListener('change', () => switchCallback());
-</script>
-<!-- REMOVE ME AFTER OCTOBER -->
 </body>
 </html>

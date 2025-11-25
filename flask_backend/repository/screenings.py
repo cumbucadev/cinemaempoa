@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional, Tuple
 
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import Screening, ScreeningDate
+from flask_backend.models import Cinema, Screening, ScreeningDate
+from flask_backend.service.shared import get_weekend_dates
 
 
 def get_screening_by_id(screening_id: int) -> Optional[Screening]:
@@ -19,6 +20,31 @@ def get_days_screenings_by_cinema_id(
         .join(ScreeningDate)
         .filter(Screening.cinema_id == cinema_id)
         .filter(func.date(ScreeningDate.date) == day)
+        .order_by(func.time(ScreeningDate.time))
+        .all()
+    )
+
+    return screening_dates
+
+
+def get_month_screening_dates(cinema_slugs: List[str] = None) -> List[ScreeningDate]:
+    month = date.today().replace(day=1)
+    if month.month in [4, 6, 9, 11]:
+        last_day = month + timedelta(days=30)
+    else:
+        last_day = month + timedelta(days=31)
+    screening_dates = (
+        db_session.query(ScreeningDate)
+        .join(Screening)
+        .join(Cinema)
+        .filter(func.date(ScreeningDate.date).between(month, last_day))
+    )
+
+    if cinema_slugs:
+        screening_dates = screening_dates.filter(Cinema.slug.in_(cinema_slugs))
+
+    screening_dates = (
+        screening_dates.order_by(func.date(ScreeningDate.date))
         .order_by(func.time(ScreeningDate.time))
         .all()
     )
@@ -111,3 +137,20 @@ def delete(
         db_session.delete(_date)
     db_session.delete(screening)
     db_session.commit()
+
+
+def get_weekend_screening_dates() -> Tuple[List[ScreeningDate], date, date, date]:
+    current_date = date.today()
+    friday_date, saturday_date, sunday_date = get_weekend_dates(current_date)
+    return (
+        db_session.query(ScreeningDate)
+        .join(Screening)
+        .filter(Screening.draft == False)  # noqa: E712
+        .filter(func.date(ScreeningDate.date).between(friday_date, sunday_date))
+        .order_by(func.date(ScreeningDate.date))
+        .order_by(func.time(ScreeningDate.time))
+        .all(),
+        friday_date,
+        saturday_date,
+        sunday_date,
+    )

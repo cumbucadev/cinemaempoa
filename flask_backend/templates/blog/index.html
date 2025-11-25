@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description"
+          content="Notícias do Cinema em POA - informações, resenhas e novidades sobre cinema em Porto Alegre.">
+{% endblock meta_tags %}
+{% block title %}
+    Blog
+{% endblock title %}
+{% block header %}
+    <h1>Blog</h1>
+    <p>Notícias, resenhas e novidades sobre cinema em Porto Alegre.</p>
+{% endblock header %}
+{% block content %}
+    {% if posts %}
+        <div class="row">
+            {% for post in posts %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <article class="card h-100">
+                        {% if post.featured_image %}
+                            {# djlint:off #}
+                            <img src="{{ post.featured_image }}"
+                                 class="card-img-top"
+                                 loading="lazy"
+                                 alt="{{ post.featured_image_alt or post.title }}"
+                                 style="height: 200px;
+                                        object-fit: cover;
+                                        object-position: top center">
+                            {# djlint:on #}
+                        {% endif %}
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('blog.show', slug=post.slug) }}"
+                                   class="text-decoration-none">{{ post.title }}</a>
+                            </h5>
+                            {% if post.excerpt %}<p class="card-text flex-grow-1">{{ post.excerpt }}</p>{% endif %}
+                            <div class="mt-auto">
+                                <small class="text-muted">
+                                    Por {{ post.author.username }} em
+                                    <time datetime="{{ post.created_at.isoformat() }}">
+                                        {{ post.created_at.strftime("%d/%m/%Y") }}
+                                    </time>
+                                </small>
+                                {% if not post.published and show_unpublished %}<span class="badge bg-warning ms-2">Rascunho</span>{% endif %}
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            {% endfor %}
+        </div>
+        <!-- Pagination -->
+        {% if pages > 1 %}
+            <nav aria-label="Navegação do blog">
+                <ul class="pagination justify-content-center">
+                    {% if prev_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('blog.index', page=prev_page, limit=limit) }}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    {% for page_num in range(1, pages + 1) %}
+                        <li class="page-item {% if page_num == curr_page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('blog.index', page=page_num, limit=limit) }}">{{ page_num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if next_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('blog.index', page=next_page, limit=limit) }}">Próximo</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="py-5">
+            <h3>Nenhum post encontrado</h3>
+            <p class="text-muted">Ainda não há posts publicados no blog. Volte mais tarde!</p>
+        </div>
+    {% endif %}
+{% endblock content %}

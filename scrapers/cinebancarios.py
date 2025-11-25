@@ -8,8 +8,6 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, ResultSet
 
-from utils import is_monday
-
 
 class CineBancarios:
     def __init__(self):
@@ -340,10 +338,4 @@ class CineBancarios:
         current_movie_blocks = self._get_movies_show_time(
             current_post_soup, current_movie_blocks
         )
-        return {
-            "url": "http://cinebancarios.blogspot.com",
-            "cinema": "CineBancários",
-            "slug": "cinebancarios",
-            "warning": "Não há sessões nas segundas-feiras" if is_monday() else False,
-            "features": current_movie_blocks,
-        }
+        return current_movie_blocks

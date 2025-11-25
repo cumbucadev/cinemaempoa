@@ -3,8 +3,7 @@ import os
 from flask import Flask, request, send_from_directory
 
 from flask_backend.db import db_session
-from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
-from flask_backend.utils.enums.environment import EnvironmentEnum
+from flask_backend.env_config import SESSION_KEY, UPLOAD_DIR
 
 
 def create_app(test_config=None):
@@ -33,9 +32,9 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
-    if APP_ENVIRONMENT == EnvironmentEnum.PRODUCTION:
-        db.init_db()
-        db.seed_db_prod()
+    from . import commands
+
+    commands.register_commands(app)
 
     from .routes import auth
 
@@ -49,9 +48,25 @@ def create_app(test_config=None):
 
     app.register_blueprint(movie.bp)
 
+    from .routes import blog
+
+    app.register_blueprint(blog.bp)
+
+    from .routes.admin import blog as admin_blog
+
+    app.register_blueprint(admin_blog.bp)
+
+    from .routes import page
+
+    app.register_blueprint(page.bp)
+
     @app.route("/robots.txt")
     def static_from_root():
         """Taken from https://stackoverflow.com/a/14625619"""
+        return send_from_directory(app.static_folder, request.path[1:])
+
+    @app.route("/sitemaps.txt")
+    def serve_static_sitemap():
         return send_from_directory(app.static_folder, request.path[1:])
 
     @app.teardown_appcontext
