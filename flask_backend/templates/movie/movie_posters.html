@@ -1,9 +1,39 @@
 {% for image in images %}
-    <img data-screening-id="{{ image['screening_id'] }}"
-         class="grid-item"
-         src="{{ image['url'] }}"
-         width="325"
-         height="{{ image['height'] }}"
-         onerror="removeOnError(event)"
-         {% if image['image_alt'] %}alt="{{ image['image_alt'] }}"{% endif %} />
+    <div class="grid-item image-container"
+         style="position: relative;
+                display: inline-block;
+                width: 325px">
+        <img data-screening-id="{{ image['screening_id'] }}"
+             class="poster-image"
+             src="{{ image['url'] }}"
+             width="325"
+             height="{{ image['height'] }}"
+             onerror="removeOnError(event)"
+             style="display: block;
+                    width: 325px;
+                    height: auto;
+                    margin: 0;
+                    padding: 0"
+             {% if image['image_alt'] %}alt="{{ image['image_alt'] }}"{% endif %} />
+        <button class="download-btn"
+                onclick="downloadImage('{{ image['url'] }}'); event.stopPropagation();"
+                title="Baixar imagem"
+                aria-label="Baixar imagem"
+                type="button"
+                style="position: absolute;
+                       bottom: 12px;
+                       right: 12px;
+                       z-index: 1000;
+                       border-radius: 50%;
+                       background: rgba(0, 0, 0, 0.5);
+                       border: none">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 height="24px"
+                 viewBox="0 -960 960 960"
+                 width="24px"
+                 fill="rgba(255, 255, 255, 1)">
+                <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+            </svg>
+        </button>
+    </div>
 {% endfor %}
