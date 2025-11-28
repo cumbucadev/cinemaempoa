@@ -25,10 +25,10 @@ Base.query = db_session.query_property()
 
 
 def init_db():
-    """Inicializa o banco de dados usando migrações do Alembic.
+    """Initialize the database using Alembic migrations.
 
-    Esta função executa todas as migrações pendentes para atualizar o banco
-    de dados. Para novos bancos, isso criará todas as tabelas.
+    This function executes all pending migrations to update the database.
+    For new databases, it will create all tables.
     """
     from alembic import command
     from alembic.config import Config
@@ -105,10 +105,10 @@ def init_app(app):
 @click.command("init-db")
 @with_appcontext
 def init_db_command():
-    """Cria tabelas baseadas em models.py usando migrações do Alembic.
+    """Create tables based on models.py using Alembic migrations.
 
-    Este comando aplica todas as migrações pendentes para inicializar ou atualizar
-    o schema do banco de dados. É idempotente e seguro executar múltiplas vezes.
+    This command applies all pending migrations to initialize or update
+    the database schema. It is idempotent and safe to run multiple times.
     """
     init_db()
     click.echo("Initialized the database.")
@@ -117,7 +117,7 @@ def init_db_command():
 @click.command("init-db-prod")
 @with_appcontext
 def init_db_prod_command():
-    """Cria todas as tabelas usando migrações, popula a tabela de filmes e cria o usuário admin"""
+    """Create all tables using migrations, populate the movies table and create the admin user"""
     init_db()
     seed_db_prod()
     click.echo("Seeded the database - production.")
@@ -126,7 +126,7 @@ def init_db_prod_command():
 @click.command("seed-db")
 @with_appcontext
 def seed_db_command():
-    """Popula as tabelas do banco de dados."""
+    """Populate the database tables."""
     seed_db()
     click.echo("Seeded the database.")
 
@@ -135,7 +135,6 @@ def seed_db_command():
 @click.argument("revision", default="head")
 @with_appcontext
 def db_upgrade_command(revision):
-    """Aplica migrações do banco de dados (atualiza para uma revisão específica ou head)."""
     from alembic import command
     from alembic.config import Config
 
@@ -148,7 +147,6 @@ def db_upgrade_command(revision):
 @click.argument("revision", default="-1")
 @with_appcontext
 def db_downgrade_command(revision):
-    """Reverte migrações do banco de dados (reverte para uma revisão específica)."""
     from alembic import command
     from alembic.config import Config
 
@@ -166,7 +164,6 @@ def db_downgrade_command(revision):
 @click.option("-m", "--message", help="Mensagem da migração")
 @with_appcontext
 def db_revision_command(autogenerate, message):
-    """Cria uma nova migração do banco de dados."""
     from alembic import command
     from alembic.config import Config
 
@@ -184,7 +181,6 @@ def db_revision_command(autogenerate, message):
 @click.command("db-current")
 @with_appcontext
 def db_current_command():
-    """Mostra a revisão atual do banco de dados."""
     from alembic import command
     from alembic.config import Config
 
@@ -196,7 +192,6 @@ def db_current_command():
 @click.option("--verbose", "-v", is_flag=True, help="Mostra saída detalhada")
 @with_appcontext
 def db_history_command(verbose):
-    """Mostra o histórico de migrações."""
     from alembic import command
     from alembic.config import Config
 
