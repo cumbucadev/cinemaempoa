@@ -100,7 +100,6 @@ def init_app(app):
 
 
 @click.command("init-db")
-@with_appcontext
 def init_db_command():
     """Create tables based on models.py using Alembic migrations.
 
@@ -112,7 +111,6 @@ def init_db_command():
 
 
 @click.command("init-db-prod")
-@with_appcontext
 def init_db_prod_command():
     """Creates all tables, populates the movies table and creates the admin user"""
     init_db()
@@ -121,7 +119,6 @@ def init_db_prod_command():
 
 
 @click.command("seed-db")
-@with_appcontext
 def seed_db_command():
     """Populates database tables."""
     seed_db()
