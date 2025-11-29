@@ -92,11 +92,6 @@ Quando você modificar os modelos em `flask_backend/models.py`, crie uma nova mi
 
     flask --app flask_backend db-revision --autogenerate -m "Descrição da mudança"
 
-Revise o arquivo gerado em `migrations/versions/` antes de aplicar:
-
-    flask --app flask_backend db-upgrade
-
-
 ### Utilizando os scrappers
 
 Os scrappers podem ser disparados através da interface web na URL <http://127.0.0.1:5000/screening/import>, clicando no botão "Fazer Scrapping dos cinemas selecionados".
