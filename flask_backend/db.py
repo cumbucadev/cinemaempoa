@@ -26,14 +26,11 @@ Base.query = db_session.query_property()
 
 def init_db():
     """Initialize the database using Alembic migrations.
-
     This function executes all pending migrations to update the database.
     For new databases, it will create all tables.
     """
     from alembic import command
     from alembic.config import Config
-
-    import flask_backend.models  # noqa: F401
 
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")
@@ -117,7 +114,7 @@ def init_db_command():
 @click.command("init-db-prod")
 @with_appcontext
 def init_db_prod_command():
-    """Create all tables using migrations, populate the movies table and create the admin user"""
+    """Creates all tables, populates the movies table and creates the admin user"""
     init_db()
     seed_db_prod()
     click.echo("Seeded the database - production.")
@@ -126,7 +123,7 @@ def init_db_prod_command():
 @click.command("seed-db")
 @with_appcontext
 def seed_db_command():
-    """Populate the database tables."""
+    """Populates database tables."""
     seed_db()
     click.echo("Seeded the database.")
 

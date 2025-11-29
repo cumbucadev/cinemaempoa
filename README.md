@@ -96,11 +96,6 @@ Revise o arquivo gerado em `migrations/versions/` antes de aplicar:
 
     flask --app flask_backend db-upgrade
 
-#### Em produção:
-
-Ao fazer deploy, sempre execute as migrações antes de iniciar a aplicação:
-
-    flask --app flask_backend db-upgrade
 
 ### Utilizando os scrappers
 
