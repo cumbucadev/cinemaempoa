@@ -32,6 +32,8 @@
     <!-- halfmoon css file -->
     <link rel="stylesheet"
           href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
+    {% block extra_css %}
+    {% endblock extra_css %}
     <style>
         .navbar .dropdown-menu {
             position: absolute !important;
