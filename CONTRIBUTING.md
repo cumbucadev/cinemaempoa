@@ -3,7 +3,6 @@
 Obrigado por dedicar o seu tempo para contribuir! 🙇‍♀️🙇‍♂️ Toda ajuda é bem-vinda!
 
 - [Primeira Contribuição](#primeira-contribuição)
-- [Lançar uma Nova Versão](#lançar-uma-nova-versão)
 
 ## 💌 Quer contribuir, mas não se sente à vontade?
 
@@ -30,9 +29,9 @@ Como fazer a sua primeira contribuição:
 - [9. Teste as Suas Alterações](#9-teste-as-suas-alterações)
 - [10. Atualizar READMEs](#10-atualizar-readmes)
 - [11. Faça o Commit e Envie as Suas Alterações](#11-faça-o-commit-e-envie-as-suas-alterações)
-- [12. Adicione Entradas no CHANGELOG.md](#12-adicione-entradas-no-changelogmd)
-- [13. Crie um PR no GitHub](#13-crie-um-pr-no-github)
-- [14. Atualizar a Sua Branch se Necessário](#14-atualizar-a-sua-branch-se-necessário)
+- [12. Crie um PR no GitHub](#12-crie-um-pr-no-github)
+- [13. Atualizar a Sua Branch se Necessário](#13-atualizar-a-sua-branch-se-necessário)
+- [14. Contribuição feita!](#14-contribuição-feita)
 
 ___
 
@@ -104,115 +103,23 @@ ___
 
 ### 7. Execute o cinemaempoa Localmente
 
-#### Instalação com pip
+Para executar o projeto, leia a seção [rodando o projeto][readme] do arquivo `README.md` do projeto.
 
-##### Requisitos
+Nele está explicado o passo a passo para realizar a instalação e execução do projeto, através de instalação local ou via Docker
 
-- [Python 3.10+][python]
-- [pip][pip]
-
-Crie um [virtualenv][virtualenv] para o cinemaempoa e o ative através do comando:
-
-```sh
-python -m venv .venv
-source .venv/bin/activate  # No Windows use: .venv\Scripts\activate
-```
-
-Utilize o comando pip para instalar as dependencias através do arquivo requirements-dev.txt
-
-```sh
-pip install -r requirements.txt
-```
-
-___
-
-#### Instalando o projeto usando Docker
-
-Recomendamos a instalação do projeto usando [Docker][docker].
-Para isso, você pode usar o arquivo `docker-compose.dev.yml` para iniciar um container com todas as dependências necessárias.
-
-    docker compose -f docker-compose.dev.yml up -d
-
-Ao utilizar o docker, os comandos mencionados na seção seguinte devem ser rodados de dentro do container.
-
-    # utilize o `docker exec` para abrir um terminal dentro do container
-    docker exec -it cinemaempoa_flask_dev bash
-
-
-___
-
-#### Utilizando Localmente
-
-Agora você pode usá-lo [da mesma forma descrita no arquivo README.md](/README.md#rodando-o-projeto):
-
-Para rodar o portal, você vai precisar de três comandos (todos rodados a partir da raíz do projeto):
-
-    flask --app flask_backend init-db # inicializa as tabelas no banco de dados
-    flask --app flask_backend seed-db # optional: popula o banco com dados iniciais
-    flask --app flask_backend run --debug # inicia o projeto em modo desenvolvimento
-
-
-Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto através do docker de desenvolvimento (docker-compose.dev.yml).
 
 ___
 
 ### 8. Faça as Suas Alterações
 
-Agora é a etapa em que você pode implementar as suas alterações no código.
+Após ter feito a instalação e executado corretamente, você poderá implementar as suas alterações no código.
+
 
 Normalmente existem instruções/ideias de como você pode implementar a solução diretamente na descrição da issue, na seção "Descreva alternativas que você considerou". Leia atentamente tudo que está escrito na issue para garantir que
 suas modificações resolvem tudo que está sendo solicitado.
 
-É importante notar que documentamos o nosso código usando [docstrings][docstring-definition].
-Módulos, classes, funções e métodos devem ser documentados. Suas alterações também devem ser bem
-documentadas e refletir docstrings atualizadas, caso algum dos parâmetros tenha sido alterado para
-um classe/atributo ou mesmo funções.
 
-Todas as docstring devem estar em Inglês. Fique à vontade para utilizar ferramentas como Google Tradutor ou ChatGPT caso precise. Iremos sugerir mudanças na tradução se necessário, então não se preocupe com possíveis erros de inglês.
-
-Seguimos o padrão abaixo para manter consistência nas docstrings:
-
-```python
-class Example:
-    """
-    Explain the purpose of the class
-
-    Attributes:
-        x[dict]: Short explanation here
-        y[type, optional]: Short explanation here
-    """
-
-    def __init__(self, x, y=None):
-        self.x = x
-        self.y = y
-
-    def foobar(self, w):
-        """
-        Purpose of the function
-
-        Args:
-            name[type]: Short explanation here
-
-        Returns:
-            type: Short explanation here
-
-        Example:
-            >>> command 1
-            output 1
-            >>> command 2
-            output 2
-        """
-        ...
-        return value
-
-```
-
-
-Algo a se ter em mente ao documentar o código com docstrings é que você pode ignorar docstrings em
-decoradores de propriedade e métodos mágicos.
-
-
------------------------------------<b style='color:red'> verificar sobre testes </b>-------------------------------------
+-----------------------------------<b style='color:red'> [INÍCIO DE SEÇÕES EM MANUTENÇÃO] </b>-------------------------------------
 
 
 ### 9. Teste as Suas Alterações
@@ -291,6 +198,8 @@ Example:
 None
 ````
 
+---------------------------------------- <b style='color:red'>FIM DE SEÇÕES EM MANUTENÇÃO</b> ----------------------------------------
+
 ### 11. Faça o Commit e Envie as Suas Alterações
 
 Formate o seu código executando utilizando o [pre-commit](https://pre-commit.com/):
@@ -346,180 +255,17 @@ To github.com:cumbucadev/cinemaempoa.git
 
 Faça as alterações e commits necessários e envie-os quando estiverem prontos.
 
-### 12. Adicione Entradas no CHANGELOG.md
 
-#### O que é um changelog?
+### 12. Crie um PR no GitHub
 
-Um changelog é um arquivo que contém uma lista organizada cronologicamente de mudanças notáveis para cada versão de um projeto.
-
-#### Por que manter um changelog?
-
-Para facilitar para usuários e contribuintes verem exatamente quais mudanças notáveis foram feitas entre cada release (ou versão) do projeto.
-
-#### Quem precisa de um changelog?
-
-Pessoas. Sejam consumidores ou desenvolvedores, os usuários finais de software são seres humanos que se importam com o que está no software. Quando o software muda, as pessoas querem saber por que e como.
-
-#### Onde está o changelog do cinemaempoa?
-
-O changelog do cinemaempoa está disponível em [CHANGELOG.md][changelog]
-
-#### Princípios orientadores
-
-- Changelogs são para humanos, não máquinas.
-- Deve haver uma entrada para cada versão.
-- Os mesmos tipos de mudanças devem ser agrupados.
-- Versões e seções devem ser linkáveis.
-- A versão mais recente vem primeiro.
-- A data de lançamento de cada versão é exibida.
-
-#### O que justifica uma entrada no changelog?
-
-- Correções de segurança: Devem ser documentadas com o tipo definido como "segurança" para alertar os usuários sobre questões de segurança resolvidas.
-Exemplo: “Corrigido um vulnerabilidade crítica que permitia a execução remota de código.”
-
-- Mudanças voltadas ao usuário: Alterações que afetam diretamente a forma como os usuários interagem com o software, incluindo novas funcionalidades, alterações em funcionalidades existentes ou melhorias na interface.
-Exemplo: “Adicionada uma nova opção de filtro na página de resultados para facilitar a busca.”
-
-- Melhorias significativas de desempenho: Devem ser registradas quando resultam em melhorias notáveis na velocidade ou na eficiência do software que impactam a experiência do usuário.
-Exemplo: “O tempo de carregamento da página inicial foi reduzido em 40% após a otimização do backend.”
-
-- Alterações que afetam a compatibilidade: Mudanças que ajustam o software para manter a compatibilidade com outras ferramentas, sistemas ou versões.
-Exemplo: “Atualizada a biblioteca X para a versão 2.0 para suportar a nova versão do Python.”
-
-- Mudanças na API pública:
-Alterações que afetam como os desenvolvedores interagem com a API pública do software, seja adicionando novas rotas ou alterando as existentes.
-Exemplo: “Adicionada uma nova rota /api/v1/users para gerenciamento de usuários.”
-
-- Alterações nas dependências: Atualizações ou mudanças nas dependências do projeto que podem afetar o comportamento ou a compatibilidade do software.
-Exemplo: “Atualizado o pacote de dependência Y para a versão 3.1.4, que inclui correções importantes de segurança.”
-
-#### O quê NÃO deve ir no changelog
-
-Embora o changelog seja uma ferramenta valiosa para documentar mudanças, algumas informações não devem ser incluídas. Aqui estão alguns exemplos do que não deve aparecer no changelog:
-
-- Mudanças Internas de Código: Alterações que não afetam o comportamento do usuário final, como refatorações de código interno que não alteram a funcionalidade, não precisam ser documentadas no changelog. Exemplo: “Refatoração de funções internas” ou “Correção testes inconsistentes.”
-
-- Melhorias de Desempenho Não Notáveis: Melhorias de desempenho que não resultam em mudanças perceptíveis ou benefícios claros para o usuário final não precisam de uma entrada específica. Exemplo: “Otimização de algoritmos internos.”
-
-- Correções de Bugs Menores: Correções para bugs que não afetam o uso geral ou a experiência do usuário final podem ser omitidas. Exemplo: “Correção de um pequeno erro de digitação no código.”
-
-- Mudanças Somente de Documentação: Alterações que afetam apenas a documentação, sem modificar o comportamento do software, geralmente não precisam ser incluídas no changelog. Exemplo: “Atualização do README.md para refletir novas dependências.”
-
-- Detalhes Técnicos Excessivos: Informações excessivamente técnicas que não são relevantes para o usuário final ou não oferecem contexto sobre o impacto da mudança devem ser evitadas. Exemplo: “Mudança no gerenciamento de memória na classe X.”
-
-- Entradas de Mantenedor: Mudanças que são relacionadas apenas ao processo de desenvolvimento ou manutenção interna, como ajustes de configuração de ferramentas de CI/CD, geralmente não são relevantes para o changelog. Exemplo: “Atualização na configuração do GitHub Actions.”
-
-- Uma correção de bug introduzida e corrigida na mesma release não precisa de uma entrada no changelog.
-
-Evite incluir essas informações no changelog para manter o documento focado e útil para os usuários e contribuintes do projeto.
-
-#### Escrevendo boas entradas no changelog
-
-Uma boa entrada no changelog deve ser descritiva e concisa. Deve explicar a mudança a um leitor que não tem nenhum contexto sobre a mudança. Se for difícil ser ao mesmo tempo conciso e descritivo, opte por ser mais descritivo.
-
-- **Ruim**: Ir para a ordem do projeto.
-- **Bom**: Mostrar os projetos estrelados do usuário no topo do dropdown “Ir para o projeto”.
-
-O primeiro exemplo não dá contexto sobre onde a mudança foi feita, nem por que, nem como beneficia o usuário.
-
-- **Ruim**: Copiar (algum texto) para a área de transferência.
-- **Bom**: Atualizar o tooltip de “Copiar para a área de transferência” para indicar o que está sendo copiado.
-
-Novamente, o primeiro exemplo é muito vago e não fornece contexto.
-
-- **Ruim**: Corrige e melhora problemas de CSS e HTML no gráfico de mini pipeline e dropdown de builds.
-- **Bom**: Corrigir tooltips e estados de hover no gráfico de mini pipeline e dropdown de builds.
-
-O primeiro exemplo está muito focado nos detalhes de implementação. O usuário não se importa que mudamos CSS e HTML, ele se importa com o resultado final dessas mudanças.
-
-- **Ruim**: Remover valores nulos no Array de objetos Commit retornados por find_commits_by_message_with_elastic
-- **Bom**: Corrigir erros 500 causados por resultados do Elasticsearch referenciando commits já recolhidos pelo garbage collector.
-
-O primeiro exemplo foca em como corrigimos algo, não no que foi corrigido. A versão reescrita descreve claramente o benefício final para o usuário (menos erros 500) e quando isso acontece (ao buscar commits com Elasticsearch).
-
-Use seu melhor julgamento e tente se colocar na posição de alguém lendo o changelog compilado. Essa entrada agrega valor? Oferece contexto sobre onde e por que a mudança foi feita?
-
-### Como adicionar uma entrada no changelog
-
-O changelog está disponível no arquivo [CHANGELOG.md][changelog].
-
-Primeiro, você precisa identificar o tipo da sua mudança. Tipos de mudanças:
-
-- `Added` para novas funcionalidades.
-- `Changed` para mudanças em funcionalidades existentes.
-- `Deprecated` para funcionalidades que serão removidas em breve.
-- `Fixed` para qualquer correção de bugs.
-- `Removed` para funcionalidades que foram removidas.
-- `Security` em caso de vulnerabilidades.
-
-Você deve sempre adicionar novas entradas no changelog na seção `Unreleased`. No momento do release, moveremos as mudanças da seção `Unreleased` para uma nova seção de versão.
-
-Portanto, dentro da seção `Unreleased`, você deve adicionar sua entrada na seção apropriada por tipo. Se ainda não houver uma seção para o tipo da sua mudança, você deve adicioná-la.
-
-Vamos ver alguns exemplos. Suponhamos que você tenha uma nova mudança `Fixed` para adicionar, e o arquivo atual do CHANGELOG.md está assim:
-
---------------------------------------------- <b style='color:red'>VERIFICAR EXEMPLOS</b> ---------------------------------------
-
-```md
-## [Unreleased]
-### Added
-- Utilitário `get_address_from_cep` [#358](https://github.com/brazilian-utils/brutils-python/pull/358)
-
-### Changed
-- Utilitário `fmt_voter_id` renomeado  para `format_voter_id` [#221](https://github.com/brazilian-utils/brutils-python/issues/221)
-```
-
-Você precisará adicionar uma nova seção `Fixed` e incluir a nova entrada lá:
-
-```md
-## [Unreleased]
-### Added
-- Utilitário `get_address_from_cep` [#358](https://github.com/brazilian-utils/brutils-python/pull/358)
-
-### Changed
-- Utilitário `fmt_voter_id` renomeado  para `format_voter_id` [#221](https://github.com/brazilian-utils/brutils-python/issues/221)
-
-### Fixed
-- Minha mensagem de changelog aqui. [#<número_da_issue>](<link_da_issue>)
-```
-
-Note que a ordem das seções por tipo importa. Temos um lint que verifica isso, então as seções devem ser ordenadas alfabeticamente. Primeiro `Added`, depois `Changed`, terceiro `Deprecated` e assim por diante.
-
-Agora, digamos que você tem mais uma entrada para adicionar e o tipo dela é `Added`. Como já temos uma seção para isso, você devve apenas adicionar uma nova linha:
-
-```md
-## [Unreleased]
-### Added
-- Utilitário `get_address_from_cep` [#358](https://github.com/brazilian-utils/brutils-python/pull/358)
-- Minha outra mensagem de changelog aqui. [#<número_da_issue>](<link_da_issue>)
-
-### Changed
-- Utilitário `fmt_voter_id` renomeado  para `format_voter_id` [#221](https://github.com/brazilian-utils/brutils-python/issues/221)
-
-### Fixed
-- Minha mensagem de changelog aqui. [#<número_da_issue>](<link_da_issue>)
-```
-
-_Este conteúdo é baseado no [site do keep a changelog][keep-a-changelog], já que seguimos suas diretrizes._
-
-### 13. Crie um PR no GitHub
-
-Antes de abrir um Pull Request, rode os comandos abaixo no seu terminal para validar e formatar o código:
-
-```bash
-ruff check --fix # roda o linter para código python
-ruff format # roda o formatter para código python
-djlint flask_backend/templates --lint --profile=jinja # roda o linter para os arquivos .html
-djlint --reformat flask_backend/templates --format-css --format-js # roda o formatter para os arquivos .html
-```
+Antes de abrir um Pull Request, valide e formate o código conforme descrito na seção [Instalando o projeto usando Docker][formatacao-pr], utilizando também da ferramenta `pre-commit`
 
 
 [Crie um PR no GitHub][github-creating-a-pr] para enviar suas alterações para revisão. Para garantir que seu Pull Request (PR) seja claro, eficaz e revisado rapidamente, siga estas boas práticas:
 
 #### Escreva um Título Descritivo para o PR
 - Use títulos claros e específicos para descrever o propósito das suas alterações. Um bom título ajuda às pessoas mantenedoras a entender a intenção do PR rapidamente e melhora a rastreabilidade do projeto.
-- **Exemplo**: Em vez de “Corrigir problema”, use “Adiciona utilitário `convert_uf_to_text` para lidar com códigos de estados brasileiros.”
+- **Exemplo**: Em vez de “Nova funcionalidade”, use “Adiciona a funcionalidade `pesquisar_salas_proximas` para listar as salas de cinema próximas da pessoa usuária.”
 - **Benefícios**:
   - Títulos claros facilitam a priorização e o entendimento pelos revisores.
   - Melhoram a organização e a busca no projeto.
@@ -555,91 +301,45 @@ Este PR adiciona o utilitário convert_uf_to_text para converter códigos de est
 - Seguir o template garante que o PR esteja completo e pronto para revisão.
 - Reduz a necessidade de idas e vindas com revisores, acelerando o processo de mesclagem.
 
-### 14. Atualizar a Sua Branch se Necessário
+### 13. Atualizar a Sua Branch se Necessário
 
 [Certifique-se de que sua branch esteja atualizado com o main][github-sync-pr]
 
+### 14. Contribuição feita!
 
------------------------------------ <b style='color:red'>VERIFICAR SOBRE RELEASES </b> -----------------------------------------
+Pronto! Após você ter seguido as orientações deste documento, você acabou contribuindo para um projeto Open Source e te agradecemos por todo tempo e esforço dedicado!
 
+**Tem mais ideias ou sugestões de melhorias?**
+<br>
 
-## Lançar uma Nova Versão
+1. Abra uma `issue`
 
-Aqui você encontrará como lançar uma nova versão em produção do brutils:
+    OU
 
-- [1. Criar uma Issue de Release](#1-criar-uma-issue-de-release)
-- [2. Criar um Release PR](#2-criar-um-release-pr)
-- [3. Deploy via GitHub](#3-deploy-via-github)
+2. Nos envie uma mensagem por e-mail (cumbucadev@gmail.com) ou pelas nossas redes: [Instagram](https://instagram.com/cumbucadev) / [LinkedIn](https://www.linkedin.com/company/cumbucadev/)
 
-### 1. Criar uma Issue de Release
+<br>
+<b>Sinta-se sempre à vontade para continuar contribuindo 💌 </b>
 
-#### Crie a Issue
-
-Para a criação da issue, pode ser utilizado o template de feature, sendo o nome da issue `Release v<versão>`. [Exemplo](https://github.com/cumbucadev/cinemaempoa/issues/322)
-
-#### Crie uma Branch
-
-O nome da branch criada para o release é relacionado ao número da Issue, como mostra [este exemplo](https://github.com/cumbucadev/cinemaempoa/pull/326)
-
-#### Faça o Commit
-
-A mensagem do commit deve seguir a estrutura `chore: release <versão>`
-
-Exemplo: `chore: release 2.3.0`
-
-### 2. Criar um Release PR
-
-#### Atualizar a Versão da Biblioteca
-
-Incremente o número da versão, seguindo o [Versionamento Semântico][semantic-versioning],
-no arquivo `pyproject.toml`:
-
-- [https://github.com/brazilian-utils/brutils-python/blob/main/pyproject.toml#L3]([https://github.com/brazilian-utils/brutils-python/blob/main/pyproject.toml#L3])
-
-#### Atualizar o CHANGELOG.md
-
-Adicione um título para a nova versão com o novo número e a data atual, como
-[neste exemplo](https://github.com/brazilian-utils/brutils-python/blob/main/CHANGELOG.md?plain=1#L9).
-
-E adicione os links da versão, como [neste exemplo](https://github.com/antoniamaia/brutils-python/blob/eac770e8b213532d2bb5948d117f6f4684f65be2/CHANGELOG.md?plain=1#L76)
-
-#### Crie o PR
-
-Crie um PR com o nome `chore: release <versão>` contendo as duas alterações acima. Na descrição da Pull Request, adicione o trecho do changelog alterado.
-
-Exemplo de Release PR: https://github.com/brazilian-utils/brutils-python/pull/596
-
-#### Faça o Merge do PR
-
-Assim que o PR for aceito e passar em todas as verificações, faça o merge.
-
-### 3. Deploy via GitHub
-
-O lançamento da nova versão em produção é feita automaticamente quando uma
-[nova release é criada][creating-releases] no GitHub.
-
-- Preencha o campo `tag version` com: `v<versão>` (por exemplo, `v2.0.0`).
-- Preencha o campo `release title` com o mesmo valor que a versão da tag (por exemplo, `v2.0.0`).
-- Preencha o campo `release description` com o conteúdo copiado do arquivo CHANGELOG.md da seção de
-versão correspondente.
-
-
+_- Equipe Cinemaempoa e CumbucaDev_
 
 [cinemaempoa-issues]: https://github.com/cumbucadev/cinemaempoa/issues
 [changelog]: https://github.com/brazilian-utils/brutils-python/blob/main/CHANGELOG.md
 [creating-releases]: https://docs.github.com/pt/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release
 [docker]: https://www.docker.com/products/docker-desktop/
 [docstring-definition]: https://www.python.org/dev/peps/pep-0257/#what-is-a-docstring
+[formatacao-pr]:https://github.com/PGuardini/cinemaempoa/tree/main?tab=readme-ov-file#instalando-o-projeto-usando-docker
 [github-cloning]: https://docs.github.com/pt/repositories/creating-and-managing-repositories/cloning-a-repository
 [github-creating-a-pr]: https://docs.github.com/pt/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request
 [github-essentials-criar-conta]: https://github-essentials.cumbuca.dev/dia-5-contas-e-planos/criacao-de-uma-conta-pessoal-no-github
 [github-essentials-instalando-o-git]: https://github-essentials.cumbuca.dev/dia-2-controle-de-versao-basico-com-git/git/instalando-o-git
-[github-forking]: https://docs.github.com/pt/get-started/quickstart/contributing-to-projects
+[github-forking]: https://git-e-github.para-humanos.cumbuca.dev/11.-fluxo-de-trabalho/11.1-fork-no-github
 [github-join]: https://github.com/join
 [github-sync-pr]: https://docs.github.com/pt/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/keeping-your-pull-request-in-sync-with-the-base-branch
 [keep-a-changelog]: https://keepachangelog.com/en/1.0.0/
 [pip]: https://pypi.org/project/pip/
 [python]: https://www.python.org/downloads/
+[readme]: https://github.com/PGuardini/cinemaempoa/tree/main?tab=readme-ov-file#rodando-o-projeto
 [release-pr-example]: https://github.com/brazilian-utils/brutils-python/pull/326
 [semantic-versioning]: https://semver.org/lang/pt-BR/
 [virtualenv]: https://virtualenv.pypa.io/en/latest/
