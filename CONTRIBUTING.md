@@ -324,11 +324,7 @@ Pronto! Após você ter seguido as orientações deste documento, você acabou c
 _- Equipe Cinemaempoa e CumbucaDev_
 
 [cinemaempoa-issues]: https://github.com/cumbucadev/cinemaempoa/issues
-[changelog]: https://github.com/brazilian-utils/brutils-python/blob/main/CHANGELOG.md
-[creating-releases]: https://docs.github.com/pt/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release
-[docker]: https://www.docker.com/products/docker-desktop/
-[docstring-definition]: https://www.python.org/dev/peps/pep-0257/#what-is-a-docstring
-[formatacao-pr]:https://github.com/PGuardini/cinemaempoa/tree/main?tab=readme-ov-file#instalando-o-projeto-usando-docker
+[formatacao-pr]:https://github.com/cumbucadev/cinemaempoa/tree/main?tab=readme-ov-file#instalando-o-projeto-usando-docker
 [github-cloning]: https://docs.github.com/pt/repositories/creating-and-managing-repositories/cloning-a-repository
 [github-creating-a-pr]: https://docs.github.com/pt/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request
 [github-essentials-criar-conta]: https://github-essentials.cumbuca.dev/dia-5-contas-e-planos/criacao-de-uma-conta-pessoal-no-github
@@ -336,10 +332,4 @@ _- Equipe Cinemaempoa e CumbucaDev_
 [github-forking]: https://git-e-github.para-humanos.cumbuca.dev/11.-fluxo-de-trabalho/11.1-fork-no-github
 [github-join]: https://github.com/join
 [github-sync-pr]: https://docs.github.com/pt/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/keeping-your-pull-request-in-sync-with-the-base-branch
-[keep-a-changelog]: https://keepachangelog.com/en/1.0.0/
-[pip]: https://pypi.org/project/pip/
-[python]: https://www.python.org/downloads/
-[readme]: https://github.com/PGuardini/cinemaempoa/tree/main?tab=readme-ov-file#rodando-o-projeto
-[release-pr-example]: https://github.com/brazilian-utils/brutils-python/pull/326
-[semantic-versioning]: https://semver.org/lang/pt-BR/
-[virtualenv]: https://virtualenv.pypa.io/en/latest/
+[readme]: https://github.com/cumbucadev/cinemaempoa/tree/main?tab=readme-ov-file#rodando-o-projeto
