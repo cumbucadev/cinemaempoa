@@ -184,11 +184,6 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
 
                 if scrapped_feature.poster:
                     img, filename = download_image_from_url(scrapped_feature.poster)
-                else:
-                    # screening has no poster image url, attempt to scrap it from imdb
-                    imdb_scrapper = IMDBScrapper()
-                    poster_url = imdb_scrapper.get_image(scrapped_feature)
-                    img, filename = download_image_from_url(poster_url)
 
                 if img is not None:
                     # if we fail to download or validate the image, just ignore it for now
