@@ -80,7 +80,10 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
     for screening_date in screening_dates:
         # Remove seconds from the string before parsing
         screening_date = screening_date[:16]  # Keeps up to YYYY-MM-DDTHH:MM
-        parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%dT%H:%M")
+        try:
+            parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%d %H:%M")
         screening_date_objects.append(
             ScreeningDate(
                 date=parsed_screening_date.date(),
