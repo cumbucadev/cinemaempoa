@@ -1,12 +1,13 @@
+import json
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from scrapers.llms import CineBancariosExtractorLLM
-import json
 
 import requests
-from flask_backend.env_config import DEEPSEEK_API_KEY
 from bs4 import BeautifulSoup
+
+from flask_backend.env_config import DEEPSEEK_API_KEY
+from scrapers.llms import CineBancariosExtractorLLM
 
 
 class CineBancarios:
@@ -54,7 +55,7 @@ class CineBancarios:
                 return BeautifulSoup(item_prop.text, "html.parser")
 
     def _get_text_from_soup(self, soup):
-        for script_or_style in soup(['script', 'style']):
+        for script_or_style in soup(["script", "style"]):
             script_or_style.extract()
         return soup.get_text()
 
@@ -72,7 +73,7 @@ class CineBancarios:
                 # TODO: notify the website admin, we need to verify which one is correct
                 pass
         features = []
-        for movie in gemini_output['movies']:
+        for movie in gemini_output["movies"]:
             feature = {
                 "poster": movie.get("image_url"),
                 "time": movie.get("screening_dates"),
@@ -81,8 +82,7 @@ class CineBancarios:
                 "classification": movie.get("classification"),
                 "general_info": movie.get("general_info"),
                 "excerpt": movie.get("excerpt"),
-                "read_more": self.postLink
+                "read_more": self.postLink,
             }
             features.append(feature)
         return features
-

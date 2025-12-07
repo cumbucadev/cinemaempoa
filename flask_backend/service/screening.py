@@ -25,7 +25,6 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
-from scrapers.imdb import IMDBScrapper
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
