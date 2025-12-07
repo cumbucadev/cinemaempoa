@@ -179,8 +179,7 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
 
             if not screening:
                 # only attempt to download the poster if the screening doesn't previously exists
-                image_filename, image_width, image_height = None, None, None
-
+                img, image_filename, image_width, image_height = None, None, None, None
                 if scrapped_feature.poster:
                     img, filename = download_image_from_url(scrapped_feature.poster)
 
