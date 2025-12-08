@@ -3,9 +3,32 @@
     <meta name="description"
           content="Acesse o mosaico com todos os posters dos filmes cadastrados no site.">
 {% endblock meta_tags %}
+{% block extra_css %}
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='poster-download-btn.css') }}">
+{% endblock extra_css %}
 <style>
     .grid-item {
         width: 325px;
+    }
+
+    .image-container {
+        position: relative !important;
+        display: inline-block !important;
+        width: 325px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        vertical-align: top !important;
+        box-sizing: border-box !important;
+    }
+
+    .image-container .poster-image {
+        display: block !important;
+        width: 325px !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 </style>
 {% block header %}
@@ -77,16 +100,18 @@
             const nextPageText = await nextPageFetch.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(nextPageText, 'text/html');
-            const nextPageImages = doc.querySelectorAll("img.grid-item");
+            const nextPageContainers = doc.querySelectorAll(".grid-item.image-container");
 
             section.setAttribute('data-page', nextPage);
-            nextPageImages.forEach((img) => section.appendChild(img));
-            masonry.appended(nextPageImages);
+            nextPageContainers.forEach((container) => section.appendChild(container));
+            masonry.appended(nextPageContainers);
 
-            const imgsObserver = Array.from(section.getElementsByTagName('img'));
+            const imgsObserver = Array.from(section.querySelectorAll('img.poster-image'));
             const lastImage = imgsObserver[imgsObserver.length - 1];
-            lastImage.setAttribute("data-observed", 1);
-            _observer.observe(lastImage);
+            if (lastImage) {
+                lastImage.setAttribute("data-observed", 1);
+                _observer.observe(lastImage);
+            }
             // register that someone scrolled up to the next page
             // using a goatcounter event
             if (window.goatcounter) {
@@ -100,15 +125,48 @@
 
         function removeOnError(e) {
             const img = e.target;
+            const container = img.closest('.image-container');
             const isObserved = img.getAttribute("data-observed");
-            img.remove();
+            if (container) {
+                container.remove();
+            } else {
+                img.remove();
+            }
             if (isObserved) {
-                const imgs = Array.from(document.querySelectorAll("section.grid img.grid-item"));
-                const lastImage = imgs[imgs.length - 1];
-                observer.observe(lastImage);
-                lastImage.setAttribute("data-observed", 1);
+                const imgs = Array.from(document.querySelectorAll("section.grid img.poster-image"));
+                if (imgs.length > 0) {
+                    const lastImage = imgs[imgs.length - 1];
+                    observer.observe(lastImage);
+                    lastImage.setAttribute("data-observed", 1);
+                }
             }
             masonry.layout();
+        }
+
+        function downloadImage(imageUrl) {
+            // Se a URL é relativa, adiciona o domínio
+            const fullUrl = imageUrl.startsWith('http') ? imageUrl : window.location.origin + imageUrl;
+
+            fetch(fullUrl)
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    // Extrai o nome do arquivo da URL
+                    const urlParts = imageUrl.split('/');
+                    const filename = urlParts[urlParts.length - 1] || 'poster.jpg';
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Erro ao baixar imagem:', error);
+                    // Fallback: abre a imagem em nova aba
+                    window.open(fullUrl, '_blank');
+                });
         }
 
 
@@ -132,11 +190,11 @@
             const nextPageText = await nextPageFetch.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(nextPageText, 'text/html');
-            const nextPageImages = doc.querySelectorAll("img.grid-item");
+            const nextPageContainers = doc.querySelectorAll(".grid-item.image-container");
 
             section.setAttribute('data-page', nextPage);
-            nextPageImages.forEach((img) => section.appendChild(img));
-            masonry.appended(nextPageImages);
+            nextPageContainers.forEach((container) => section.appendChild(container));
+            masonry.appended(nextPageContainers);
         }
 
         document.addEventListener("DOMContentLoaded", async (event) => {
@@ -156,8 +214,11 @@
             observer = new IntersectionObserver(intersectionCallback, {
                 threshold: 1
             });
-            const imgs = Array.from(document.querySelectorAll(".grid-item"));
-            observer.observe(imgs[imgs.length - 1]);
+            const imgs = Array.from(document.querySelectorAll("img.poster-image"));
+            if (imgs.length > 0) {
+                observer.observe(imgs[imgs.length - 1]);
+                imgs[imgs.length - 1].setAttribute("data-observed", 1);
+            }
         });
     </script>
     <script src="{{ url_for('static', filename='imagesLoaded.js') }}"></script>
