@@ -14,3 +14,4 @@ IMGBB_API_KEY = config(
     "IMGBB_API_KEY", default="invalid-key"
 )  # api-key from https://api.imgbb.com/
 GEMINI_API_KEY = config("GEMINI_API_KEY", None)
+DEEPSEEK_API_KEY = config("DEEPSEEK_API_KEY", None)

@@ -69,6 +69,10 @@ Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto atra
 
 O projeto vai rodar em <http://localhost:5000>.
 
+**Nota para usuários macOS:** Se você estiver usando macOS e encontrar um erro 403 ao reiniciar a aplicação, a porta 5000 pode estar sendo usada pelo AirPlay Receiver. Nesse caso, use uma porta alternativa:
+
+    flask --app flask_backend run --debug --port=5001
+
 Se você rodou o comando para popular o banco de dados, vai ter um usuário admin criado com login: cinemaempoa e senha: 123123.
 
 Você pode fazer login via <http://localhost:5000/auth/login>.
@@ -100,18 +104,14 @@ Alternativamente, os scrappers também podem ser rodados via linha de comandos, 
 
     ./cinemaempoa.py -h
 
-    usage: cinemaempoa [-h] [-b] [--deploy] [--date DATE] [-r ROOMS [ROOMS ...] | -j JSON]
+    usage: cinemaempoa [-h] -r ROOMS [ROOMS ...]
 
-    Grab the schedule for Porto Alegre's finest features
+    Extrai os horários das salas de cinema de Porto Alegre em formato JSON utilizando webscrapping.
 
     options:
     -h, --help            show this help message and exit
-    -b, --build           Builds scrapped json as an html file
-    --deploy              Saves generated html at docs/index.html - saves the old index file in YYYY-MM-DD.html format
-    --date DATE           Runs the scrapper as if the current date is the given YYYY-MM-DD value
     -r ROOMS [ROOMS ...], --rooms ROOMS [ROOMS ...]
-                            Filter specific rooms. Available: capitolio, sala-redencao, cinebancarios, paulo-amorim
-    -j JSON, --json JSON  JSON filepath to build index.html from
+                            Define as salas de cinemas para extração dos horários de exibição. Opções: capitolio, sala-redencao, cinebancarios, paulo-amorim
 
 Para disparar os scrappers e conseguir os filmes em cartaz em formato json (que pode ser importado no portal), rode o comando com a flag `r`, listando as salas de cinema desejadas, e direcione a saída para um arquivo.
 
