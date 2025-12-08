@@ -22,7 +22,16 @@ jobs:
           script: |
             cd cinemaempoa
             git pull
-            docker compose -f docker-compose.production.yml up -d --build flask
+            
+            echo "🔄 Building Docker image..."
+            docker compose -f docker-compose.production.yml build flask
+            
+            echo "🔄 Running database migrations..."
+            docker compose -f docker-compose.production.yml run --rm flask flask --app flask_backend db-upgrade
+            echo "✅ Migrations completed."
+            
+            echo "🚀 Starting application..."
+            docker compose -f docker-compose.production.yml up -d flask
 
             echo "🔎 Truncating Docker container logs..."
             truncate -s 0 /var/lib/docker/containers/*/*-json.log
