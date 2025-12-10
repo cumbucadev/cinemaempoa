@@ -108,69 +108,8 @@ Na imagem acima (disponível em <https://cinebancarios.blogspot.com/2024/09/asse
 
 Repare que o título do filme não está mais dentro de um `<strong>`, o gênero e país, que antes estavam soltos, agora estão dentro do seu próprio `<span>`, etc.
 
-Por causa disso, acabamos criando diversas funções, onde uma lida com cada formato de postagem, e vamos testando-as uma por uma, na tentativa de extrair a listagem de filmes e seus horários.
+Por causa disso, optamos pelo uso de LLMs que consomem o conteúdo da postagem
+(apenas o texto, sem as tags HTML) e (tentam) retornar um JSON válido que pode
+ser importado pra dentro da plataforma.
 
-O diagrama abaixo mostra o fluxo lógico do algoritmo de scrapping específico do cinebancários.
-
-```mermaid
-flowchart TD
-    A{"Arquivo .xml do dia de hoje existe em disco?"}
-    B["Acessa a URL do feed RSS"]
-    C["Abre o arquivo do cache"]
-    D["Salva o arquivo .xml em disco"]
-    E["Carrega o arquivo .xml<br/>(lib ElementTree)"]
-    F["Busca a primeira tag &lt;item&gt;"]
-    G["Busca a primeira tag &lt;description&gt;"]
-    H["Carrega o conteúdo como HTML<br/>(lib BeautifulSoup)"]
-    I["Busca todas as tags &lt;p&gt;"]
-    J{"Ainda falta analisar alguma tag &lt;p&gt;?"}
-    M{"Foi encontrado algum filme?"}
-    K["Vai para a próxima tag &lt;p&gt;"]
-    L{"Conteúdo da tag começa com 'Sinopse:' ?"}
-    N["Inicia busca pelos horários de exibição"]
-    O["Tenta encontrar imagem, título, país, gênero, direção em blocos &lt;p&gt; adjacentes"]
-    P{"Encontrou o título do filme?"}
-    Q["Adiciona aos filmes encontrados"]
-    R["Tenta busca por texto puro (text nodes ao invés de tags html)"]
-    S{"Algum text node começa com 'Sinopse:' ?"}
-    T["Tenta encontrar imagem, título, país, gênero, direção em nodes de texto"]
-    U["Adiciona aos filmes encontrados"]
-    V["Carrega conteúdo da página como texto puro (text nodes)"]
-    X{"Ainda falta analisar algum text node?"}
-    Y["Vai para o próximo text node"]
-    Z["Para cada filme encontrado"]
-    AA{"Ainda falta analisar algum filme encontrado?"}
-    AB["Vai para o próximo filme encontrado"]
-    AC{"O título do filme está presente no text node atual no formato<br/> - hora: título - ?"}
-    AD["Adiciona o horário ao filme"]
-    AE(("Retorna filmes encontrados"))
-
-    A --Sim--> C
-    A -- Não --> B
-    B --> D
-    D --> E
-    C --> E
-    E --> F --> G --> H --> I --> J
-    J -- Sim --> K
-    J -- Não --> M
-    M -- Sim --> N
-    K --> L
-    L -- Não --> J
-    L -- Sim --> O
-    O --> P
-    P -- Sim --> Q
-    P -- Não --> J
-    Q --> J
-    M -- Não --> R
-    R --> S
-    S -- Sim --> T
-    T --> U --> N
-    N --> V --> X
-    X -- Sim --> Y --> Z --> AA
-    AA -- Sim --> AB --> AC
-    AC -- Sim --> AD
-    AC -- Não --> AA
-    AA -- Não --> X
-    AD --> AA
-    X -- Não --> AE
-```
+Você pode ver a implementação (prompts e regras de negócio) no arquivo [./llms.py](./llms.py).

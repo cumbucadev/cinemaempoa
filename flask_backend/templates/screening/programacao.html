@@ -53,6 +53,12 @@
                                             aria-label="Visível apenas para usuários logados"
                                             data-function="publish"
                                             data-screening-id="{{ screening.screening_id }}">Rascunho</button>
+                                    <button class="badge text-bg-danger ms-3"
+                                            data-bs-toggle="tooltip"
+                                            data-bs-title="clique para deletar"
+                                            aria-label="Visível apenas para usuários logados"
+                                            data-function="delete"
+                                            data-screening-id="{{ screening.screening_id }}">Descartar</button>
                                 {% endif %}
                             {% endif %}
                         </li>
@@ -76,6 +82,29 @@
                 const screeningId = btn.dataset.screeningId;
                 // send a post request to the server
                 fetch(`/screening/${screeningId}/publish`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    })
+                    .then((response) => {
+                        // if the response is ok, reload the page
+                        if (response.ok) {
+                            window.location.reload();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
+            });
+        });
+        const deleteBtns = document.querySelectorAll('[data-function="delete"]');
+        deleteBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                // get the buttons screening id
+                const screeningId = btn.dataset.screeningId;
+                // send a post request to the server
+                fetch(`/screening/${screeningId}/delete`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
