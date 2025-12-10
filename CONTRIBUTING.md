@@ -18,20 +18,24 @@ O importante é que você saiba: sua participação é muito bem-vinda, e cada c
 
 Como fazer a sua primeira contribuição:
 
-- [1. Crie uma Conta no GitHub](#1-crie-uma-conta-no-github)
-- [2. Encontre uma Issue para Trabalhar](#2-encontre-uma-issue-para-trabalhar)
-- [3. Instale o Git](#3-instale-o-git)
-- [4. Faça um Fork do Projeto](#4-faça-um-fork-do-projeto)
-- [5. Clone o Seu Fork](#5-clone-o-seu-fork)
-- [6. Crie um Novo Branch](#6-crie-um-novo-branch)
-- [7. Execute o cinemaempoa Localmente](#7-execute-o-cinemaempoa-localmente)
-- [8. Faça as Suas Alterações](#8-faça-as-suas-alterações)
-- [9. Teste as Suas Alterações](#9-teste-as-suas-alterações)
-- [10. Atualizar READMEs](#10-atualizar-readmes)
-- [11. Faça o Commit e Envie as Suas Alterações](#11-faça-o-commit-e-envie-as-suas-alterações)
-- [12. Crie um PR no GitHub](#12-crie-um-pr-no-github)
-- [13. Atualizar a Sua Branch se Necessário](#13-atualizar-a-sua-branch-se-necessário)
-- [14. Contribuição feita!](#14-contribuição-feita)
+- [Contribuindo](#contribuindo)
+  - [💌 Quer contribuir, mas não se sente à vontade?](#-quer-contribuir-mas-não-se-sente-à-vontade)
+  - [Primeira Contribuição](#primeira-contribuição)
+    - [1. Crie uma Conta no GitHub](#1-crie-uma-conta-no-github)
+    - [2. Encontre uma Issue para Trabalhar](#2-encontre-uma-issue-para-trabalhar)
+    - [3. Instale o Git](#3-instale-o-git)
+    - [4. Faça um Fork do Projeto](#4-faça-um-fork-do-projeto)
+    - [5. Clone o Seu Fork](#5-clone-o-seu-fork)
+    - [6. Crie um Novo Branch](#6-crie-um-novo-branch)
+    - [7. Execute o cinemaempoa Localmente](#7-execute-o-cinemaempoa-localmente)
+    - [8. Faça as Suas Alterações](#8-faça-as-suas-alterações)
+    - [9. Faça o Commit e Envie as Suas Alterações](#9-faça-o-commit-e-envie-as-suas-alterações)
+    - [10. Crie um PR no GitHub](#10-crie-um-pr-no-github)
+      - [Escreva um Título Descritivo para o PR](#escreva-um-título-descritivo-para-o-pr)
+      - [Forneça uma Descrição Detalhada do PR](#forneça-uma-descrição-detalhada-do-pr)
+      - [Vincule o PR à Issue Relacionada](#vincule-o-pr-à-issue-relacionada)
+    - [11. Atualizar a Sua Branch se Necessário](#11-atualizar-a-sua-branch-se-necessário)
+    - [12. Contribuição feita!](#12-contribuição-feita)
 
 ___
 
@@ -119,88 +123,7 @@ Normalmente existem instruções/ideias de como você pode implementar a soluç�
 suas modificações resolvem tudo que está sendo solicitado.
 
 
------------------------------------<b style='color:red'> [INÍCIO DE SEÇÕES EM MANUTENÇÃO] </b>-------------------------------------
-
-
-### 9. Teste as Suas Alterações
-
-#### Escreva Novos Testes
-
-Certifique-se de ter criado os testes necessários para cada nova alteração que você fez.
-
-#### Certifique-se de que Todos os Testes Passam
-
-Execute todos os testes com o comando `make test` e certifique-se de que todos passam.
-
-**Os PRs não serão mesclados se houver algum teste faltando ou falhando.**
-
-#### Teste manualmente
-
-Abra um ambiente interativo para testar manualmente as suas mudanças:
-
-```sh
-$ python
-Python 3.x.y ...
-Type "help", "copyright", "credits" or "license" for more information.
->>> # Teste as suas mudanças aqui!
-```
-
-Exemplo:
-
-```sh
-$ python
-Python 3.12.5 (main, Aug  6 2024, 19:08:49) [Clang 15.0.0 (clang-1500.3.9.4)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> import brutils
->>> from brutils import cpf
->>> cpf.generate()
-'13403202232'
->>> from brutils import generate_cpf
->>> generate_cpf()
-'64590379228'
-```
-
-### 10. Atualizar READMEs
-
-Atualize o arquivo `cinemaempoa/README.md` com suas alterações.
-
-Esse arquivo é essencial para a documentação da biblioteca, ajudando os usuários a entender como utilizar os recursos oferecidos. Portanto, é importante mantê-lo sempre atualizado.
-
-
-Exemplo (README.md):
-
-````md
-### format_cep
-
-Formata um CEP (Código de Endereçamento Postal) brasileiro em um formato padrão.
-Esta função recebe um CEP como entrada e, se for um CEP válido com 8 dígitos,
-o formata no padrão "12345-678".
-
-Argumentos:
-
-- cep (str): O CEP (Código de Endereçamento Postal) de entrada a ser
-              formatado.
-
-Retorna:
-
-- str: O CEP formatado no formato "12345-678" se for válido, None se não for
-        válido.
-
-Example:
-
-```python
->>> from brutils import format_cep
->>> format_cep('01310200')
-'01310-200'
->>> format_cep("12345678")
-"12345-678"
->>> format_cep("12345")
-None
-````
-
----------------------------------------- <b style='color:red'>FIM DE SEÇÕES EM MANUTENÇÃO</b> ----------------------------------------
-
-### 11. Faça o Commit e Envie as Suas Alterações
+### 9. Faça o Commit e Envie as Suas Alterações
 
 Formate o seu código executando utilizando o [pre-commit](https://pre-commit.com/):
 - o pre-commit pode automatizar a formatação do código quando você rodar um `git commit`.
@@ -256,7 +179,7 @@ To github.com:cumbucadev/cinemaempoa.git
 Faça as alterações e commits necessários e envie-os quando estiverem prontos.
 
 
-### 12. Crie um PR no GitHub
+### 10. Crie um PR no GitHub
 
 Antes de abrir um Pull Request, valide e formate o código conforme descrito na seção [Instalando o projeto usando Docker][formatacao-pr], utilizando também da ferramenta `pre-commit`
 
@@ -276,7 +199,7 @@ Antes de abrir um Pull Request, valide e formate o código conforme descrito na 
   - **Por que** foi feito (ex.: para resolver uma issue específica ou melhorar o desempenho).
   - **Quais problemas** foram resolvidos ou melhorias aplicadas (ex.: referencie a issue ou descreva a melhoria).
 - **Exemplo**:
-Este PR adiciona o utilitário convert_uf_to_text para converter códigos de estados brasileiros (ex.: “SP”) em nomes completos (ex.: “São Paulo”). Resolve a issue #474, melhorando a reutilização de código para formatação de endereços. A função inclui validação de entrada e testes atualizados.
+Este PR adiciona o utilitário converter_sessao_em_lista para converter as sessões de cinema em listas. Resolve a issue #474, melhorando a iteração das sessões de cinema. A função inclui validação de entrada e testes atualizados.
 - **Benefícios**:
 - Descrições detalhadas agilizam o processo de revisão ao fornecer contexto.
 - Ajudam futuros mantenedores a entender o propósito e o histórico do código.
@@ -289,23 +212,11 @@ Este PR adiciona o utilitário convert_uf_to_text para converter códigos de est
 - Automatiza o fechamento de issues, reduzindo trabalho manual para mantenedores.
 - Para mais detalhes, consulte a [documentação do GitHub sobre fechamento automático de issues](https://docs.github.com/pt/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
 
-#### Verifique o Template de Descrição do PR
-- Certifique-se de que seu PR segue o template de descrição do repositório. Verifique todos os itens obrigatórios, como cobertura de testes, atualizações de documentação ou entradas no changelog.
-- **Exemplo de Checklist**: (mostrando como fica quando preenchido):
-- [x] Alterações no código foram testadas.
-- [x] Documentação (READMEs) foi atualizada.
-- [ ] Entrada no changelog foi adicionada (marque apenas se aplicável).
-- **Nota sobre a Sintaxe**:
-- Use [x] para marcar itens concluídos e [ ] para itens não concluídos, sem espaços dentro dos colchetes (ex.: [ x ] ou [x ] não será renderizado corretamente no GitHub).
-- **Benefícios**:
-- Seguir o template garante que o PR esteja completo e pronto para revisão.
-- Reduz a necessidade de idas e vindas com revisores, acelerando o processo de mesclagem.
-
-### 13. Atualizar a Sua Branch se Necessário
+### 11. Atualizar a Sua Branch se Necessário
 
 [Certifique-se de que sua branch esteja atualizado com o main][github-sync-pr]
 
-### 14. Contribuição feita!
+### 12. Contribuição feita!
 
 Pronto! Após você ter seguido as orientações deste documento, você acabou contribuindo para um projeto Open Source e te agradecemos por todo tempo e esforço dedicado!
 
