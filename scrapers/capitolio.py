@@ -10,6 +10,9 @@ class Capitolio:
     def __init__(self):
         self.url = "https://www.capitolio.org.br"
         self.dir = os.path.join("capitolio")
+        # use "True" to avoid redownloading
+        # html files when debugging
+        self.cache_html = False
 
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
@@ -24,14 +27,18 @@ class Capitolio:
         return os.path.join(self.dir, f"{day}.html")
 
     def _day_schedule_html(self, day) -> str:
-        if os.path.exists(self._day_file(day)):
-            with open(self._day_file(day), "r") as file:
-                return file.read()
+        if self.cache_html is True:
+            if os.path.exists(self._day_file(day)):
+                with open(self._day_file(day), "r") as file:
+                    return file.read()
+
         response = requests.get(self._day_url(day))
         response.raise_for_status()
 
-        with open(self._day_file(day), "w") as file:
-            file.write(response.text)
+        if self.cache_html is True:
+            with open(self._day_file(day), "w") as file:
+                file.write(response.text)
+
         return response.text
 
     def get_daily_features_json(self):
@@ -47,8 +54,6 @@ class Capitolio:
             )
             movies_div = soup.find_all("div", class_="movie")
             if cur_day.weekday() != 0 and len(movies_div) == 0:
-                # remove the latest downloaded file so it is redownloaded again next week
-                os.remove(self._day_file(cur_day.strftime("%Y-%m-%d")))
                 break
             for movie in movies_div:
                 # get film pt-br title

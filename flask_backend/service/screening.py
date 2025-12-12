@@ -202,11 +202,36 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                     url_origin=scrapped_feature.read_more,
                 )
             else:
-                # create new ScreeningDate objects from existing ones
-                # to prevent reference errors
-                existing_dates = build_dates(
-                    [f"{sd.date}T{sd.time}" for sd in screening.dates]
-                )
+                if cinema.slug == "capitolio":
+                    # capitolio may occasionally change
+                    # screening times for a given movie
+                    # so records for any given day could become obsolete
+                    # our strategy is, for every day included in the current run,
+                    # we delete existing records and trust the new ones
+                    # see issue #163
+
+                    # ex. existing_dates_for_screening = [ 12/12/2025, 13/12/2025, 14/12/2025 ]
+                    existing_dates_for_screening = [sd for sd in screening.dates]
+
+                    # ex. [13/12/2025, 14/12/2025]
+                    received_dates_for_screening = [sd.date for sd in screenings_dates]
+
+                    # we skip screening_dates for dates in the
+                    # `received_dates_for_screening` list, so they can be recreated
+                    # ex. existing_dates = [ 12/12/2025 ]
+                    existing_dates = build_dates(
+                        [
+                            f"{sd.date}T{sd.time}"
+                            for sd in existing_dates_for_screening
+                            if sd.date not in received_dates_for_screening
+                        ]
+                    )
+                else:
+                    # create new ScreeningDate objects from existing ones
+                    # to prevent reference errors
+                    existing_dates = build_dates(
+                        [f"{sd.date}T{sd.time}" for sd in screening.dates]
+                    )
                 # append new dates to the list by checking if there is no
                 # other date with an equal date and time fields
                 for new_date in screenings_dates:
