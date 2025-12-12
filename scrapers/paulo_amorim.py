@@ -250,22 +250,38 @@ class CinematecaPauloAmorim:
                     parsed_time = dt_time(int(hour_str), int(min_str))
                 else:
                     parsed_time = dt_time(int(hour_str))
+
+                match_title = feature_time_match[1].strip().lower()
+                title_match = False
+                partial_match = False
                 for movie in self.movies:
                     movie_title = movie["title"].strip().lower()
-                    match_title = feature_time_match[1].strip().lower()
                     title_match = movie_title == match_title
                     if title_match:
                         movie["time"].append(
                             {"time": parsed_time, "date": current_date}
                         )
-                        continue
+                        break
                     partial_match = movie_title.startswith(match_title)
                     if partial_match:
                         movie["time"].append(
                             {"time": parsed_time, "date": current_date}
                         )
                         # TODO: warn admin user to check because this might be a mismatch
-                        continue
+                        break
+                if title_match is False and partial_match is False:
+                    # if we reach this point it means the
+                    # movie wasn't on the programacao page
+                    # we only have title and time information
+                    # see issue #22
+                    # TODO: warn admin to check because this won't have poster/description/etc
+                    new_movie = {
+                        "poster": None,
+                        "title": match_title.upper(),
+                        "excerpt": "",
+                        "time": [{"time": parsed_time, "date": current_date}],
+                    }
+                    self.movies.append(new_movie)
 
         features = [movie for movie in self.movies if len(movie["time"]) > 0]
 
