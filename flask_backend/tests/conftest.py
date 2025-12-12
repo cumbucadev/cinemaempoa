@@ -6,6 +6,7 @@ from flask_backend import create_app
 from flask_backend.db import db_session
 from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.models import BlogPost, User
+from flask_backend.seeds.cinema_seeds import create_cinemas
 from flask_backend.utils.enums.environment import EnvironmentEnum
 
 
@@ -133,3 +134,10 @@ def auth_headers(client, test_user):
 
     # Return the client with session
     return client
+
+
+@pytest.fixture()
+def setup_cinemas(app):
+    """Creates the default cinemas for testing."""
+    with app.app_context():
+        create_cinemas(db_session)
