@@ -52,7 +52,7 @@ ___
 Visite a [página de issues do cinemaempoa][cinemaempoa-issues] e encontre uma issue com a qual você gostaria
 de trabalhar e que ainda não tenha sido atribuída a ninguém.
 
-Deixe um comentário na issue com conteúdo "bora!" Em seguida, um bot vai atribuir a issue a você. Uma vez atribuída, você pode prosseguir para a próxima etapa.
+Deixe um comentário na issue dizendo que tem interesse em trabalhar. Em seguida, alguém do time vai atribuir a issue a você.
 
 Sinta-se à vontade para fazer qualquer pergunta na página da issue antes ou durante o processo de
 desenvolvimento.
