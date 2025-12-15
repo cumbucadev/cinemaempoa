@@ -148,7 +148,7 @@ $ git commit -m 'Adicionando mais info aos arquivos de contribuição'
  2 files changed, 144 insertions(+), 34 deletions(-)
 ```
 
-Push o seu commit para o GitHub:
+Envie o seu commit para o GitHub:
 
 ```bash
 $ git push --set-upstream origin <issue_number>
@@ -237,9 +237,9 @@ _- Equipe Cinemaempoa e CumbucaDev_
 [cinemaempoa-issues]: https://github.com/cumbucadev/cinemaempoa/issues
 [formatacao-pr]:https://github.com/cumbucadev/cinemaempoa/tree/main?tab=readme-ov-file#instalando-o-projeto-usando-docker
 [github-cloning]: https://docs.github.com/pt/repositories/creating-and-managing-repositories/cloning-a-repository
-[github-creating-a-pr]: https://docs.github.com/pt/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request
+[github-creating-a-pr]: https://git-e-github.para-humanos.cumbuca.dev/10.-pull-requests-no-github/10.3-criando-um-pull-request-no-github
 [github-essentials-criar-conta]: https://github-essentials.cumbuca.dev/dia-5-contas-e-planos/criacao-de-uma-conta-pessoal-no-github
-[github-essentials-instalando-o-git]: https://github-essentials.cumbuca.dev/dia-2-controle-de-versao-basico-com-git/git/instalando-o-git
+[github-essentials-instalando-o-git]: https://git-e-github.para-humanos.cumbuca.dev/2.-fundamentos-de-controle-de-versao-e-git/2.4-instalando-o-git
 [github-forking]: https://git-e-github.para-humanos.cumbuca.dev/11.-fluxo-de-trabalho/11.1-fork-no-github
 [github-join]: https://github.com/join
 [github-sync-pr]: https://docs.github.com/pt/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/keeping-your-pull-request-in-sync-with-the-base-branch
