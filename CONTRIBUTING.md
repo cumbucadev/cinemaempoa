@@ -136,7 +136,7 @@ Para utilizá-lo, instale com:
 Faça o commit das alterações:
 
 ```bash
-$ git commit -a -m "<commit_message>"
+$ git commit -m "<commit_message>"
 ...
 ```
 
