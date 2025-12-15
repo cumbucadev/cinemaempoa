@@ -119,7 +119,7 @@ ___
 Após ter feito a instalação e executado corretamente, você poderá implementar as suas alterações no código.
 
 
-Normalmente existem instruções/ideias de como você pode implementar a solução diretamente na descrição da issue, na seção "Descreva alternativas que você considerou". Leia atentamente tudo que está escrito na issue para garantir que
+Às vezes podem existir instruções/ideias de como você pode implementar a solução diretamente na descrição da issue. Leia atentamente tudo que está escrito na issue para garantir que
 suas modificações resolvem tudo que está sendo solicitado.
 
 
