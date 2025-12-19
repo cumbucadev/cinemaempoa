@@ -31,7 +31,7 @@ class Movie(Base):
     slug = Column(String, nullable=True, index=True)
 
     screenings: Mapped[List["Screening"]] = relationship(back_populates="movie")
-    directors: Mapped[List["Director"]] = relationship(secondary="movie_directors")
+    directors: Mapped[List["Director"]] = relationship(secondary="movie_directors", back_populates="movies")
 
 
 class Cinema(Base):
@@ -103,7 +103,7 @@ class Director(Base):
     name = Column(String, nullable=False, index=True)
     slug = Column(String, nullable=True, index=True)
 
-    movies: Mapped[List[Movie]] = relationship(secondary="movie_directors")
+    movies: Mapped[List[Movie]] = relationship(secondary="movie_directors", back_populates="directors")
 
 
 class MovieDirectors(Base):
