@@ -1,6 +1,7 @@
 import os
 
 import click
+from flask.cli import with_appcontext
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
@@ -24,9 +25,15 @@ Base.query = db_session.query_property()
 
 
 def init_db():
-    import flask_backend.models  # noqa: F401
+    """Initialize the database using Alembic migrations.
+    This function executes all pending migrations to update the database.
+    For new databases, it will create all tables.
+    """
+    from alembic import command
+    from alembic.config import Config
 
-    Base.metadata.create_all(bind=engine)
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
 
 
 def seed_db_prod():
@@ -85,11 +92,20 @@ def init_app(app):
     app.cli.add_command(init_db_command)
     app.cli.add_command(seed_db_command)
     app.cli.add_command(init_db_prod_command)
+    app.cli.add_command(db_upgrade_command)
+    app.cli.add_command(db_downgrade_command)
+    app.cli.add_command(db_revision_command)
+    app.cli.add_command(db_current_command)
+    app.cli.add_command(db_history_command)
 
 
 @click.command("init-db")
 def init_db_command():
-    """Create tables based on models.py - idempotent operation."""
+    """Create tables based on models.py using Alembic migrations.
+
+    This command applies all pending migrations to initialize or update
+    the database schema. It is idempotent and safe to run multiple times.
+    """
     init_db()
     click.echo("Initialized the database.")
 
@@ -107,3 +123,71 @@ def seed_db_command():
     """Populates database tables."""
     seed_db()
     click.echo("Seeded the database.")
+
+
+@click.command("db-upgrade")
+@click.argument("revision", default="head")
+@with_appcontext
+def db_upgrade_command(revision):
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, revision)
+    click.echo(f"Database upgraded to revision: {revision}")
+
+
+@click.command("db-downgrade")
+@click.argument("revision", default="-1")
+@with_appcontext
+def db_downgrade_command(revision):
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    command.downgrade(alembic_cfg, revision)
+    click.echo(f"Database downgraded to revision: {revision}")
+
+
+@click.command("db-revision")
+@click.option(
+    "--autogenerate",
+    is_flag=True,
+    help="Gera automaticamente migração a partir dos modelos",
+)
+@click.option("-m", "--message", help="Mensagem da migração")
+@with_appcontext
+def db_revision_command(autogenerate, message):
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    if autogenerate:
+        command.revision(
+            alembic_cfg, autogenerate=True, message=message or "Migração automática"
+        )
+        click.echo("Migração auto-gerada criada.")
+    else:
+        command.revision(alembic_cfg, message=message or "Nova migração")
+        click.echo("Migração vazia criada.")
+
+
+@click.command("db-current")
+@with_appcontext
+def db_current_command():
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    command.current(alembic_cfg)
+
+
+@click.command("db-history")
+@click.option("--verbose", "-v", is_flag=True, help="Mostra saída detalhada")
+@with_appcontext
+def db_history_command(verbose):
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    command.history(alembic_cfg, verbose=verbose)
