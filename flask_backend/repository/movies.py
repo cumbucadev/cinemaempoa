@@ -5,7 +5,7 @@ from slugify import slugify
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie, Screening
+from flask_backend.models import Director, Movie, Screening
 
 
 def create(title: str, slug: Optional[str] = None) -> Movie:
@@ -77,6 +77,10 @@ def get_paginated(
     return query.all()
 
 
+def get_by_id(id: int) -> Optional[Movie]:
+    return db_session.query(Movie).filter(Movie.id == id).first()
+
+
 def get_by_slug(slug: str) -> Optional[Movie]:
     return db_session.query(Movie).filter(Movie.slug == slug).first()
 
@@ -104,3 +108,37 @@ def delete(movie: Movie) -> None:
         db_session.delete(_scr)
     db_session.delete(movie)
     db_session.commit()
+
+
+def update(
+    movie: Movie,
+    title: Optional[str] = None,
+    slug: Optional[str] = None,
+    director_ids: Optional[List[int]] = None,
+) -> Optional[Movie]:
+    if title is not None:
+        movie.title = title
+        # Update slug if title changed and no specific slug provided
+        if slug is None:
+            slug = slugify(title)
+
+    if slug is not None:
+        # Ensure slug is unique (excluding current movie)
+        original_slug = slug
+        counter = 1
+        while (
+            db_session.query(Movie)
+            .filter(Movie.slug == slug, Movie.id != movie.id)
+            .first()
+        ):
+            slug = f"{original_slug}-{counter}"
+            counter += 1
+        movie.slug = slug
+
+    # remove all associated directors and
+    # add all newly received directors
+    directors = db_session.query(Director).filter(Director.id.in_(director_ids)).all()
+    movie.directors = directors
+    db_session.commit()
+    db_session.refresh(movie)
+    return movie

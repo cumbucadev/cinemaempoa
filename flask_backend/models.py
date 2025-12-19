@@ -31,6 +31,7 @@ class Movie(Base):
     slug = Column(String, nullable=True, index=True)
 
     screenings: Mapped[List["Screening"]] = relationship(back_populates="movie")
+    directors: Mapped[List["Director"]] = relationship(secondary="movie_directors")
 
 
 class Cinema(Base):
@@ -93,3 +94,24 @@ class BlogPost(Base):
     featured_image_alt = Column(String, nullable=True)
 
     author: Mapped["User"] = relationship()
+
+
+class Director(Base):
+    __tablename__ = "directors"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, index=True)
+    slug = Column(String, nullable=True, index=True)
+
+    movies: Mapped[List[Movie]] = relationship(secondary="movie_directors")
+
+
+class MovieDirectors(Base):
+    __tablename__ = "movie_directors"
+
+    movie_id = Column(
+        Integer, ForeignKey("movies.id"), primary_key=True, nullable=False
+    )
+    director_id = Column(
+        Integer, ForeignKey("directors.id"), primary_key=True, nullable=False
+    )

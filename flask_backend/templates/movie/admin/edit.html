@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}
+    Editar Filme
+{% endblock title %}
+{% block header %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">Gerenciar Filmes</li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Filme</li>
+        </ol>
+    </nav>
+    <h1>Editar Filme</h1>
+{% endblock header %}
+{% block content %}
+    <form method="post">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Título</label>
+                    <input type="text"
+                           class="form-control"
+                           id="title"
+                           name="title"
+                           value="{{ request.form.get('title', movie.title) }}"
+                           required>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="slug" class="form-label">Slug</label>
+                    <input type="text"
+                           class="form-control"
+                           id="slug"
+                           name="slug"
+                           value="{{ request.form.get('slug', movie.slug) }}"
+                           required
+                           readonly>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="director_ids" class="form-label">Diretores</label>
+                    <select name="director_ids" class="form-select" multiple>
+                        {% for director in directors %}
+                            <option {{ "selected" if director in movie.directors else "" }} value="{{ director.id }}">{{ director.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            </div>
+        </div>
+    </form>
+{% endblock content %}

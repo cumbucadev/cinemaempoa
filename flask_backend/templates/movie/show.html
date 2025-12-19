@@ -13,14 +13,21 @@
     <p>
         <span class="badge rounded-pill text-bg-primary">Fantasia</span>
         <span class="badge rounded-pill text-bg-primary">Ação</span>
-    </p>
+    </p> -->
     <dl>
         <div class="d-flex">
             <dt class="me-2">Direção</dt>
             <dd>
-                --
+                {% for director in movie['directors'] if movie['directors']|length > 0 %}
+                    {{ director['name'] }}
+                    {% if not loop.last %},{% endif %}
+                {% else %}
+                    <i>Não informado</i>
+                {% endfor %}
             </dd>
         </div>
+    </dl>
+    <!--
         <div class="d-flex">
             <dt class="me-2">Roteiristas</dt>
             <dd>
@@ -33,7 +40,8 @@
                 ---
             </dd>
         </div>
-    </dl> -->
+    -->
+</div>
 {% endblock header %}
 {% block content %}
     <div class="container">
