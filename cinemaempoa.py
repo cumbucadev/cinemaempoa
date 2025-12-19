@@ -31,9 +31,7 @@ if __name__ == "__main__":
         parser.error("Defina as salas de cinema desejadas com o argumento --rooms")
 
     if not all(room in allowed_rooms for room in args.rooms):
-        parser.error(
-            f"Sala de cinema inválida. Opções: {', '.join(allowed_rooms)}"
-        )
+        parser.error(f"Sala de cinema inválida. Opções: {', '.join(allowed_rooms)}")
 
     features = []
     if "capitolio" in args.rooms:
