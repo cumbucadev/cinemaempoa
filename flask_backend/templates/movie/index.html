@@ -84,20 +84,46 @@
         {% endfor %}
     </ul>
     <nav aria-label="Navegação das páginas de filmes">
-        <ul class="pagination">
+        <ul class="pagination justify-content-center">
             <li class="page-item {{ '' if prev_page else 'disabled' }}">
                 <a class="page-link"
-                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ prev_page }}&limit={{ limit }}">Anterior</a>
+                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ prev_page }}&limit={{ limit }}">
+                    <span class="d-none d-sm-inline">Anterior</span>
+                    <span class="d-inline d-sm-none">«</span>
+                </a>
             </li>
             {% for page in range(1, pages + 1) %}
-                <li class="page-item {{ 'active' if curr_page == page }}">
-                    <a class="page-link"
-                       href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
-                </li>
+                {% if page == 1 or page == pages %}
+                    <li class="page-item {{ 'active' if curr_page == page }}">
+                        <a class="page-link"
+                           href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                    </li>
+                {% elif page == curr_page - 1 or page == curr_page + 1 %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                    </li>
+                {% elif page == curr_page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page }}</span>
+                    </li>
+                {% elif page == curr_page - 2 or page == curr_page + 2 %}
+                    <li class="page-item d-none d-sm-inline-block">
+                        <a class="page-link"
+                           href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                    </li>
+                {% elif page == curr_page - 3 or page == curr_page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
             {% endfor %}
             <li class="page-item {{ '' if next_page else 'disabled' }}">
                 <a class="page-link"
-                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ next_page }}&limit={{ limit }}">Próximo</a>
+                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ next_page }}&limit={{ limit }}">
+                    <span class="d-none d-sm-inline">Próximo</span>
+                    <span class="d-inline d-sm-none">»</span>
+                </a>
             </li>
         </ul>
     </nav>
