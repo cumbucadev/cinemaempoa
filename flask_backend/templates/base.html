@@ -125,25 +125,25 @@
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
-                                       href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                                       href="{{ url_for('admin_blog.index') }}">Gerenciar Blog</a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
-                                       href="{{ url_for("screening.import_screenings") }}">Importar
+                                       href="{{ url_for('screening.import_screenings') }}">Importar
                                     sessões</a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
-                                       href="{{ url_for("screening.create") }}">Nova sessão</a>
+                                       href="{{ url_for('screening.create') }}">Nova sessão</a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" href="{{ url_for("auth.logout") }}">Sair</a>
+                                    <a class="dropdown-item" href="{{ url_for('auth.logout') }}">Sair</a>
                                 </li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a href="{{ url_for("auth.login") }}"
+                            <a href="{{ url_for('auth.login') }}"
                                class="nav-link {% if request.path == url_for('auth.login') %}active{% endif %}">Acessar</a>
                         </li>
                     {% endif %}
@@ -152,12 +152,12 @@
             <ul class="d-none d-sm-flex flex-row navbar-nav ms-auto">
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == url_for('page.about') %}active{% endif %}"
-                       href="{{ url_for("page.about") }}">Sobre o projeto</a>
+                       href="{{ url_for('page.about') }}">Sobre o projeto</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
-                       href="{{ url_for("screening.programacao") }}">Programação</a>
+                       href="{{ url_for('screening.programacao') }}">Programação</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item dropdown">
@@ -169,18 +169,18 @@
                     <ul class="dropdown-menu">
                         <li>
                             <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
-                               href="{{ url_for("movie.index") }}">Títulos</a>
+                               href="{{ url_for('movie.index') }}">Títulos</a>
                         </li>
                         <li>
                             <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
-                               href="{{ url_for("movie.posters") }}">Posters</a>
+                               href="{{ url_for('movie.posters') }}">Posters</a>
                         </li>
                     </ul>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == url_for('blog.index') %}active{% endif %}"
-                       href="{{ url_for("blog.index") }}">Blog</a>
+                       href="{{ url_for('blog.index') }}">Blog</a>
                 </li>
                 <div class="vr mx-3"></div>
                 {% if g.user %}
@@ -193,18 +193,18 @@
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
-                                   href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                                   href="{{ url_for('admin_blog.index') }}">Gerenciar Blog</a>
                             </li>
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
-                                   href="{{ url_for("screening.import_screenings") }}">Importar sessões</a>
+                                   href="{{ url_for('screening.import_screenings') }}">Importar sessões</a>
                             </li>
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
-                                   href="{{ url_for("screening.create") }}">Nova sessão</a>
+                                   href="{{ url_for('screening.create') }}">Nova sessão</a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="{{ url_for("auth.logout") }}">Sair</a>
+                                <a class="dropdown-item" href="{{ url_for('auth.logout') }}">Sair</a>
                             </li>
                         </ul>
                     </li>

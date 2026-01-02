@@ -15,7 +15,7 @@
             <p>Total de filmes encontrados: {{ qtt_movies }}.</p>
         </div>
         <form class="d-flex align-items-end mb-3"
-              action="{{ url_for("movie.index") }}"
+              action="{{ url_for('movie.index') }}"
               method="get">
             <div class="specific-w-250 me-2">
                 <label class="form-label pb-1" for="movie">Buscar por filme</label>
