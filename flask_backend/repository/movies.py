@@ -32,7 +32,7 @@ def get_all_paginated(
     offset_value = (current_page - 1) * per_page
     # includes the `distinct` clause both on the select and the count queries
     # to avoid mismatches on pagination
-    query = db_session.query(Movie).join(Screening).distinct(Movie.id)
+    query = db_session.query(Movie).join(Screening).distinct()
 
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
