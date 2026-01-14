@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import icalendar
 import requests
@@ -302,13 +302,14 @@ class SalaRedencao:
         """Parses events from the fetched Google Calendar"""
         feats = []
         description_pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
-        cutoff_date = datetime.strptime(self.date, "%Y-%m-%d").date()
+        date_range_start = datetime.strptime(self.date, "%Y-%m-%d").date()
+        date_range_end = date_range_start + timedelta(days=30)
 
         for event in gcal.walk("vevent"):
             if not isinstance(event.start, datetime):
                 continue
 
-            if event.start.date() != cutoff_date:
+            if not (date_range_start <= event.start.date() <= date_range_end):
                 continue
 
             description = event.get("description")
