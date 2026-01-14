@@ -301,7 +301,7 @@ class SalaRedencao:
     def _parse_google_calendar_events(self, gcal: icalendar.Calendar):
         """Parses events from the fetched Google Calendar"""
         feats = []
-        description_pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d{4})\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
+        description_pattern = r"\([Dd]ir\.\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^)]+)\)"
         cutoff_date = datetime.strptime(self.date, "%Y-%m-%d").date()
 
         for event in gcal.walk("vevent"):
