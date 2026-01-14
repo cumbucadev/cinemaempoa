@@ -27,7 +27,7 @@ def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
 
 
 def get_all_paginated(
-    current_page: int, per_page: int, include_drafts: bool = False
+    movie: str, current_page: int, per_page: int, include_drafts: bool = False
 ) -> Tuple[List[Optional[Movie]], int]:
     offset_value = (current_page - 1) * per_page
     # includes the `distinct` clause both on the select and the count queries
@@ -37,10 +37,20 @@ def get_all_paginated(
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
 
-    query = query.order_by(Movie.slug).limit(per_page).offset(offset_value)
+    query = (
+        query.order_by(Movie.slug)
+        .filter(Movie.title.ilike(f"%{movie}%"))
+        .limit(per_page)
+        .offset(offset_value)
+    )
+
     movies = query.all()
 
-    count_query = db_session.query(func.count(func.distinct(Movie.id))).join(Screening)
+    count_query = (
+        db_session.query(func.count(func.distinct(Movie.id)))
+        .filter(Movie.title.ilike(f"%{movie}%"))
+        .join(Screening)
+    )
 
     if include_drafts is False:
         count_query = count_query.filter(Screening.draft == False)  # noqa: E712

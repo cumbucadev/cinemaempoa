@@ -25,7 +25,6 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
-from scrapers.imdb import IMDBScrapper
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -80,7 +79,10 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
     for screening_date in screening_dates:
         # Remove seconds from the string before parsing
         screening_date = screening_date[:16]  # Keeps up to YYYY-MM-DDTHH:MM
-        parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%dT%H:%M")
+        try:
+            parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            parsed_screening_date = datetime.strptime(screening_date, "%Y-%m-%d %H:%M")
         screening_date_objects.append(
             ScreeningDate(
                 date=parsed_screening_date.date(),
@@ -177,15 +179,9 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
 
             if not screening:
                 # only attempt to download the poster if the screening doesn't previously exists
-                image_filename, image_width, image_height = None, None, None
-
+                img, image_filename, image_width, image_height = None, None, None, None
                 if scrapped_feature.poster:
                     img, filename = download_image_from_url(scrapped_feature.poster)
-                else:
-                    # screening has no poster image url, attempt to scrap it from imdb
-                    imdb_scrapper = IMDBScrapper()
-                    poster_url = imdb_scrapper.get_image(scrapped_feature)
-                    img, filename = download_image_from_url(poster_url)
 
                 if img is not None:
                     # if we fail to download or validate the image, just ignore it for now
@@ -206,11 +202,36 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                     url_origin=scrapped_feature.read_more,
                 )
             else:
-                # create new ScreeningDate objects from existing ones
-                # to prevent reference errors
-                existing_dates = build_dates(
-                    [f"{sd.date}T{sd.time}" for sd in screening.dates]
-                )
+                if cinema.slug == "capitolio":
+                    # capitolio may occasionally change
+                    # screening times for a given movie
+                    # so records for any given day could become obsolete
+                    # our strategy is, for every day included in the current run,
+                    # we delete existing records and trust the new ones
+                    # see issue #163
+
+                    # ex. existing_dates_for_screening = [ 12/12/2025, 13/12/2025, 14/12/2025 ]
+                    existing_dates_for_screening = [sd for sd in screening.dates]
+
+                    # ex. [13/12/2025, 14/12/2025]
+                    received_dates_for_screening = [sd.date for sd in screenings_dates]
+
+                    # we skip screening_dates for dates in the
+                    # `received_dates_for_screening` list, so they can be recreated
+                    # ex. existing_dates = [ 12/12/2025 ]
+                    existing_dates = build_dates(
+                        [
+                            f"{sd.date}T{sd.time}"
+                            for sd in existing_dates_for_screening
+                            if sd.date not in received_dates_for_screening
+                        ]
+                    )
+                else:
+                    # create new ScreeningDate objects from existing ones
+                    # to prevent reference errors
+                    existing_dates = build_dates(
+                        [f"{sd.date}T{sd.time}" for sd in screening.dates]
+                    )
                 # append new dates to the list by checking if there is no
                 # other date with an equal date and time fields
                 for new_date in screenings_dates:
