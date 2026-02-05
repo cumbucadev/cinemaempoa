@@ -47,10 +47,14 @@ class TMDBClient:
             url = f"{TMDB_API_BASE_URL}/search/movie"
             params = {"query": title, "language": lang}
             try:
-                response = requests.get(url, headers=self.headers, params=params, timeout=10)
+                response = requests.get(
+                    url, headers=self.headers, params=params, timeout=10
+                )
                 response.raise_for_status()
             except requests.RequestException as exc:
-                logger.warning("TMDB search failed for '%s' (lang=%s): %s", title, lang, exc)
+                logger.warning(
+                    "TMDB search failed for '%s' (lang=%s): %s", title, lang, exc
+                )
                 raise
 
             data = response.json()

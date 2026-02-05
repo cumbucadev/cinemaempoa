@@ -11,13 +11,13 @@ from dataclasses import dataclass
 from typing import Optional
 
 from flask_backend.db import db_session
+from flask_backend.import_json import ScrappedFeature
 from flask_backend.models import POSTER_SOURCES
 from flask_backend.repository.poster_fetch_attempts import (
     create as create_attempt,
     get_next_source,
     get_screenings_without_poster,
 )
-from flask_backend.import_json import ScrappedFeature
 from flask_backend.service.screening import download_image_from_url, save_image
 from flask_backend.service.tmdb import TMDBClient
 from scrapers.imdb import IMDBScrapper
@@ -93,7 +93,9 @@ def _extract_director_from_description(description: str) -> Optional[str]:
     return None
 
 
-def run_pipeline(current_app, limit: Optional[int] = None, dry_run: bool = False) -> PipelineResult:
+def run_pipeline(
+    current_app, limit: Optional[int] = None, dry_run: bool = False
+) -> PipelineResult:
     """Main entry point for the poster pipeline.
 
     For each screening without an image:
