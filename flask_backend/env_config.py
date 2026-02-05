@@ -15,3 +15,6 @@ IMGBB_API_KEY = config(
 )  # api-key from https://api.imgbb.com/
 GEMINI_API_KEY = config("GEMINI_API_KEY", None)
 DEEPSEEK_API_KEY = config("DEEPSEEK_API_KEY", None)
+TMDB_API_TOKEN = config(
+    "TMDB_API_TOKEN", default=None
+)  # Read Access Token from https://www.themoviedb.org/settings/api
