@@ -14,6 +14,10 @@ from sqlalchemy.orm import Mapped, relationship
 
 from flask_backend.db import Base
 
+# Ordered list of sources the poster pipeline will try.
+# The pipeline tries each source in order and records the result.
+POSTER_SOURCES = ["tmdb", "imdb"]
+
 
 class User(Base):
     __tablename__ = "users"
@@ -74,6 +78,25 @@ class ScreeningDate(Base):
     time = Column(String, nullable=True)
 
     screening: Mapped["Screening"] = relationship(back_populates="dates")
+
+
+class PosterFetchAttempt(Base):
+    """Tracks each attempt to fetch a poster for a screening from an external source.
+
+    A screening that has failed attempts for every source in POSTER_SOURCES
+    (and still has no image) is considered as needing manual review.
+    """
+
+    __tablename__ = "poster_fetch_attempts"
+
+    id = Column(Integer, primary_key=True)
+    screening_id = Column(Integer, ForeignKey("screenings.id"), nullable=False)
+    source = Column(String, nullable=False)  # e.g. "tmdb", "imdb"
+    status = Column(String, nullable=False)  # "success", "not_found", "error"
+    attempted_at = Column(DateTime, nullable=False)
+    error_message = Column(String, nullable=True)
+
+    screening: Mapped["Screening"] = relationship()
 
 
 class BlogPost(Base):
