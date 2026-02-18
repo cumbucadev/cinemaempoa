@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  flask:
+    container_name: cinemaempoa_flask
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    volumes:
+      - .:/app
+    expose:
+      - 8080
+    networks:
+      - traefik_proxy
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: cinemaempoa_nginx
+    volumes:
+      - .:/app
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - flask
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cinema.rule=Host(`cinemaempoa.com.br`)"
+      - "traefik.http.routers.cinema.entrypoints=websecure"
+      - "traefik.http.routers.cinema.tls.certresolver=lets-encrypt"
+      - "traefik.http.services.cinema.loadbalancer.server.port=80"
+    networks:
+      - traefik_proxy
+
+networks:
+  traefik_proxy:
+    external: true
+
