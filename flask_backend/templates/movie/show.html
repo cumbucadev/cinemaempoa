@@ -3,6 +3,11 @@
     <meta name="description"
           content="Veja as exibições de {{ movie['title'] }} em {{ movie['screenings']|length }} {{ 'cinema' if movie['screenings']|length == 1 else 'cinemas' }} de Porto Alegre: posters, divulgação e datas.">
 {% endblock meta_tags %}
+{% block extra_css %}
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='poster-download-btn.css') }}">
+{% endblock extra_css %}
+
 {% block header %}
     <h1>
         {% block title %}
@@ -72,12 +77,27 @@
             </div>
         {% elif images|length == 1 %}
             {# djlint:off #}
-            <img src="{{ movie['screenings'][0]['image'] }}"
-                 style="max-height: 100vh;
-                        max-width: {{ movie['screenings'][0]['image_width'] }}px;
-                        object-position: left"
-                 class="d-block w-100 object-fit-contain mb-4"
-                 {% if movie['screenings'][0]['image_alt'] %}alt="{{ movie['screenings'][0]['image_alt'] }}"{% endif %} />
+            <div class="poster-download-anchor mb-4">
+                <img src="{{ movie['screenings'][0]['image'] }}"
+                    style="max-height: 100vh;
+                           max-width: {{ movie['screenings'][0]['image_width'] }}px;
+                           object-position: left"
+                     {% if movie['screenings'][0]['image_alt'] %}alt="{{ movie['screenings'][0]['image_alt'] }}"{% endif %} />
+                <button class="download-btn"
+                        onclick='downloadImage({{ movie['screenings'][0]['image']|tojson }}); event.stopPropagation();'
+                        title="Baixar imagem"
+                        aria-label="Baixar imagem"
+                        type="button">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         height="24px"
+                         viewBox="0 -960 960 960"
+                         width="24px"
+                         fill="rgba(255, 255, 255, 1)">
+                        <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+                    </svg>
+                </button>
+            </div>
+
             {# djlint:on #}
         {% else %}
         {% endif %}
@@ -123,4 +143,6 @@
             </ul>
         {% endfor %}
     </div>
+    <script src="{{ url_for('static', filename='poster-download.js') }}"></script>
+
 {% endblock content %}

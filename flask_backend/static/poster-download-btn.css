@@ -1,5 +1,10 @@
 .poster-download-anchor {
     position: relative !important;
+    display: inline-block !important;
+}
+
+.poster-download-anchor img {
+    display: block !important;
 }
 
 
