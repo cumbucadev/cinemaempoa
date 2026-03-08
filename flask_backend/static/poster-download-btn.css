@@ -1,4 +1,9 @@
-.image-container .download-btn {
+.poster-download-anchor {
+    position: relative !important;
+}
+
+
+.download-btn {
     position: absolute !important;
     bottom: 12px !important;
     right: 12px !important;
@@ -31,21 +36,24 @@
     overflow: hidden !important;
 }
 
-.image-container .download-btn:hover {
+.download-btn:hover {
     background-color: rgba(0, 0, 0, 0.7) !important;
     transform: scale(1.1) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
-.image-container .download-btn:active {
+.download-btn:active {
     transform: scale(0.95) !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
-.image-container .download-btn svg {
+.download-btn svg {
     width: 24px !important;
     height: 24px !important;
     fill: rgba(255, 255, 255, 1) !important;
     display: block !important;
 }
 
+.poster-download-anchor > .download-btn {
+    position: absolute !important;
+}

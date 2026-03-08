@@ -4,6 +4,12 @@
     <meta name="description"
           content="Saiba quais filmes estão nas salas de cinema alternativo em Porto Alegre: {{ cinemas_list }}.">
 {% endblock meta_tags %}
+
+{% block extra_css %}
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='poster-download-btn.css') }}">
+{% endblock extra_css %}
+
 {% block header %}
     {# djlint:off #}<div style="width: fit-content;" class="alert alert-primary">{{ alert_html | safe }}</div>{# djlint:on #}
     <h1>
@@ -33,11 +39,31 @@
                                 screening_date['image'] %}
                                 <li class="mb-5 clearfix"
                                     style="min-height: {{ screening_date['min_height'] }}px">
-                                    <img class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0 me-sm-3"
-                                        src="{{ screening_date['image'] }}" width="{{ screening_date['image_display_width'] }}"
-                                        height="{{ screening_date['min_height'] }}" {% if loop.index !=1 %}loading="lazy"{% endif %} {% if
-                                        screening_date['image_alt'] %} alt="{{ screening_date['image_alt'] }}"
-                                        title="{{ screening_date['image_alt'] }}" {% endif %} />
+                                        <div class="poster-download-anchor float-sm-start mb-3 me-0 me-sm-3">
+                                            <img class="img-fluid rounded shadow-sm"
+                                                 src="{{ screening_date['image'] }}"
+                                                 width="{{ screening_date['image_display_width'] }}"
+                                                 height="{{ screening_date['min_height'] }}"
+                                                 {% if loop.index !=1 %}loading="lazy"{% endif %}
+                                                 {% if screening_date['image_alt'] %}
+                                                     alt="{{ screening_date['image_alt'] }}"
+                                                     title="{{ screening_date['image_alt'] }}"
+                                                 {% endif %} />
+                                            <button class="download-btn"
+                                                    onclick='downloadImage({{ screening_date["image"]|tojson }}); event.stopPropagation();'
+                                                    title="Baixar imagem"
+                                                    aria-label="Baixar imagem"
+                                                    type="button">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                     height="24px"
+                                                     viewBox="0 -960 960 960"
+                                                     width="24px"
+                                                     fill="rgba(255, 255, 255, 1)">
+                                                    <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
                                     {% else %}
                                     </li>
                                     <li class="mb-5">
@@ -152,4 +178,6 @@
                     });
                 });
             </script>
+            <script src="{{ url_for('static', filename='poster-download.js') }}"></script>
+
         {% endblock content %}
