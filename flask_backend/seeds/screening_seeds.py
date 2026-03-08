@@ -5,21 +5,26 @@ from faker import Faker
 
 from flask_backend.models import Screening, ScreeningDate
 
-DEFAULT_WIDTH = 303
-DEFAULT_HEIGHT = 455
+DEFAULT_WIDTH = 325
+DEFAULT_HEIGHT = (183, 488)
 
 
 def create_screenings(db_session):
     faker = Faker()
     screenings = []
     for index in range(1, 8):
+        image_height = random.choice(DEFAULT_HEIGHT)
         obj = Screening(
             movie_id=index,
             cinema_id=random.randint(1, 4),
             url=faker.uri(),
-            image=faker.image_url(DEFAULT_WIDTH, DEFAULT_HEIGHT),
+            image=faker.image_url(
+                width=DEFAULT_WIDTH,
+                height=image_height,
+                placeholder_url="https://picsum.photos/{width}/{height}",
+            ),
             image_width=DEFAULT_WIDTH,
-            image_height=DEFAULT_HEIGHT,
+            image_height=image_height,
             description=faker.text(),
             dates=[
                 ScreeningDate(date=datetime.now().date(), time="11:00"),
