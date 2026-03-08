@@ -8,7 +8,7 @@
              onerror="removeOnError(event)"
              {% if image['image_alt'] %}alt="{{ image['image_alt'] }}"{% endif %} />
         <button class="download-btn"
-                onclick="downloadImage('{{ image['url'] }}'); event.stopPropagation();"
+            onclick='downloadImage({{ image["url"]|tojson }}); event.stopPropagation();'
                 title="Baixar imagem"
                 aria-label="Baixar imagem"
                 type="button">
