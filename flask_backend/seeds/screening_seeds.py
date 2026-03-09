@@ -7,10 +7,12 @@ from flask_backend.models import Screening, ScreeningDate
 
 DEFAULT_WIDTH = 325
 DEFAULT_HEIGHT = (183, 488)
+DEFAULT_PLACEHOLDER_IMG = "https://picsum.photos/{width}/{height}"
 
 
-def create_screenings(db_session):
+def create_screenings(db_session, placeholder_url: str | None = None):
     faker = Faker()
+    placeholder_url = placeholder_url if placeholder_url else DEFAULT_PLACEHOLDER_IMG
     screenings = []
     for index in range(1, 8):
         image_height = random.choice(DEFAULT_HEIGHT)
@@ -21,7 +23,7 @@ def create_screenings(db_session):
             image=faker.image_url(
                 width=DEFAULT_WIDTH,
                 height=image_height,
-                placeholder_url="https://picsum.photos/{width}/{height}",
+                placeholder_url=placeholder_url,
             ),
             image_width=DEFAULT_WIDTH,
             image_height=image_height,

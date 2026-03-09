@@ -5,6 +5,7 @@ from flask.cli import with_appcontext
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABASE_URL
 
@@ -12,7 +13,11 @@ from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABA
 # see https://github.com/pytest-dev/pytest/issues/9502#issuecomment-2063572916
 # we should be able to change this in conftest.py app fixture
 if os.environ.get("PYTEST_VERSION"):
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 else:
     engine = create_engine(DATABASE_URL)
 

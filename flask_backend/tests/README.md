@@ -19,6 +19,7 @@ It is up to the developer to decide how much functionality each test should inte
 - `test_service` - General testing for the service submodule
 - `test_routes` - General testing for the application routes: focused on validation, error handling and responses
 - `test_database_isolation.py` - Tests to ensure database isolation and cleanup
+- `e2e` - End-to-end frontend tests for JavaScript-driven behaviors, such as poster download button visibility
 
 ### Test Configuration
 
@@ -37,6 +38,31 @@ You can run all tests at once with `pytest flask_backend/tests` or target specif
 pytest flask_backend/tests/test_routes/test_blog.py
 ```
 
+### Frontend E2E tests
+
+The project now also supports frontend end-to-end tests for JavaScript behavior.
+
+These tests use Playwright because the feature under test depends on dynamic DOM updates after image load, which is not reliably covered by plain HTML parsing with `requests` and `BeautifulSoup`.
+
+Before running the E2E suite, install the Python dependency and the browser binaries:
+
+```
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+Run only the frontend E2E tests with:
+
+```
+pytest flask_backend/tests/e2e -m e2e
+```
+
+Or run a specific file, for example:
+
+```
+pytest flask_backend/tests/e2e/test_poster_download_e2e.py -m e2e
+```
+
 ## Test Fixtures
 
 The tests use several fixtures defined in `conftest.py`:
@@ -45,3 +71,15 @@ The tests use several fixtures defined in `conftest.py`:
 - `client` - Test client for making HTTP requests
 - `test_user` - A test user for authentication
 - `auth_headers` - Authenticated client for admin tests
+
+For frontend E2E coverage, the suite should additionally provide fixtures that:
+
+- seed movies and screenings with poster images
+- start the Flask application in test mode on a local HTTP port
+- open a browser page and wait for the image and button states to stabilize
+
+The initial E2E scope should validate the `downloadImage` button behavior on these pages:
+
+- `/`
+- `/movies/<slug>`
+- `/movies/posters`
