@@ -7,7 +7,6 @@
     display: block !important;
 }
 
-
 .download-btn {
     position: absolute !important;
     bottom: 12px !important;
@@ -37,8 +36,17 @@
     box-sizing: border-box !important;
     outline: none !important;
     float: none !important;
-    pointer-events: auto !important;
+    pointer-events: none !important;
     overflow: hidden !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+.poster-download-anchor img.is-loaded + .download-btn,
+.image-container .poster-image.is-loaded + .download-btn {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
 }
 
 .download-btn:hover {
@@ -59,6 +67,7 @@
     display: block !important;
 }
 
-.poster-download-anchor > .download-btn {
+.poster-download-anchor > .download-btn,
+.image-container > .download-btn {
     position: absolute !important;
 }

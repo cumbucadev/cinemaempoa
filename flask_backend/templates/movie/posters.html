@@ -104,6 +104,9 @@
 
             section.setAttribute('data-page', nextPage);
             nextPageContainers.forEach((container) => section.appendChild(container));
+            if (window.initPosterDownloadButtons) {
+                nextPageContainers.forEach((container) => window.initPosterDownloadButtons(container));
+            }
             masonry.appended(nextPageContainers);
 
             const imgsObserver = Array.from(section.querySelectorAll('img.poster-image'));
@@ -168,6 +171,9 @@
 
             section.setAttribute('data-page', nextPage);
             nextPageContainers.forEach((container) => section.appendChild(container));
+            if (window.initPosterDownloadButtons) {
+                nextPageContainers.forEach((container) => window.initPosterDownloadButtons(container));
+            }
             masonry.appended(nextPageContainers);
         }
 
