@@ -197,7 +197,7 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                     image=image_filename,
                     image_width=image_width,
                     image_height=image_height,
-                    is_draft=True,
+                    is_draft=False,
                     image_alt=None,
                     url_origin=scrapped_feature.read_more,
                 )
