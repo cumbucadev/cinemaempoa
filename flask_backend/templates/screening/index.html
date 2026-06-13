@@ -69,8 +69,13 @@
                                             <ul class="list-group list-group-horizontal ms-3">
                                                 {% for time in screening_date['times'] %}
                                                     <li class="list-group-item px-2 py-1">{{ time }}</li>
-                                                    {%
-                                                    endfor %}
+                                                    {% endfor %}
+                                                    <span class="badge rounded-pill"
+                                                    style="background-color: {{ cinema.slug }}"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top"
+                                                    title="{{ cinema.name }}">{{ cinema.slug }}</span>
+                                                    AQUIAQUIAQUI
                                                 </ul>
                                             </div>
                                         {% endif %}
