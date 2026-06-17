@@ -47,6 +47,12 @@ from flask_backend.service.screening import (
 
 bp = Blueprint("screening", __name__)
 
+COLORS = {
+    "capitolio": "#911eb4",
+    "sala-redencao": "#000075",
+    "cinebancarios": "#9A6324",
+    "paulo-amorim": "#469990",
+}
 
 @bp.route("/")
 def index():
@@ -116,6 +122,7 @@ def index():
         cinemas_with_screenings=cinemas_with_screenings,
         today=datetime.now().strftime("%d/%m/%Y"),
         alert_html=alert_html,
+        colors=COLORS,
     )
 
 
@@ -153,19 +160,10 @@ def programacao():
             screening_dates_grouped[screening_date.date] = []
         screening_dates_grouped[screening_date.date].append(screening_date)
 
-    # set cinema badge color
-    # TODO: cinema colors could be stored in the database
-    colors = {
-        "capitolio": "#911eb4",
-        "sala-redencao": "#000075",
-        "cinebancarios": "#9A6324",
-        "paulo-amorim": "#469990",
-    }
-
     return render_template(
         "screening/programacao.html",
         screening_dates=screening_dates_grouped,
-        colors=colors,
+        colors=COLORS,
         cinemas=all_cinemas,
         checked_cinemas=checked_cinemas,
     )

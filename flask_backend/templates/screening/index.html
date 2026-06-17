@@ -70,14 +70,14 @@
                                                 {% for time in screening_date['times'] %}
                                                     <li class="list-group-item px-2 py-1">{{ time }}</li>
                                                     {% endfor %}
-                                                    <span class="badge rounded-pill"
-                                                    style="background-color: {{ cinema.slug }}"
+                                            </ul>
+                                            <span class="badge rounded-pill"
+                                                    style="background-color: {{ colors[cinema.slug] }}"
                                                     data-bs-toggle="tooltip"
                                                     data-bs-placement="top"
-                                                    title="{{ cinema.name }}">{{ cinema.slug }}</span>
-                                                    AQUIAQUIAQUI
-                                                </ul>
-                                            </div>
+                                                    title="{{ cinema.name }}">{{ cinema.slug }}
+                                            </span>
+                                        </div>
                                         {% endif %}
                                         {# djlint:off #}
                                         <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>
