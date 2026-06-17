@@ -47,6 +47,8 @@ from flask_backend.service.screening import (
 
 bp = Blueprint("screening", __name__)
 
+# set cinema badge color
+# TODO: cinema colors could be stored in the database
 COLORS = {
     "capitolio": "#911eb4",
     "sala-redencao": "#000075",
