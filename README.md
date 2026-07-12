@@ -15,9 +15,19 @@ O conteúdo é agregado realizando _web scrapping_ em quatro diferentes sites:
 
 O projeto encoraja contribuições (veja [Contribuições](#contribuicoes)).
 
+## Arquitetura
+
+O projeto é composto de dois aplicativos independentes:
+
+- **`web/`** — O portal Flask que serve o site. Roda na VPS como um container Docker. Expõe uma API HTTP autenticada (`POST /api/import`, `PATCH /api/screenings/{id}/poster`) para receber dados do runner.
+- **`runner/`** — Pacote Python autônomo que contém os scrapers e a lógica de busca de posters. Roda nos GitHub Actions e envia os dados para o portal via HTTP. Não possui dependência do Flask ou SQLAlchemy.
+- **`shared/`** — Módulo compartilhado com os dataclasses (`ScrappedResult`, `ScrappedCinema`, `ScrappedFeature`) que definem o contrato JSON entre runner e portal.
+
+Os workflows do GitHub Actions (`run-spiders.yml`, `import-cinebancarios.yml`, `fetch-posters.yml`) instalam o runner localmente e chamam a API do portal — sem SSH para a VPS.
+
 ## Desenvolvimento
 
-O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para coleção de dados e `flask_backend/`, onde fica o código do portal.
+O projeto é composto de dois módulos: `runner/`, que contém a lógica para coleção de dados e `web/`, onde fica o código do portal.
 
 Este projeto requer Python 3.10.x ou 3.11.x. Versões superiores não são suportadas no momento. Recomendamos utilizar a série 3.10 (por exemplo, 3.10.19).
 
@@ -47,8 +57,8 @@ Antes de abrir um Pull Request, rode os comandos abaixo no seu terminal para val
 ```bash
 ruff check --fix # roda o linter para código python
 ruff format # roda o formatter para código python
-djlint flask_backend/templates --lint --profile=jinja # roda o linter para os arquivos .html
-djlint --reformat flask_backend/templates --format-css --format-js # roda o formatter para os arquivos .html
+djlint web/templates --lint --profile=jinja # roda o linter para os arquivos .html
+djlint --reformat web/templates --format-css --format-js # roda o formatter para os arquivos .html
 ```
 
 Opcionalmente, o [pre-commit](https://pre-commit.com/) pode automatizar a formatação do código quando você rodar um `git commit`.
@@ -61,9 +71,9 @@ Para utilizá-lo, instale com:
 
 Para rodar o portal, você vai precisar de três comandos (todos rodados a partir da raíz do projeto):
 
-    flask --app flask_backend init-db # inicializa as tabelas no banco de dados
-    flask --app flask_backend seed-db # optional: popula o banco com dados iniciais
-    flask --app flask_backend run --debug # inicia o projeto em modo desenvolvimento
+    flask --app web init-db # inicializa as tabelas no banco de dados
+    flask --app web seed-db # optional: popula o banco com dados iniciais
+    flask --app web run --debug # inicia o projeto em modo desenvolvimento
 
 Lembre-se de utilizar a flag `--host=0.0.0.0` caso esteja rodando o projeto através do docker de desenvolvimento (docker-compose.dev.yml).
 
@@ -71,7 +81,7 @@ O projeto vai rodar em <http://localhost:5000>.
 
 **Nota para usuários macOS:** Se você estiver usando macOS e encontrar um erro 403 ao reiniciar a aplicação, a porta 5000 pode estar sendo usada pelo AirPlay Receiver. Nesse caso, use uma porta alternativa:
 
-    flask --app flask_backend run --debug --port=5001
+    flask --app web run --debug --port=5001
 
 Se você rodou o comando para popular o banco de dados, vai ter um usuário admin criado com login: cinemaempoa e senha: 123123.
 
@@ -83,61 +93,42 @@ O projeto utiliza [Alembic](https://alembic.sqlalchemy.org/) para gerenciar migr
 
 #### Comandos disponíveis:
 
-- `flask --app flask_backend init-db` - Aplica todas as migrações pendentes (inicializa ou atualiza o banco)
-- `flask --app flask_backend db-upgrade [revision]` - Aplica migrações até uma revisão específica (padrão: head)
-- `flask --app flask_backend db-downgrade [revision]` - Reverte migrações até uma revisão específica
-- `flask --app flask_backend db-revision --autogenerate -m "mensagem"` - Cria uma nova migração automaticamente baseada nas mudanças nos modelos
-- `flask --app flask_backend db-current` - Mostra a revisão atual do banco de dados
-- `flask --app flask_backend db-history` - Mostra o histórico de migrações
+- `flask --app web init-db` - Aplica todas as migrações pendentes (inicializa ou atualiza o banco)
+- `flask --app web db-upgrade [revision]` - Aplica migrações até uma revisão específica (padrão: head)
+- `flask --app web db-downgrade [revision]` - Reverte migrações até uma revisão específica
+- `flask --app web db-revision --autogenerate -m "mensagem"` - Cria uma nova migração automaticamente baseada nas mudanças nos modelos
+- `flask --app web db-current` - Mostra a revisão atual do banco de dados
+- `flask --app web db-history` - Mostra o histórico de migrações
 
 #### Criando uma nova migração:
 
-Quando você modificar os modelos em `flask_backend/models.py`, crie uma nova migração:
+Quando você modificar os modelos em `web/models.py`, crie uma nova migração:
 
-    flask --app flask_backend db-revision --autogenerate -m "Descrição da mudança"
+    flask --app web db-revision --autogenerate -m "Descrição da mudança"
 
-### Utilizando os scrappers
+### Utilizando os scrappers (runner)
 
-Os scrappers podem ser disparados através da interface web na URL <http://127.0.0.1:5000/screening/import>, clicando no botão "Fazer Scrapping dos cinemas selecionados".
+Os scrapers ficam em `runner/` e são executados via linha de comando. Instale as dependências do runner:
 
-Alternativamente, os scrappers também podem ser rodados via linha de comandos, com o script
+    pip install -r requirements.runner.txt
 
-    ./cinemaempoa.py -h
+Para scraping e importação completa (scrape + envio ao portal + busca de posters):
 
-    usage: cinemaempoa [-h] -r ROOMS [ROOMS ...]
+    python runner/main.py \
+        --rooms capitolio sala-redencao paulo-amorim \
+        --api-url http://localhost:5000 \
+        --api-token <IMPORT_API_TOKEN>
 
-    Extrai os horários das salas de cinema de Porto Alegre em formato JSON utilizando webscrapping.
+Para apenas atualizar posters de sessões existentes:
 
-    options:
-    -h, --help            show this help message and exit
-    -r ROOMS [ROOMS ...], --rooms ROOMS [ROOMS ...]
-                            Define as salas de cinemas para extração dos horários de exibição. Opções: capitolio, sala-redencao, cinebancarios, paulo-amorim
+    python runner/main.py \
+        --poster-only \
+        --api-url http://localhost:5000 \
+        --api-token <IMPORT_API_TOKEN>
 
-Para disparar os scrappers e conseguir os filmes em cartaz em formato json (que pode ser importado no portal), rode o comando com a flag `r`, listando as salas de cinema desejadas, e direcione a saída para um arquivo.
+Veja `python runner/main.py --help` para todas as opções. Veja também o [README do runner](./runner/README.md).
 
-    ./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim > import.json
-
-Você pode inspecionar o arquivo `import.json` resultante para entender melhor a estrutura de saída dos scrappers.
-
-### Importando dados no portal
-
-Caso você tenha rodado os scrappers via linha de comando, você vai precisar importar o arquivo .json resultante no portal.
-
-Após logar, vá para a página <http://localhost:5000/screening/import>.
-
-Lá, selecione o arquivo gerado na etapa anterior e clique em **Enviar**.
-
-As sessões importadas vão estar disponíveis na home.
-
-### Importando dados pela linha de comandos
-
-Uma alternativa a importação via portal é utilizando a linha de comando.
-
-Dentro do seu ambiente, rode o seguinte comando:
-
-```
-flask --app flask_backend import-json /caminho/ate/o/arquivo.json
-```
+**Secrets necessários no GitHub Actions:** `APP_URL`, `IMPORT_API_TOKEN`.
 
 ### Testes automatizados
 
@@ -145,7 +136,7 @@ O projeto possui alguns (poucos) testes automatizados. Certifique-se de que eles
 
 #### Testes do portal
 
-Veja o [README dos testes](./flask_backend/tests/README.md) do portal.
+Veja o [README dos testes](./web/tests/README.md) do portal.
 
 #### Testes dos scrappers
 

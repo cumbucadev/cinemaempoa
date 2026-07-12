@@ -27,7 +27,7 @@ jobs:
             docker compose -f docker-compose.shared.yml build flask
             
             echo "🔄 Running database migrations..."
-            docker compose -f docker-compose.shared.yml run --rm flask flask --app flask_backend db-upgrade
+            docker compose -f docker-compose.shared.yml run --rm flask flask --app web db-upgrade
             echo "✅ Migrations completed."
             
             echo "🚀 Starting application..."

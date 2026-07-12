@@ -21,9 +21,9 @@ build/
 
 .vscode
 *.sqlite
-flask_backend/uploads/*
-!flask_backend/uploads/.gitkeep
-flask_backend/static/sitemaps.txt
+web/uploads/*
+!web/uploads/.gitkeep
+web/static/sitemaps.txt
 
 .env
 

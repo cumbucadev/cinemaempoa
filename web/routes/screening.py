@@ -1,0 +1,450 @@
+import json
+import math
+from datetime import date, datetime
+from typing import List
+
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
+from werkzeug.exceptions import abort
+
+from web.models import Screening
+from web.repository.cinemas import (
+    get_all as get_all_cinemas,
+    get_by_id as get_cinema_by_id,
+    get_by_slug as get_cinema_by_slug,
+)
+from web.repository.movies import (
+    get_by_title_or_create as get_movie_by_title_or_create,
+)
+from web.repository.screenings import (
+    create as create_screening,
+    delete as delete_screening,
+    get_days_screenings_by_cinema_id,
+    get_month_screening_dates,
+    get_screening_by_id,
+    get_weekend_screening_dates,
+    update as update_screening,
+    update_screening_dates,
+)
+from shared.schema import ScrappedResult
+from web.routes.auth import login_required
+from web.service.gemini_api import Gemini
+from web.service.screening import (
+    build_dates,
+    import_scrapped_results,
+    save_image,
+    validate_image,
+)
+
+bp = Blueprint("screening", __name__)
+
+
+@bp.route("/")
+def index():
+    cinemas = get_all_cinemas()
+    today = date.today()
+    # limits how wide a movie image can be on the listing
+    imgDisplayWidth = 325
+
+    quicklinks = []
+    cinemas_with_screenings = []
+
+    user_logged_in = g.user is not None
+
+    for cinema in cinemas:
+        quicklinks.append((cinema.slug, cinema.name))
+
+        cinema_obj = {
+            "name": cinema.name,
+            "slug": cinema.slug,
+            "url": cinema.url,
+            "screening_dates": [],
+        }
+        screenings: List[Screening] = get_days_screenings_by_cinema_id(cinema.id, today)
+        for screening in screenings:
+            if screening.draft and not user_logged_in:
+                continue
+            # used to set <li> styling
+            minHeight = None
+            if screening.image:
+                minHeight = math.ceil(
+                    imgDisplayWidth / screening.image_width * screening.image_height
+                )
+            screening_times = [
+                screening_date.time
+                for screening_date in screening.dates
+                if screening_date.date == today
+            ]
+            cinema_obj["screening_dates"].append(
+                {
+                    "times": screening_times,
+                    "image": screening.image,
+                    "image_alt": screening.image_alt,
+                    "min_height": minHeight,
+                    "image_display_width": imgDisplayWidth,
+                    "title": screening.movie.title,
+                    "description": screening.description,
+                    "screening_url": screening.url,
+                    "screening_id": screening.id,
+                    "draft": screening.draft,
+                }
+            )
+        cinemas_with_screenings.append(cinema_obj)
+
+    alert_html = "<p class='mb-0'>O cinemaempoa <strong>mostra os filmes em exibição</strong> no "
+    qtt_links = len(quicklinks)
+    for idx, link in enumerate(quicklinks):
+        alert_html += f"<a href='#{link[0]}' class='alert-link'>{ link[1] }</a>"
+        if qtt_links > 0 and idx < len(quicklinks) - 1:
+            if idx < len(quicklinks) - 2:
+                alert_html += ", "
+            else:
+                alert_html += " e "
+    alert_html += " em Porto Alegre. <a href='/about'>Saiba mais.</a></p>"
+
+    return render_template(
+        "screening/index.html",
+        cinemas_with_screenings=cinemas_with_screenings,
+        today=datetime.now().strftime("%d/%m/%Y"),
+        alert_html=alert_html,
+    )
+
+
+@bp.route("/weekend")
+def weekend():
+    screening_dates, friday_date, saturday_date, sunday_date = (
+        get_weekend_screening_dates()
+    )
+    return render_template(
+        "screening/weekend.html",
+        screening_dates=screening_dates,
+        friday_date=friday_date,
+        saturday_date=saturday_date,
+        sunday_date=sunday_date,
+    )
+
+
+@bp.route("/program")
+def programacao():
+    all_cinemas = get_all_cinemas()
+
+    # check if there is a query parameter "cinema" and if so, filter the cinemas by the query parameter
+    queried_cinemas = request.args.getlist("cinema")
+    checked_cinemas = (
+        [cinema.slug for cinema in all_cinemas if cinema.slug in queried_cinemas]
+        if queried_cinemas
+        else [cinema.slug for cinema in all_cinemas]
+    )
+
+    screening_dates = get_month_screening_dates(checked_cinemas)
+    # group by date
+    screening_dates_grouped = {}
+    for screening_date in screening_dates:
+        if screening_date.date not in screening_dates_grouped:
+            screening_dates_grouped[screening_date.date] = []
+        screening_dates_grouped[screening_date.date].append(screening_date)
+
+    # set cinema badge color
+    # TODO: cinema colors could be stored in the database
+    colors = {
+        "capitolio": "#911eb4",
+        "sala-redencao": "#000075",
+        "cinebancarios": "#9A6324",
+        "paulo-amorim": "#469990",
+    }
+
+    return render_template(
+        "screening/programacao.html",
+        screening_dates=screening_dates_grouped,
+        colors=colors,
+        cinemas=all_cinemas,
+        checked_cinemas=checked_cinemas,
+    )
+
+
+@bp.route("/screening/assets/<filename>")
+def upload(filename):
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
+
+
+@bp.route("/screening/new", methods=("GET", "POST"))
+@login_required
+def create():
+    screening_dates = []
+    if request.method == "POST":
+        movie_title = request.form.get("movie_title")
+        description = request.form.get("description")
+        cinema_id = request.form.get("cinema_id")
+        screening_dates = request.form.getlist("screening_dates")
+        status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
+        error = None
+
+        if not movie_title:
+            error = "O título do filme é obrigatório."
+        if not description:
+            error = "O campo descrição é obrigatório."
+        if not cinema_id:
+            error = "Selecione o cinema que irá passar essa sessão."
+        if not screening_dates:
+            error = "Selecione ao menos uma data de exibição."
+        if not status:
+            error = "Selecione o status do cadastro."
+
+        try:
+            parsed_screening_dates = build_dates(screening_dates)
+        except ValueError:
+            error = "Data de exibição inválida."
+
+        cinema = get_cinema_by_id(cinema_id)
+        if cinema is None:
+            error = "Selecione uma sala de cinema disponível na listagem."
+
+        movie_poster = request.files.get("movie_poster", None)
+        image = None
+        image_width = None
+        image_height = None
+
+        if movie_poster and movie_poster.filename:
+            img_is_valid, message = validate_image(movie_poster)
+            if img_is_valid:
+                image, image_width, image_height = save_image(movie_poster, current_app)
+            else:
+                error = message
+
+        if error is not None:
+            flash(error, "danger")
+        else:
+            movie = get_movie_by_title_or_create(movie_title)
+            create_screening(
+                movie.id,
+                description,
+                cinema.id,
+                parsed_screening_dates,
+                image,
+                image_width,
+                image_height,
+                status == "draft",
+                image_alt,
+            )
+            flash(f"Sessão «{movie_title}» criada com sucesso!", "success")
+            return redirect(url_for("screening.index"))
+
+    current_date = date.today()
+    max_year = datetime.now().year + 1
+    cinemas = get_all_cinemas()
+
+    valid_dates = []
+    for received_date in screening_dates:
+        try:
+            parsed_date = datetime.strptime(received_date, "%Y-%m-%dT%H:%M")
+            valid_dates.append(f"{parsed_date.date()}T{str(parsed_date.time())[0:5]}")
+        except ValueError:
+            pass
+
+    return render_template(
+        "screening/create.html",
+        cinemas=cinemas,
+        current_date=current_date,
+        received_dates=valid_dates,
+        max_year=max_year,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
+
+
+@bp.route("/screening/<int:id>/publish", methods=("POST",))
+@login_required
+def publish(id):
+    screening = get_screening_by_id(id)
+    if not request.method == "POST":
+        abort(405)
+
+    if not screening:
+        abort(404)
+
+    update_screening(
+        screening,
+        screening.movie_id,
+        screening.description,
+        None,
+        None,
+        None,
+        False,
+    )
+    flash(f"Sessão «{screening.movie.title}» publicada com sucesso!", "success")
+    return redirect(url_for("screening.index"))
+
+
+@bp.route("/screening/<int:id>/update", methods=("GET", "POST"))
+@login_required
+def update(id):
+    screening = get_screening_by_id(id)
+    image = None
+    if not screening:
+        abort(404)
+
+    if request.method == "POST":
+        movie_title = request.form.get("movie_title")
+        description = request.form.get("description")
+        screening_dates = request.form.getlist("screening_dates")
+        status = request.form.get("status")
+        image_alt = request.form.get("image_alt")
+        error = None
+
+        if not movie_title:
+            error = "O título do filme é obrigatório."
+        if not description:
+            error = "O campo descrição é obrigatório."
+        if not screening_dates:
+            error = "Selecione ao menos uma data de exibição."
+        if not status:
+            error = "Selecione o status do cadastro."
+
+        try:
+            parsed_screening_dates = build_dates(screening_dates)
+        except ValueError:
+            error = "Data de exibição inválida."
+
+        movie_poster = request.files.get("movie_poster", None)
+        image = screening.image
+        image_width = screening.image_width
+        image_height = screening.image_height
+
+        if movie_poster and movie_poster.filename:
+            img_is_valid, message = validate_image(movie_poster)
+            if img_is_valid:
+                new_img, image_width, image_height = save_image(
+                    movie_poster, current_app
+                )
+                image = new_img
+            else:
+                error = message
+
+        if error is not None:
+            flash(error, "danger")
+        else:
+            update_screening_dates(screening, parsed_screening_dates)
+
+            movie = get_movie_by_title_or_create(movie_title)
+            update_screening(
+                screening,
+                movie.id,
+                description,
+                image,
+                image_width,
+                image_height,
+                status == "draft",
+                image_alt,
+            )
+            flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
+            return redirect(url_for("screening.index"))
+
+    return render_template(
+        "screening/update.html",
+        current_movie_poster=image or screening.image,
+        screening=screening,
+        max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
+
+
+@bp.route("/screening/<int:id>/delete", methods=("POST",))
+@login_required
+def delete(id):
+    if not request.method == "POST":
+        abort(405)
+
+    screening = get_screening_by_id(id)
+
+    if not screening:
+        abort(404)
+
+    movie_title = screening.movie.title
+
+    delete_screening(screening)
+    flash(f"Sessão «{movie_title}» deletado com sucesso!", "success")
+    return redirect(url_for("screening.index"))
+
+
+@bp.route("/screening/import", methods=("GET", "POST"))
+@login_required
+def import_screenings():
+    suggestions = []
+    if request.method == "POST":
+        if "json_file" not in request.files:
+            flash("Nenhum arquivo enviado", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
+
+        json_file = request.files["json_file"]
+
+        if json_file.filename == "":
+            flash("Nenhum arquivo selecionado", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
+
+        try:
+            parsed_json = json.load(json_file)
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+            flash("Arquivo .json inválido", "danger")
+            return render_template("screening/import.html", suggestions=suggestions)
+
+        try:
+            scrapped_result = ScrappedResult.from_jsonable(parsed_json)
+        except (KeyError, TypeError, ValueError) as e:
+            flash("Arquivo .json com estrutura inválida para importação", "danger")
+            print(e)
+            return render_template("screening/import.html", suggestions=suggestions)
+
+        for json_cinema in scrapped_result.cinemas:
+            cinema = get_cinema_by_slug(json_cinema.slug)
+            if cinema is None:
+                flash(f"Sala {json_cinema.slug} não encontrada.")
+                return render_template("screening/import.html", suggestions=suggestions)
+
+        created_features = import_scrapped_results(scrapped_result, current_app)
+
+        flash(f"«{created_features}» sessões criadas com sucesso!", "success")
+
+    return render_template("screening/import.html", suggestions=suggestions)
+
+
+@bp.route("/screening/image/describe", methods=("POST",))
+@login_required
+def describe_image():
+    if request.method != "POST":
+        abort(405)
+    if "image" not in request.files:
+        return jsonify({"details": "Imagem não encontrada."}), 400
+    image = request.files["image"]
+    try:
+        gemini = Gemini()
+    except ValueError:
+        return jsonify({"details": "Chave de API Gemini não configurada."}), 500
+
+    prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
+    prompt_response = gemini.prompt_image(image, prompt_text)
+    if "candidates" not in prompt_response or len(prompt_response["candidates"]) == 0:
+        return jsonify(
+            {
+                "details": "Não foi possível gerar uma descrição para a imagem.",
+                "info": prompt_response,
+            }
+        )
+    candidate = prompt_response["candidates"][0]
+    if "content" not in candidate:
+        return jsonify(
+            {
+                "details": "Não foi possível gerar uma descrição para a imagem.",
+                "info": prompt_response,
+            }
+        )
+    image_description = candidate["content"]["parts"][0]["text"]
+    return jsonify(text=image_description.strip())

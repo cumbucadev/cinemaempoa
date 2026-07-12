@@ -28,7 +28,7 @@ if [ $? != "0" ]; then
 fi
 
 current_ymd=$(date -I)
-SOURCE_DB="flask_backend.sqlite"
+SOURCE_DB="web.sqlite"
 TARGET_DB="$current_ymd.sqlite"
 
 WITH_DATA=(cinemas movies screenings screening_dates)

@@ -1,0 +1,19 @@
+from typing import List, Optional
+
+from sqlalchemy import asc
+
+from web.db import db_session
+from web.models import Cinema
+
+
+def get_all() -> List[Cinema]:
+    cinemas = db_session.query(Cinema).order_by(asc(Cinema.name)).all()
+    return cinemas
+
+
+def get_by_id(cinema_id: int) -> Optional[Cinema]:
+    return db_session.query(Cinema).filter(Cinema.id == cinema_id).first()
+
+
+def get_by_slug(cinema_slug: str) -> Optional[Cinema]:
+    return db_session.query(Cinema).filter(Cinema.slug == cinema_slug).first()

@@ -12,12 +12,18 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout
-        uses: appleboy/ssh-action@master
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          host: ${{ secrets.HOST }}
-          username:  ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          script: |
-            docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r cinebancarios > /app/import.json"
-            docker exec cinemaempoa_flask bash -c "flask --app flask_backend import-json /app/import.json"
+          python-version: "3.10"
+
+      - name: Install runner dependencies
+        run: pip install -r requirements.runner.txt
+
+      - name: Run CineBancários scraper and import
+        run: |
+          python runner/main.py \
+            --rooms cinebancarios \
+            --api-url ${{ secrets.APP_URL }} \
+            --api-token ${{ secrets.IMPORT_API_TOKEN }}

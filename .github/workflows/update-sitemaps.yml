@@ -19,4 +19,4 @@ jobs:
           username:  ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           script: |
-            docker exec cinemaempoa_flask bash -c "flask --app flask_backend generate-sitemap > /app/flask_backend/static/sitemaps.txt"
+            docker exec cinemaempoa_flask bash -c "flask --app web generate-sitemap > /app/web/static/sitemaps.txt"

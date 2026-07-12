@@ -1,0 +1,17 @@
+# Runner-only dependencies (scrapers + poster-finding)
+# Install with: pip install -r requirements.runner.txt
+
+beautifulsoup4==4.14.3
+requests==2.31.0
+pillow==12.0.0
+icalendar==6.3.1
+Levenshtein==0.21.1
+country-list==1.0.0
+aiohttp==3.13.2
+google-genai==1.53.0
+llama-index==0.14.10
+llama-index-core==0.14.10
+llama-index-llms-google-genai==0.7.4
+llama-index-llms-openai==0.6.10
+openai==2.9.0
+soupsieve==2.4.1

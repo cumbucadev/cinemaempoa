@@ -9,9 +9,9 @@ from alembic import context
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-import flask_backend.models  # noqa: F401, E402 - Import models to register them
-from flask_backend.db import Base, engine  # noqa: E402
-from flask_backend.env_config import DATABASE_URL  # noqa: E402
+import web.models  # noqa: F401, E402 - Import models to register them
+from web.db import Base, engine  # noqa: E402
+from web.env_config import DATABASE_URL  # noqa: E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -65,7 +65,7 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
 
-    We use the existing engine from flask_backend.db to maintain
+    We use the existing engine from web.db to maintain
     consistency with the application.
     """
     with engine.connect() as connection:
