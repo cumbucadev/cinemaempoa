@@ -41,7 +41,7 @@ class TestBlogShow:
 
     def test_blog_show_published_post_returns_200(self, client, test_blog_post):
         """Test that a published blog post can be viewed."""
-        response = client.get(f'/blog/{test_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_blog_post['slug']}")
         assert response.status_code == 200
         assert b"Test Blog Post" in response.data
         assert b"This is a test blog post content." in response.data
@@ -50,7 +50,7 @@ class TestBlogShow:
         self, client, test_draft_blog_post
     ):
         """Test that draft posts return 404 when user is not logged in."""
-        response = client.get(f'/blog/{test_draft_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_draft_blog_post['slug']}")
         assert response.status_code == 404
 
     def test_blog_show_nonexistent_post_returns_404(self, client):
@@ -73,7 +73,7 @@ class TestBlogShow:
             post.content = "# Test Header\n\nThis is **bold** text."
             db_session.commit()
 
-        response = client.get(f'/blog/{test_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_blog_post['slug']}")
         # Check that markdown is rendered to HTML
         assert b"<h1>Test Header</h1>" in response.data
         assert b"<strong>bold</strong>" in response.data
@@ -96,7 +96,7 @@ class TestBlogShow:
             post.updated_at = post.created_at + timedelta(days=1)
             db_session.commit()
 
-        response = client.get(f'/blog/{test_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_blog_post['slug']}")
         # The template should show updated_at information
         assert b"Atualizado em" in response.data
 
@@ -115,7 +115,7 @@ class TestBlogShow:
             post.updated_at = None
             db_session.commit()
 
-        response = client.get(f'/blog/{test_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_blog_post['slug']}")
         assert response.status_code == 200
         assert b"Atualizado em" not in response.data
 
@@ -136,13 +136,13 @@ class TestBlogShow:
             post.updated_at = post.created_at
             db_session.commit()
 
-        response = client.get(f'/blog/{test_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_blog_post['slug']}")
         assert response.status_code == 200
         assert b"Atualizado em" not in response.data
 
     def test_blog_show_includes_featured_image(self, client, test_blog_post):
         """Test that featured image is included in the post view."""
-        response = client.get(f'/blog/{test_blog_post["slug"]}')
+        response = client.get(f"/blog/{test_blog_post['slug']}")
         assert response.status_code == 200
         assert b"https://example.com/image.jpg" in response.data
         assert b"Test image" in response.data  # alt text

@@ -21,7 +21,7 @@
             <div class="d-flex">
                 <dt class="me-2">Direção</dt>
                 <dd>
-                    {{ movie['directors']|map(attribute='name')|join(', ') }}
+                    {{ movie['directors']|map(attribute='name') |join(', ') }}
                 </dd>
             </div>
         </dl>

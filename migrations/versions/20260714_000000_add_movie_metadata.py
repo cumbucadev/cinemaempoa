@@ -26,9 +26,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_genres_tmdb_id", "genres", ["tmdb_id"], unique=True
-    )
+    op.create_index("ix_genres_tmdb_id", "genres", ["tmdb_id"], unique=True)
 
     op.create_table(
         "directors",
@@ -37,9 +35,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_directors_tmdb_id", "directors", ["tmdb_id"], unique=True
-    )
+    op.create_index("ix_directors_tmdb_id", "directors", ["tmdb_id"], unique=True)
 
     op.create_table(
         "movie_genres",
@@ -49,9 +45,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["genre_id"], ["genres.id"]),
         sa.PrimaryKeyConstraint("movie_id", "genre_id"),
     )
-    op.create_index(
-        "ix_movie_genres_genre_id", "movie_genres", ["genre_id"]
-    )
+    op.create_index("ix_movie_genres_genre_id", "movie_genres", ["genre_id"])
 
     op.create_table(
         "movie_directors",

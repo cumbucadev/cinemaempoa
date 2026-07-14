@@ -152,7 +152,7 @@ class Capitolio:
                         )
                         if match:
                             feature_film["time"] = feature_film["time"] + [
-                                f'{cur_day.strftime("%Y-%m-%d")}T{match.group(1)}'
+                                f"{cur_day.strftime('%Y-%m-%d')}T{match.group(1)}"
                             ]
                         else:
                             feature_film["time"] = feature_film["time"] + [

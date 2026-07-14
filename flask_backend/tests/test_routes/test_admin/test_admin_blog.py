@@ -128,7 +128,7 @@ class TestAdmingBlogPost:
 class TestAdminBlogEdit:
     def test_admin_blog_edit_requires_login(self, client, test_blog_post):
         """Test that admin blog edit requires authentication."""
-        response = client.get(f'/admin/blog/{test_blog_post["id"]}/edit')
+        response = client.get(f"/admin/blog/{test_blog_post['id']}/edit")
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
@@ -136,7 +136,7 @@ class TestAdminBlogEdit:
         self, auth_headers, test_blog_post
     ):
         """Test that admin blog edit GET returns 200 when authenticated."""
-        response = auth_headers.get(f'/admin/blog/{test_blog_post["id"]}/edit')
+        response = auth_headers.get(f"/admin/blog/{test_blog_post['id']}/edit")
         assert response.status_code == 200
         assert b"Test Blog Post" in response.data
 
@@ -152,7 +152,7 @@ class TestAdminBlogUpdate:
     ):
         """Test that admin blog edit POST updates the post."""
         response = auth_headers.post(
-            f'/admin/blog/{test_blog_post["id"]}/edit',
+            f"/admin/blog/{test_blog_post['id']}/edit",
             data={
                 "title": "Updated Test Post",
                 "content": "This is updated test content.",
@@ -182,7 +182,7 @@ class TestAdminBlogUpdate:
     ):
         """Test that admin blog edit POST shows validation errors."""
         response = auth_headers.post(
-            f'/admin/blog/{test_blog_post["id"]}/edit',
+            f"/admin/blog/{test_blog_post['id']}/edit",
             data={
                 "title": "",  # Empty title should cause error
                 "content": "Some validation test content",
@@ -206,7 +206,7 @@ class TestAdminBlogUpdate:
 class TestAdminBlogDelete:
     def test_admin_blog_delete_requires_login(self, client, test_blog_post):
         """Test that admin blog delete requires authentication."""
-        response = client.post(f'/admin/blog/{test_blog_post["id"]}/delete')
+        response = client.post(f"/admin/blog/{test_blog_post['id']}/delete")
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
@@ -222,7 +222,7 @@ class TestAdminBlogDelete:
     ):
         """Test that admin blog delete removes the post when authenticated."""
         response = auth_headers.post(
-            f'/admin/blog/{test_blog_post["id"]}/delete', follow_redirects=True
+            f"/admin/blog/{test_blog_post['id']}/delete", follow_redirects=True
         )
         assert response.status_code == 200
         assert b"admin/blog" in response.data
@@ -244,7 +244,7 @@ class TestAdminBlogTogglePublish:
     def test_admin_blog_toggle_publish_requires_login(self, client, test_blog_post):
         """Test that admin blog toggle publish requires authentication."""
         current_status = test_blog_post["published"]
-        response = client.post(f'/admin/blog/{test_blog_post["id"]}/toggle-publish')
+        response = client.post(f"/admin/blog/{test_blog_post['id']}/toggle-publish")
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
@@ -265,7 +265,7 @@ class TestAdminBlogTogglePublish:
         assert test_blog_post["published"]
 
         response = auth_headers.post(
-            f'/admin/blog/{test_blog_post["id"]}/toggle-publish', follow_redirects=True
+            f"/admin/blog/{test_blog_post['id']}/toggle-publish", follow_redirects=True
         )
         assert response.status_code == 200
         # Should redirect back to admin index

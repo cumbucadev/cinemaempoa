@@ -134,7 +134,7 @@ def poster_review():
     click.echo(f"Sessões que precisam de revisão manual ({len(summary)}):\n")
     for item in summary:
         click.echo(
-            f"  Screening #{item['screening_id']} – \"{item['movie_title']}\" "
+            f'  Screening #{item["screening_id"]} – "{item["movie_title"]}" '
             f"(fontes tentadas: {', '.join(item['sources_attempted'])})"
         )
 
@@ -205,6 +205,6 @@ def movie_metadata_review():
     click.echo(f"Filmes que precisam de revisão manual ({len(summary)}):\n")
     for item in summary:
         click.echo(
-            f"  Movie #{item['movie_id']} – \"{item['movie_title']}\" "
+            f'  Movie #{item["movie_id"]} – "{item["movie_title"]}" '
             f"(fontes tentadas: {', '.join(item['sources_attempted'])})"
         )

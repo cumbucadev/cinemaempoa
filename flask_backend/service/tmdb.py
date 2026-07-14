@@ -103,7 +103,9 @@ class TMDBClient:
         url = f"{TMDB_API_BASE_URL}/movie/{tmdb_id}"
         params = {"language": language, "append_to_response": "credits"}
         try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response = requests.get(
+                url, headers=self.headers, params=params, timeout=10
+            )
             response.raise_for_status()
         except requests.RequestException as exc:
             logger.warning("TMDB details failed for id=%s: %s", tmdb_id, exc)

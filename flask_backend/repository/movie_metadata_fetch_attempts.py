@@ -2,7 +2,11 @@ from datetime import datetime
 from typing import List, Optional, Set
 
 from flask_backend.db import db_session
-from flask_backend.models import MOVIE_METADATA_SOURCES, Movie, MovieMetadataFetchAttempt
+from flask_backend.models import (
+    MOVIE_METADATA_SOURCES,
+    Movie,
+    MovieMetadataFetchAttempt,
+)
 
 
 def create(

@@ -20,8 +20,8 @@ from flask_backend.repository.genres import (
 )
 from flask_backend.repository.movie_metadata_fetch_attempts import (
     create as create_attempt,
-    get_next_source,
     get_movies_without_metadata,
+    get_next_source,
 )
 from flask_backend.service.tmdb import TMDBClient
 
