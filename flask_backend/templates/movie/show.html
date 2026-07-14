@@ -9,31 +9,23 @@
             {{ movie['title'] }}
         {% endblock title %}
     </h1>
-    <!-- <p>XXXX — XX — Xh XX min</p>
-    <p>
-        <span class="badge rounded-pill text-bg-primary">Fantasia</span>
-        <span class="badge rounded-pill text-bg-primary">Ação</span>
-    </p>
-    <dl>
-        <div class="d-flex">
-            <dt class="me-2">Direção</dt>
-            <dd>
-                --
-            </dd>
-        </div>
-        <div class="d-flex">
-            <dt class="me-2">Roteiristas</dt>
-            <dd>
-                --
-            </dd>
-        </div>
-        <div class="d-flex">
-            <dt class="me-2">Artistas</dt>
-            <dd>
-                ---
-            </dd>
-        </div>
-    </dl> -->
+    {% if movie['genres'] %}
+        <p>
+            {% for genre in movie['genres'] %}
+                <span class="badge rounded-pill text-bg-primary">{{ genre['name'] }}</span>
+            {% endfor %}
+        </p>
+    {% endif %}
+    {% if movie['directors'] %}
+        <dl>
+            <div class="d-flex">
+                <dt class="me-2">Direção</dt>
+                <dd>
+                    {{ movie['directors']|map(attribute='name')|join(', ') }}
+                </dd>
+            </div>
+        </dl>
+    {% endif %}
 {% endblock header %}
 {% block content %}
     <div class="container">

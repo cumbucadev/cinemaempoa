@@ -35,14 +35,26 @@ def clean_db(app):
         from flask_backend.models import (
             BlogPost,
             Cinema,
+            Director,
+            Genre,
             Movie,
+            MovieMetadataFetchAttempt,
+            PosterFetchAttempt,
             Screening,
             ScreeningDate,
             User,
+            movie_directors,
+            movie_genres,
         )
 
         db_session.query(BlogPost).delete()
         db_session.query(User).delete()
+        db_session.query(MovieMetadataFetchAttempt).delete()
+        db_session.query(PosterFetchAttempt).delete()
+        db_session.execute(movie_genres.delete())
+        db_session.execute(movie_directors.delete())
+        db_session.query(Genre).delete()
+        db_session.query(Director).delete()
         db_session.query(ScreeningDate).delete()
         db_session.query(Screening).delete()
         db_session.query(Movie).delete()

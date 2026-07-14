@@ -20,6 +20,8 @@ def register_commands(app):
     app.cli.add_command(generate_sitemap)
     app.cli.add_command(fetch_posters)
     app.cli.add_command(poster_review)
+    app.cli.add_command(fetch_movie_metadata)
+    app.cli.add_command(movie_metadata_review)
 
 
 @click.command("import-json")
@@ -133,5 +135,76 @@ def poster_review():
     for item in summary:
         click.echo(
             f"  Screening #{item['screening_id']} – \"{item['movie_title']}\" "
+            f"(fontes tentadas: {', '.join(item['sources_attempted'])})"
+        )
+
+
+@click.command("fetch-movie-metadata")
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Número máximo de filmes a processar. Sem limite por padrão.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Apenas lista o que seria feito, sem fazer requisições.",
+)
+@click.option(
+    "--verbose", "-v", is_flag=True, default=False, help="Mostra logs detalhados."
+)
+def fetch_movie_metadata(limit, dry_run, verbose):
+    """Busca diretor(es) e gêneros para filmes sem esses dados.
+
+    Tenta fontes na ordem: TMDB.
+    Registra cada tentativa para evitar repetição.
+    """
+    from flask_backend.service.movie_metadata_pipeline import run_pipeline
+
+    log_level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
+
+    if dry_run:
+        click.echo("=== Modo dry-run: nenhuma requisição será feita ===\n")
+
+    result = run_pipeline(limit=limit, dry_run=dry_run)
+
+    click.echo(f"\n{'=' * 40}")
+    click.echo("Resultado da busca de metadados de filmes:")
+    click.echo(f"  Processados:          {result.processed}")
+    click.echo(f"  Metadados encontrados:  {result.metadata_found}")
+    click.echo(f"  Não encontrados:      {result.metadata_not_found}")
+    click.echo(f"  Erros:                {result.errors}")
+    click.echo(f"  Fontes esgotadas:     {result.skipped_all_sources_tried}")
+    click.echo(f"{'=' * 40}")
+
+    if result.skipped_all_sources_tried > 0:
+        click.echo(
+            f"\n⚠ {result.skipped_all_sources_tried} filme(s) já tentaram todas "
+            "as fontes sem sucesso. Use 'flask movie-metadata-review' para listá-los."
+        )
+
+
+@click.command("movie-metadata-review")
+def movie_metadata_review():
+    """Lista filmes que precisam de revisão manual de metadados.
+
+    São filmes sem diretor que já tentaram todas as fontes
+    disponíveis (TMDB) sem sucesso.
+    """
+    from flask_backend.service.movie_metadata_pipeline import get_manual_review_summary
+
+    summary = get_manual_review_summary()
+
+    if not summary:
+        click.echo("Nenhum filme pendente de revisão manual de metadados.")
+        return
+
+    click.echo(f"Filmes que precisam de revisão manual ({len(summary)}):\n")
+    for item in summary:
+        click.echo(
+            f"  Movie #{item['movie_id']} – \"{item['movie_title']}\" "
             f"(fontes tentadas: {', '.join(item['sources_attempted'])})"
         )
