@@ -1,5 +1,6 @@
 import hashlib
 import imghdr
+import logging
 import os
 from datetime import datetime
 from io import BytesIO
@@ -23,8 +24,11 @@ from flask_backend.repository.screenings import (
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
     update_screening_dates,
 )
+from flask_backend.service.title_cleaning import clean_title
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -150,7 +154,15 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
         cinema = get_cinema_by_slug(scrapped_cinema.slug)
         scrapped_feature: ScrappedFeature
         for scrapped_feature in scrapped_cinema.features:
-            movie = get_movie_by_title_or_create(scrapped_feature.title)
+            title_cleaning_result = clean_title(scrapped_feature.title)
+            if title_cleaning_result.changed:
+                logger.info(
+                    "Título limpo na importação: '%s' -> '%s' (regras: %s)",
+                    title_cleaning_result.raw_title,
+                    title_cleaning_result.cleaned_title,
+                    ", ".join(title_cleaning_result.matched_rules),
+                )
+            movie = get_movie_by_title_or_create(title_cleaning_result.cleaned_title)
 
             description: str = ""
             screenings_dates = None

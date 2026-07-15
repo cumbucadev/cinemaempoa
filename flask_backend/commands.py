@@ -10,6 +10,9 @@ from flask_backend.repository.cinemas import (
 from flask_backend.scripts.dedupper import dedupper
 from flask_backend.scripts.dupechecker import dupe_checker
 from flask_backend.scripts.sitemap import sitemap
+from flask_backend.scripts.title_cleaning_report import (
+    title_cleaning_report as run_title_cleaning_report,
+)
 from flask_backend.service.runner import Runner
 
 
@@ -22,6 +25,7 @@ def register_commands(app):
     app.cli.add_command(poster_review)
     app.cli.add_command(fetch_movie_metadata)
     app.cli.add_command(movie_metadata_review)
+    app.cli.add_command(title_cleaning_report_command)
 
 
 @click.command("import-json")
@@ -208,3 +212,11 @@ def movie_metadata_review():
             f'  Movie #{item["movie_id"]} – "{item["movie_title"]}" '
             f"(fontes tentadas: {', '.join(item['sources_attempted'])})"
         )
+
+
+@click.command("title-cleaning-report")
+def title_cleaning_report_command():
+    """Relatório somente-leitura de títulos com anotações detectáveis
+    (prefixos de mostras/sessões, sufixos de debate/conversa etc.).
+    """
+    run_title_cleaning_report()
