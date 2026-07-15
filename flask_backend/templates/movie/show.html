@@ -9,31 +9,43 @@
             {{ movie['title'] }}
         {% endblock title %}
     </h1>
-    <!-- <p>XXXX — XX — Xh XX min</p>
-    <p>
-        <span class="badge rounded-pill text-bg-primary">Fantasia</span>
-        <span class="badge rounded-pill text-bg-primary">Ação</span>
-    </p>
-    <dl>
-        <div class="d-flex">
-            <dt class="me-2">Direção</dt>
-            <dd>
-                --
-            </dd>
-        </div>
-        <div class="d-flex">
-            <dt class="me-2">Roteiristas</dt>
-            <dd>
-                --
-            </dd>
-        </div>
-        <div class="d-flex">
-            <dt class="me-2">Artistas</dt>
-            <dd>
-                ---
-            </dd>
-        </div>
-    </dl> -->
+    {% if movie['original_title'] and movie['original_title'] != movie['title'] %}
+        <p class="text-muted">{{ movie['original_title'] }}</p>
+    {% endif %}
+    {% if movie['release_year'] or movie['countries'] %}
+        <p>
+            {{ movie['release_year'] if movie['release_year'] }}
+            {% if movie['release_year'] and movie['countries'] %}—{% endif %}
+            {{ movie['countries']|map(attribute='name') |join(', ') if movie['countries'] }}
+        </p>
+    {% endif %}
+    {% if movie['genres'] %}
+        <p>
+            {% for genre in movie['genres'] %}
+                <span class="badge rounded-pill text-bg-primary">{{ genre['name'] }}</span>
+            {% endfor %}
+        </p>
+    {% endif %}
+    {% if movie['directors'] or movie['original_language'] %}
+        <dl>
+            {% if movie['directors'] %}
+                <div class="d-flex">
+                    <dt class="me-2">Direção</dt>
+                    <dd>
+                        {{ movie['directors']|map(attribute='name') |join(', ') }}
+                    </dd>
+                </div>
+            {% endif %}
+            {% if movie['original_language'] %}
+                <div class="d-flex">
+                    <dt class="me-2">Idioma original</dt>
+                    <dd>
+                        {{ movie['original_language'] }}
+                    </dd>
+                </div>
+            {% endif %}
+        </dl>
+    {% endif %}
 {% endblock header %}
 {% block content %}
     <div class="container">

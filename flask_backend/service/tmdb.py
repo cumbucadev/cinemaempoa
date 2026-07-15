@@ -2,6 +2,7 @@
 
 Docs:
     - https://developer.themoviedb.org/reference/search-movie
+    - https://developer.themoviedb.org/reference/movie-details
     - https://developer.themoviedb.org/docs/image-basics
 """
 
@@ -86,3 +87,62 @@ class TMDBClient:
             return None
 
         return f"{TMDB_IMAGE_BASE_URL}/{size}{poster_path}"
+
+    def get_movie_details(self, tmdb_id: int, language: str = "pt-BR") -> dict:
+        """Fetch movie details and credits from TMDB by id.
+
+        Uses append_to_response=credits to get genres and crew in a single
+        request. Returns a dict with:
+            - "genres": list of {"id": int, "name": str}
+            - "directors": list of {"id": int, "name": str} (crew entries
+              whose job is "Director"; may contain more than one for
+              co-directed films)
+            - "original_title": Optional[str]
+            - "release_year": Optional[int], parsed from release_date
+            - "original_language": Optional[str], ISO 639-1 code (e.g. "pt")
+            - "countries": list of {"iso_3166_1": str, "name": str}, from
+              production_countries
+
+        Raises requests.RequestException on network / API errors.
+        """
+        url = f"{TMDB_API_BASE_URL}/movie/{tmdb_id}"
+        params = {"language": language, "append_to_response": "credits"}
+        try:
+            response = requests.get(
+                url, headers=self.headers, params=params, timeout=10
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning("TMDB details failed for id=%s: %s", tmdb_id, exc)
+            raise
+
+        data = response.json()
+        genres = data.get("genres", [])
+        crew = data.get("credits", {}).get("crew", [])
+        directors = [
+            {"id": c.get("id"), "name": c.get("name")}
+            for c in crew
+            if c.get("job") == "Director"
+        ]
+
+        release_date = data.get("release_date")
+        release_year = None
+        if release_date:
+            try:
+                release_year = int(release_date[:4])
+            except ValueError:
+                release_year = None
+
+        countries = [
+            {"iso_3166_1": c.get("iso_3166_1"), "name": c.get("name")}
+            for c in data.get("production_countries", [])
+        ]
+
+        return {
+            "genres": genres,
+            "directors": directors,
+            "original_title": data.get("original_title"),
+            "release_year": release_year,
+            "original_language": data.get("original_language"),
+            "countries": countries,
+        }

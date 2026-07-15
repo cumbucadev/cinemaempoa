@@ -103,7 +103,7 @@ def index():
     alert_html = "<p class='mb-0'>O cinemaempoa <strong>mostra os filmes em exibição</strong> no "
     qtt_links = len(quicklinks)
     for idx, link in enumerate(quicklinks):
-        alert_html += f"<a href='#{link[0]}' class='alert-link'>{ link[1] }</a>"
+        alert_html += f"<a href='#{link[0]}' class='alert-link'>{link[1]}</a>"
         if qtt_links > 0 and idx < len(quicklinks) - 1:
             if idx < len(quicklinks) - 2:
                 alert_html += ", "
