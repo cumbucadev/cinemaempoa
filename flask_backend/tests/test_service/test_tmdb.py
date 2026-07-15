@@ -69,3 +69,50 @@ class TestGetMovieDetails:
         ):
             with pytest.raises(requests.RequestException):
                 tmdb_client.get_movie_details(123)
+
+    def test_returns_original_title_year_language_and_countries(self, tmdb_client):
+        response = Mock()
+        response.json.return_value = {
+            "genres": [],
+            "credits": {"crew": []},
+            "original_title": "Cão e Lobo",
+            "release_date": "2025-03-14",
+            "original_language": "pt",
+            "production_countries": [
+                {"iso_3166_1": "BR", "name": "Brazil"},
+                {"iso_3166_1": "UY", "name": "Uruguay"},
+            ],
+        }
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            details = tmdb_client.get_movie_details(123)
+
+        assert details["original_title"] == "Cão e Lobo"
+        assert details["release_year"] == 2025
+        assert details["original_language"] == "pt"
+        assert details["countries"] == [
+            {"iso_3166_1": "BR", "name": "Brazil"},
+            {"iso_3166_1": "UY", "name": "Uruguay"},
+        ]
+
+    def test_release_year_is_none_when_release_date_missing(self, tmdb_client):
+        response = Mock()
+        response.json.return_value = {"genres": [], "credits": {"crew": []}}
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            details = tmdb_client.get_movie_details(123)
+
+        assert details["release_year"] is None
+        assert details["original_title"] is None
+        assert details["original_language"] is None
+        assert details["countries"] == []
+
+    def test_release_year_is_none_when_release_date_malformed(self, tmdb_client):
+        response = Mock()
+        response.json.return_value = {
+            "genres": [],
+            "credits": {"crew": []},
+            "release_date": "not-a-date",
+        }
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            details = tmdb_client.get_movie_details(123)
+
+        assert details["release_year"] is None

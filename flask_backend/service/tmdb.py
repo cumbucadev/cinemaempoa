@@ -97,6 +97,11 @@ class TMDBClient:
             - "directors": list of {"id": int, "name": str} (crew entries
               whose job is "Director"; may contain more than one for
               co-directed films)
+            - "original_title": Optional[str]
+            - "release_year": Optional[int], parsed from release_date
+            - "original_language": Optional[str], ISO 639-1 code (e.g. "pt")
+            - "countries": list of {"iso_3166_1": str, "name": str}, from
+              production_countries
 
         Raises requests.RequestException on network / API errors.
         """
@@ -119,4 +124,25 @@ class TMDBClient:
             for c in crew
             if c.get("job") == "Director"
         ]
-        return {"genres": genres, "directors": directors}
+
+        release_date = data.get("release_date")
+        release_year = None
+        if release_date:
+            try:
+                release_year = int(release_date[:4])
+            except ValueError:
+                release_year = None
+
+        countries = [
+            {"iso_3166_1": c.get("iso_3166_1"), "name": c.get("name")}
+            for c in data.get("production_countries", [])
+        ]
+
+        return {
+            "genres": genres,
+            "directors": directors,
+            "original_title": data.get("original_title"),
+            "release_year": release_year,
+            "original_language": data.get("original_language"),
+            "countries": countries,
+        }

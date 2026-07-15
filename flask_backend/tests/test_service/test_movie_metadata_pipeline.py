@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from flask_backend.db import db_session
 from flask_backend.models import (
+    Country,
     Director,
     Genre,
     Movie,
@@ -40,6 +41,10 @@ class TestRunPipeline:
                 details={
                     "genres": [{"id": 28, "name": "Ação"}],
                     "directors": [{"id": 42, "name": "Jane Director"}],
+                    "original_title": "Cão e Lobo",
+                    "release_year": 2025,
+                    "original_language": "pt",
+                    "countries": [{"iso_3166_1": "BR", "name": "Brazil"}],
                 },
             )
             with patch(
@@ -54,6 +59,10 @@ class TestRunPipeline:
             movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
             assert [d.name for d in movie.directors] == ["Jane Director"]
             assert [g.name for g in movie.genres] == ["Ação"]
+            assert movie.original_title == "Cão e Lobo"
+            assert movie.release_year == 2025
+            assert movie.original_language == "pt"
+            assert [c.name for c in movie.countries] == ["Brazil"]
 
             attempts = (
                 db_session.query(MovieMetadataFetchAttempt)
@@ -138,7 +147,7 @@ class TestRunPipeline:
             assert result.skipped_all_sources_tried == 1
             tmdb_client.search_movie.assert_not_called()
 
-    def test_dedupes_genres_and_directors_across_movies(self, client, app):
+    def test_dedupes_genres_directors_and_countries_across_movies(self, client, app):
         with client.application.app_context():
             movie_a = _create_movie("Filme A", "filme-a")
             movie_b = _create_movie("Filme B", "filme-b")
@@ -147,6 +156,7 @@ class TestRunPipeline:
             details = {
                 "genres": [{"id": 28, "name": "Ação"}],
                 "directors": [{"id": 42, "name": "Jane Director"}],
+                "countries": [{"iso_3166_1": "BR", "name": "Brazil"}],
             }
 
             with patch(
@@ -159,8 +169,12 @@ class TestRunPipeline:
 
             genres = db_session.query(Genre).filter(Genre.tmdb_id == 28).all()
             directors = db_session.query(Director).filter(Director.tmdb_id == 42).all()
+            countries = (
+                db_session.query(Country).filter(Country.iso_3166_1 == "BR").all()
+            )
             assert len(genres) == 1
             assert len(directors) == 1
+            assert len(countries) == 1
 
             movie_a = db_session.query(Movie).filter(Movie.id == movie_a_id).first()
             movie_b = db_session.query(Movie).filter(Movie.id == movie_b_id).first()
@@ -168,3 +182,5 @@ class TestRunPipeline:
             assert genres[0] in movie_b.genres
             assert directors[0] in movie_a.directors
             assert directors[0] in movie_b.directors
+            assert countries[0] in movie_a.countries
+            assert countries[0] in movie_b.countries

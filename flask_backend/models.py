@@ -45,12 +45,27 @@ movie_directors = Table(
     Column("director_id", Integer, ForeignKey("directors.id"), primary_key=True),
 )
 
+movie_countries = Table(
+    "movie_countries",
+    Base.metadata,
+    Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+    Column("country_id", Integer, ForeignKey("countries.id"), primary_key=True),
+)
+
 
 class Genre(Base):
     __tablename__ = "genres"
 
     id = Column(Integer, primary_key=True)
     tmdb_id = Column(Integer, unique=True, nullable=True, index=True)
+    name = Column(String, nullable=False)
+
+
+class Country(Base):
+    __tablename__ = "countries"
+
+    id = Column(Integer, primary_key=True)
+    iso_3166_1 = Column(String, unique=True, nullable=True, index=True)
     name = Column(String, nullable=False)
 
 
@@ -72,12 +87,16 @@ class Movie(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False, index=True)
     slug = Column(String, nullable=True, index=True)
+    original_title = Column(String, nullable=True)
+    release_year = Column(Integer, nullable=True)
+    original_language = Column(String, nullable=True)  # ISO 639-1, e.g. "pt"
 
     screenings: Mapped[List["Screening"]] = relationship(back_populates="movie")
     genres: Mapped[List["Genre"]] = relationship(secondary=movie_genres)
     directors: Mapped[List["Director"]] = relationship(
         secondary=movie_directors, back_populates="movies"
     )
+    countries: Mapped[List["Country"]] = relationship(secondary=movie_countries)
 
 
 class Cinema(Base):

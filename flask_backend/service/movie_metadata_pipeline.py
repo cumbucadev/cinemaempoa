@@ -1,4 +1,5 @@
-"""Pipeline that enriches movies with director and genre metadata from TMDB.
+"""Pipeline that enriches movies with metadata from TMDB (director, genres,
+original title, release year, original language, country of origin).
 
 Usage (via CLI):
     flask fetch-movie-metadata          # process all movies missing metadata
@@ -12,6 +13,9 @@ from typing import Optional
 
 from flask_backend.db import db_session
 from flask_backend.models import MOVIE_METADATA_SOURCES
+from flask_backend.repository.countries import (
+    get_or_create_by_iso_code as get_or_create_country,
+)
 from flask_backend.repository.directors import (
     get_or_create_by_tmdb_id as get_or_create_director,
 )
@@ -155,6 +159,15 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
             genre = get_or_create_genre(g["id"], g["name"])
             if genre not in movie.genres:
                 movie.genres.append(genre)
+
+        for c in details.get("countries", []):
+            country = get_or_create_country(c["iso_3166_1"], c["name"])
+            if country not in movie.countries:
+                movie.countries.append(country)
+
+        movie.original_title = details.get("original_title")
+        movie.release_year = details.get("release_year")
+        movie.original_language = details.get("original_language")
 
         db_session.add(movie)
         db_session.commit()
