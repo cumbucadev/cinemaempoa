@@ -8,6 +8,7 @@ from flask_backend.repository.cinemas import (
     get_by_slug as get_cinema_by_slug,
 )
 from flask_backend.scripts.dedupper import dedupper
+from flask_backend.scripts.delete_movie import delete_movie as run_delete_movie
 from flask_backend.scripts.dupechecker import dupe_checker
 from flask_backend.scripts.sitemap import sitemap
 from flask_backend.scripts.title_cleaning_backfill import (
@@ -30,6 +31,7 @@ def register_commands(app):
     app.cli.add_command(movie_metadata_review)
     app.cli.add_command(title_cleaning_report_command)
     app.cli.add_command(title_cleaning_backfill_command)
+    app.cli.add_command(delete_movie_command)
 
 
 @click.command("import-json")
@@ -242,3 +244,19 @@ def title_cleaning_backfill_command(apply_):
     forma irreversível. Faça backup do arquivo do banco antes de usar.
     """
     run_title_cleaning_backfill(apply=apply_)
+
+
+@click.command("delete-movie")
+@click.argument("movie_id", type=int)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    default=False,
+    help="Pula a confirmação e apaga direto.",
+)
+def delete_movie_command(movie_id, yes):
+    """Apaga um filme e todos os registros relacionados (sessões, datas,
+    tentativas de busca de poster/metadados, associações de gênero/diretor/país).
+    """
+    run_delete_movie(movie_id, skip_confirmation=yes)
