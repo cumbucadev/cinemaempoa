@@ -36,6 +36,32 @@ def _create_scrapped_results(cinema, slug):
     )
 
 
+def _create_scrapped_results_with_title(cinema, slug, title):
+    return ScrappedResult(
+        cinemas=[
+            ScrappedCinema(
+                url="",
+                cinema=cinema,
+                slug=slug,
+                features=[
+                    ScrappedFeature(
+                        title=title,
+                        excerpt="cool film",
+                        poster="",
+                        original_title="",
+                        price="",
+                        director="",
+                        classification="",
+                        general_info="",
+                        read_more="",
+                        time=["2025-12-25T12:00"],
+                    )
+                ],
+            )
+        ]
+    )
+
+
 def _create_movie_on_db(db_session):
     movie = Movie(
         title="Lobo e Cão",
@@ -173,6 +199,20 @@ class TestImportScrappedResults:
             )
             assert third_date is not None, "new dates should be added"
             assert third_date.time == "14:00", "error adding new date"
+
+    def test_scrapped_title_is_cleaned_before_creating_movie(
+        self, client, app, setup_cinemas
+    ):
+        import_scrapped_results(
+            _create_scrapped_results_with_title(
+                "Capitolio", "capitolio", "Cinema | Lobo e Cão"
+            ),
+            app,
+        )
+
+        with client.application.app_context():
+            movie = db_session.query(Movie).filter_by(slug="lobo-e-cao").one()
+            assert movie.title == "Lobo e Cão"
 
     def test_sala_redencao_appends_to_existing_records_for_each_day(
         self, client, app, setup_cinemas
