@@ -130,8 +130,7 @@ class TestDeleteMovieWithRelatedRows:
             assert db_session.query(Movie).filter_by(id=movie_id).first() is None
             assert db_session.query(Genre).filter_by(id=genre_id).first() is not None
             assert (
-                db_session.query(Director).filter_by(id=director_id).first()
-                is not None
+                db_session.query(Director).filter_by(id=director_id).first() is not None
             )
 
 
@@ -155,9 +154,7 @@ class TestDeleteMovieConfirmation:
             assert deleted is False
             assert db_session.query(Movie).filter_by(id=movie_id).first() is not None
 
-    def test_accepting_confirmation_deletes_the_movie(
-        self, client, app, setup_cinemas
-    ):
+    def test_accepting_confirmation_deletes_the_movie(self, client, app, setup_cinemas):
         with client.application.app_context():
             movie = _create_movie("Filme", "filme")
             movie_id = movie.id

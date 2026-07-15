@@ -12,8 +12,7 @@ Usage (via CLI):
 import click
 
 from flask_backend.models import Movie
-from flask_backend.repository.movies import delete as delete_movie_row
-from flask_backend.repository.movies import get_by_id
+from flask_backend.repository.movies import delete as delete_movie_row, get_by_id
 
 
 def _print_movie(movie: Movie) -> None:
