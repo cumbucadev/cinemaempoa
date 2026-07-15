@@ -10,6 +10,9 @@ from flask_backend.repository.cinemas import (
 from flask_backend.scripts.dedupper import dedupper
 from flask_backend.scripts.dupechecker import dupe_checker
 from flask_backend.scripts.sitemap import sitemap
+from flask_backend.scripts.title_cleaning_backfill import (
+    title_cleaning_backfill as run_title_cleaning_backfill,
+)
 from flask_backend.scripts.title_cleaning_report import (
     title_cleaning_report as run_title_cleaning_report,
 )
@@ -26,6 +29,7 @@ def register_commands(app):
     app.cli.add_command(fetch_movie_metadata)
     app.cli.add_command(movie_metadata_review)
     app.cli.add_command(title_cleaning_report_command)
+    app.cli.add_command(title_cleaning_backfill_command)
 
 
 @click.command("import-json")
@@ -220,3 +224,21 @@ def title_cleaning_report_command():
     (prefixos de mostras/sessões, sufixos de debate/conversa etc.).
     """
     run_title_cleaning_report()
+
+
+@click.command("title-cleaning-backfill")
+@click.option(
+    "--apply",
+    "apply_",
+    is_flag=True,
+    default=False,
+    help="Aplica as alterações. Sem esta flag, apenas mostra o que seria feito.",
+)
+def title_cleaning_backfill_command(apply_):
+    """Limpa os títulos existentes e funde filmes cuja limpeza resulte no
+    mesmo slug. Por padrão roda em modo dry-run (nenhuma alteração é feita).
+
+    ATENÇÃO: --apply grava no banco e funde/apaga registros duplicados de
+    forma irreversível. Faça backup do arquivo do banco antes de usar.
+    """
+    run_title_cleaning_backfill(apply=apply_)
