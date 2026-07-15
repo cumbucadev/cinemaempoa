@@ -1,11 +1,11 @@
 import hashlib
-import imghdr
 import logging
 import os
 from datetime import datetime
 from io import BytesIO
 from typing import List, Optional, Tuple
 
+import filetype
 import requests
 from PIL import Image, UnidentifiedImageError
 from requests.adapters import HTTPAdapter
@@ -36,7 +36,7 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 def _check_if_actually_image(file):
     header = file.read(512)
     file.seek(0)
-    format = imghdr.what(None, header)
+    format = filetype.guess_extension(header)
     return format in ALLOWED_EXTENSIONS
 
 

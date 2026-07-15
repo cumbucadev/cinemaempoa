@@ -16,8 +16,7 @@ O conteúdo é agregado realizando _web scrapping_ em quatro diferentes sites:
 O projeto é composto de dois módulos: `scrapers/`, que contém a lógica para
 coleção de dados e `flask_backend/`, onde fica o código do portal.
 
-Este projeto requer Python 3.10.x ou 3.11.x. Versões superiores não são suportadas
-no momento. Recomendamos utilizar a série 3.10 (por exemplo, 3.10.19).
+Este projeto requer Python 3.14.x (por exemplo, 3.14.5).
 
 O banco de dados utilizado é o [sqlite3](https://www.sqlite.org/).
 

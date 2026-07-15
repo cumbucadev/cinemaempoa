@@ -6,8 +6,8 @@ is the Flask app (routes, services, templates, CLI, migrations).
 
 ## Package Manager
 
-- Use **uv**: `uv sync` (fallback for CI/plain pip: `pip install -r requirements.txt`)
-- Requires Python 3.10.x or 3.11.x (see `.python-version`); newer versions unsupported.
+- Use **uv**: `uv sync`
+- Requires Python 3.14.x (see `.python-version`).
 - Copy `example.env` to `.env` before running anything that touches external APIs.
 
 ## Commands
@@ -48,8 +48,6 @@ Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-deduppe
 
 ## Key Conventions
 
-- Two dependency manifests exist (`uv.lock`/`pyproject.toml` for dev, `requirements.txt`
-for CI/plain pip) — keep them in sync when changing dependencies.
 - `development.sqlite` and `flask_backend.sqlite` are local databases; never treat
 their contents as authoritative or commit changes to them as data.
 - `pre-commit` runs ruff and djlint on commit: install with `pre-commit install`.
