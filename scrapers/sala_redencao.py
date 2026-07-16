@@ -188,6 +188,9 @@ class SalaRedencao:
 
     def _get_prev_sibling_with_content(self, tag):
         prev_sibling = tag.previous_sibling
+        if prev_sibling is None:
+            # bail early if there are no more tags to parse
+            return
         if prev_sibling.text.strip() != "":
             return prev_sibling
         return self._get_prev_sibling_with_content(prev_sibling)
@@ -240,6 +243,8 @@ class SalaRedencao:
             prev_tag = self._get_prev_sibling_with_content(p_tag)
             while time == "" and prev_tag is not None:
                 prev_tag = self._get_prev_sibling_with_content(prev_tag)
+                if prev_tag is None:
+                    break
                 screening_time_match = re.match(
                     rf"^Dia {current_day_str},[\w\s-]+, às (\d{{2}}h(\d{{2}})?)",
                     prev_tag.text,

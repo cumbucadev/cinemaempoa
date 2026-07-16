@@ -1,0 +1,105 @@
+from unittest.mock import MagicMock, patch
+
+import pytest
+from google.genai.errors import ClientError as GoogleGenAIClientError
+
+from scrapers.llms import CineBancariosExtractorLLM
+
+
+def _make_extractor():
+    with (
+        patch.object(CineBancariosExtractorLLM, "_get_llm", return_value=MagicMock()),
+        patch("scrapers.llms.Settings"),
+    ):
+        return CineBancariosExtractorLLM("gemini-2.5-flash")
+
+
+class TestGetLlm:
+    def test_gemini_without_api_key_raises_value_error(self):
+        with patch("scrapers.llms.GEMINI_API_KEY", None):
+            with pytest.raises(ValueError, match="GEMINI_API_KEY is not set"):
+                CineBancariosExtractorLLM("gemini-2.5-flash")
+
+    def test_deepseek_without_api_key_raises_value_error(self):
+        with patch("scrapers.llms.DEEPSEEK_API_KEY", None):
+            with pytest.raises(ValueError, match="DEEPSEEK_API_KEY is not set"):
+                CineBancariosExtractorLLM("deepseek-chat")
+
+    def test_invalid_model_name_raises_value_error(self):
+        with pytest.raises(ValueError, match="Invalid model name"):
+            CineBancariosExtractorLLM("not-a-real-model")
+
+    def test_gemini_with_api_key_builds_google_genai_client(self):
+        with (
+            patch("scrapers.llms.GEMINI_API_KEY", "fake-key"),
+            patch("llama_index.llms.google_genai.GoogleGenAI") as mock_cls,
+            patch("scrapers.llms.Settings"),
+        ):
+            CineBancariosExtractorLLM("gemini-2.5-flash")
+        mock_cls.assert_called_once_with(model="gemini-2.5-flash", api_key="fake-key")
+
+    # Note: the deepseek-chat branch's happy path (`from llama_index.llms.deepseek
+    # import DeepSeek`) isn't covered here - llama-index-llms-deepseek isn't an
+    # installed dependency, so that import can't be exercised in this environment.
+
+
+class TestExtractScreeningsFromText:
+    def test_success_returns_raw_json(self):
+        extractor = _make_extractor()
+        mock_response = MagicMock()
+        mock_response.raw.model_dump_json.return_value = '{"movies": []}'
+        extractor.llm.as_structured_llm.return_value.chat.return_value = mock_response
+
+        result = extractor.extract_screenings_from_text(
+            "Mon, 09 Mar 2026 18:48:00 +0000", "some blog text"
+        )
+
+        assert result == '{"movies": []}'
+
+    def test_rate_limit_error_returns_none(self):
+        extractor = _make_extractor()
+        extractor.llm.as_structured_llm.return_value.chat.side_effect = (
+            GoogleGenAIClientError(code=429, response_json={})
+        )
+
+        result = extractor.extract_screenings_from_text(
+            "Mon, 09 Mar 2026 18:48:00 +0000", "some blog text"
+        )
+
+        assert result is None
+
+    def test_generic_exception_returns_none(self):
+        extractor = _make_extractor()
+        extractor.llm.as_structured_llm.return_value.chat.side_effect = Exception(
+            "boom"
+        )
+
+        result = extractor.extract_screenings_from_text(
+            "Mon, 09 Mar 2026 18:48:00 +0000", "some blog text"
+        )
+
+        assert result is None
+
+
+class TestGetCurrYear:
+    def test_returns_current_year(self):
+        extractor = _make_extractor()
+        with patch("scrapers.llms.datetime") as mock_dt:
+            mock_dt.now.return_value.year = 2026
+            assert extractor._get_curr_year() == 2026
+
+
+class TestPromptBuilders:
+    def test_get_system_prompt_includes_year(self):
+        extractor = _make_extractor()
+        prompt = extractor._get_system_prompt(2026)
+        assert "2026" in prompt
+        assert "cinema programming auditor" in prompt
+
+    def test_get_prompt_builds_system_and_user_messages(self):
+        extractor = _make_extractor()
+        messages = extractor._get_prompt(2026, "some blog text")
+        assert len(messages) == 2
+        assert messages[0].role == "system"
+        assert messages[1].role == "user"
+        assert messages[1].content == "some blog text"

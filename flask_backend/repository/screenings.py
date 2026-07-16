@@ -14,7 +14,7 @@ def get_screening_by_id(screening_id: int) -> Optional[Screening]:
 
 def get_days_screenings_by_cinema_id(
     cinema_id: int, day: date
-) -> Tuple[ScreeningDate, str]:
+) -> List[Screening]:
     screening_dates = (
         db_session.query(Screening)
         .join(ScreeningDate)

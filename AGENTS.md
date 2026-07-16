@@ -24,6 +24,7 @@ is the Flask app (routes, services, templates, CLI, migrations).
 | Run all tests | `pytest` |
 | Run backend tests | `pytest flask_backend/tests` |
 | Run scraper tests | `pytest tests/scrapers` |
+| Run tests with coverage | `coverage run -m pytest && coverage report -m` |
 | Lint | `uv run ruff check --fix` |
 | Format | `uv run ruff format` |
 | Lint templates | `uv run djlint flask_backend/templates --lint --profile=jinja` |

@@ -71,11 +71,11 @@ def index():
         }
         screenings: List[Screening] = get_days_screenings_by_cinema_id(cinema.id, today)
         for screening in screenings:
-            if screening.draft and not user_logged_in:
+            if screening.draft is True and not user_logged_in:
                 continue
             # used to set <li> styling
             minHeight = None
-            if screening.image:
+            if screening.image is not None:
                 minHeight = math.ceil(
                     imgDisplayWidth / screening.image_width * screening.image_height
                 )

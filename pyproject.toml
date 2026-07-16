@@ -132,3 +132,28 @@ dependencies = [
     "wrapt==1.17.3",
     "yarl==1.22.0",
 ]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.15.2",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["flask_backend", "scrapers", "."]
+omit = [
+    "flask_backend/tests/*",
+    "tests/*",
+    "migrations/*",
+    "*/__pycache__/*",
+    ".venv/*",
+]
+
+[tool.coverage.report]
+fail_under = 90
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]

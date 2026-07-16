@@ -114,7 +114,7 @@ class IMDBScrapper:
                     # director doesn't match, try next movie in result list
                     continue
             else:
-                country = infer_movie_country(movie["general_info"])
+                country = infer_movie_country(movie.general_info)
                 if country is None:
                     # scrapped movie has no defined director,
                     # no point in trying all movies in the imbd result list
