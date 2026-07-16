@@ -29,6 +29,8 @@ is the Flask app (routes, services, templates, CLI, migrations).
 | Format | `uv run ruff format` |
 | Lint templates | `uv run djlint flask_backend/templates --lint --profile=jinja` |
 | Format templates | `uv run djlint --reformat flask_backend/templates --format-css --format-js` |
+| Find dead code | `uv run vulture flask_backend scrapers cinemaempoa.py vulture_whitelist.py --exclude "*/tests/*" --min-confidence 80` |
+| Check complexity | `uv run xenon --max-absolute B --max-modules A --max-average A flask_backend scrapers --exclude "*/tests/*"` |
 
 Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-dedupper`,
 `generate-sitemap`, `fetch-posters`, `poster-review`, `fetch-movie-metadata`,

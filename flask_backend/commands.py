@@ -37,7 +37,7 @@ def register_commands(app):
 @click.command("import-json")
 @click.argument("json_path")
 def import_json(json_path):
-    with open(json_path, mode="r") as json_file:
+    with open(json_path) as json_file:
         try:
             parsed_json = json.load(json_file)
         except (json.decoder.JSONDecodeError, UnicodeDecodeError):

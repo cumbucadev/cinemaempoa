@@ -223,7 +223,7 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                     # see issue #163
 
                     # ex. existing_dates_for_screening = [ 12/12/2025, 13/12/2025, 14/12/2025 ]
-                    existing_dates_for_screening = [sd for sd in screening.dates]
+                    existing_dates_for_screening = list(screening.dates)
 
                     # ex. [13/12/2025, 14/12/2025]
                     received_dates_for_screening = [sd.date for sd in screenings_dates]

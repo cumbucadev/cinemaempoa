@@ -265,7 +265,7 @@ def create():
 @login_required
 def publish(id):
     screening = get_screening_by_id(id)
-    if not request.method == "POST":
+    if request.method != "POST":
         abort(405)
 
     if not screening:
@@ -359,7 +359,7 @@ def update(id):
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
 @login_required
 def delete(id):
-    if not request.method == "POST":
+    if request.method != "POST":
         abort(405)
 
     screening = get_screening_by_id(id)

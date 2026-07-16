@@ -23,7 +23,7 @@ class TestParseTimeToDatetimeString:
             "05 de setembro | terça-feira | 16h",
             "22 de setembro | segunda-feira | 16h\n22 de setembro | segunda-feira | 19h",
         ]
-        expected_outputs = [  # noqa: E231
+        expected_outputs = [
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T15:00"],
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T16:30"],
             [f"{datetime.strftime(datetime.now(), '%Y-%m-%d')}T19:00"],

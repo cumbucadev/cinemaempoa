@@ -1,3 +1,4 @@
+import contextlib
 import os
 
 from flask import Flask, request, send_from_directory
@@ -23,10 +24,8 @@ def create_app(test_config=None):
         app.config.from_mapping(test_config)
 
     # ensure the intance folder exists
-    try:
+    with contextlib.suppress(OSError):
         os.makedirs(app.instance_path)
-    except OSError:
-        pass
 
     from . import db
 
@@ -70,7 +69,7 @@ def create_app(test_config=None):
         return send_from_directory(app.static_folder, request.path[1:])
 
     @app.teardown_appcontext
-    def shutdown_session(exception=None):
+    def shutdown_session(exception=None):  # noqa: ARG001
         db_session.remove()
 
     return app

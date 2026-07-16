@@ -63,12 +63,14 @@ class TestGetMovieDetails:
         assert details["directors"] == []
 
     def test_raises_on_request_exception(self, tmdb_client):
-        with patch(
-            "flask_backend.service.tmdb.requests.get",
-            side_effect=requests.RequestException("boom"),
+        with (
+            patch(
+                "flask_backend.service.tmdb.requests.get",
+                side_effect=requests.RequestException("boom"),
+            ),
+            pytest.raises(requests.RequestException),
         ):
-            with pytest.raises(requests.RequestException):
-                tmdb_client.get_movie_details(123)
+            tmdb_client.get_movie_details(123)
 
     def test_returns_original_title_year_language_and_countries(self, tmdb_client):
         response = Mock()

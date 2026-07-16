@@ -136,6 +136,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "coverage>=7.15.2",
+    "vulture>=2.14",
+    "xenon>=0.9.3",
+    "radon>=6.0.1",
 ]
 
 [tool.pytest.ini_options]
@@ -149,6 +152,7 @@ omit = [
     "migrations/*",
     "*/__pycache__/*",
     ".venv/*",
+    "vulture_whitelist.py",
 ]
 
 [tool.coverage.report]

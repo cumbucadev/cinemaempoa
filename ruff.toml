@@ -4,7 +4,16 @@ line-length = 88
 # Add the `line-too-long` rule to the enforced rule set. By default, Ruff omits rules that
 # overlap with the use of a formatter, like Black, but we can override this behavior by
 # explicitly adding the rule.
-extend-select = ["I"]
+extend-select = ["I", "B", "C4", "UP", "SIM", "ARG", "RUF"]
+# Ambiguous-unicode-character rules flag em/en dashes that are legitimate in
+# this project's Portuguese-language strings and comments.
+ignore = ["RUF001", "RUF002", "RUF003"]
 
 [lint.isort]
 combine-as-imports = true
+
+[lint.per-file-ignores]
+# Unused fixture parameters are the normal pytest dependency-injection pattern, not dead code.
+"tests/*" = ["ARG001", "ARG002"]
+"flask_backend/tests/*" = ["ARG001", "ARG002"]
+"vulture_whitelist.py" = ["F821", "B018"]
