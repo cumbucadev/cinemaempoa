@@ -10,6 +10,7 @@ from slugify import slugify
 
 from flask_backend.db import db_session
 from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
+from flask_backend.repository import movies as movies_repository
 
 
 def create_sample_movies(app, quantity, should_draft):
@@ -118,6 +119,87 @@ class TestMoviesIndex:
         # Draft movies should appear when logged in
         expected_test = f"Total de filmes encontrados: {len(sample_movies_with_screenings) + len(additional_draft_movies)}"
         assert expected_test.encode("utf-8") in response.data
+
+    def test_movies_index_deduplicates_movie_with_multiple_screenings(
+        self, client, app, setup_cinemas
+    ):
+        """A movie joined to more than one screening must be listed once,
+        and counted once in the total, not once per screening."""
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Duplicado", slug="filme-duplicado")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="s1",
+                    draft=False,
+                    url="http://example.com/1",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                ),
+                Screening(
+                    cinema_id=cinema.id,
+                    description="s2",
+                    draft=False,
+                    url="http://example.com/2",
+                    dates=[ScreeningDate(date=date(2026, 8, 2), time="21:00")],
+                ),
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies")
+        assert response.status_code == 200
+        assert b"Total de filmes encontrados: 1" in response.data
+        assert response.data.count(b"Filme Duplicado") == 1
+
+
+class TestMoviesRepositoryDistinct:
+    """Regression tests for the `distinct()` clauses in get_all/get_all_paginated:
+    a movie joined to multiple screenings must be returned/counted once."""
+
+    def _create_movie_with_screenings(self, cinema, title, slug, screening_count):
+        movie = Movie(title=title, slug=slug)
+        movie.screenings = [
+            Screening(
+                cinema_id=cinema.id,
+                description=f"screening {i}",
+                draft=False,
+                url=f"http://example.com/{slug}/{i}",
+                dates=[ScreeningDate(date=date(2026, 8, 1 + i), time="19:00")],
+            )
+            for i in range(screening_count)
+        ]
+        db_session.add(movie)
+        db_session.commit()
+        return movie
+
+    def test_get_all_returns_movie_once_regardless_of_screening_count(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            self._create_movie_with_screenings(
+                cinema, "Filme com Varias Sessoes", "filme-com-varias-sessoes", 3
+            )
+
+            movies = movies_repository.get_all()
+            assert len(movies) == 1
+
+    def test_get_all_paginated_counts_movie_once_regardless_of_screening_count(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            self._create_movie_with_screenings(
+                cinema, "Filme com Varias Sessoes", "filme-com-varias-sessoes", 3
+            )
+
+            movies, total_pages, total_count = movies_repository.get_all_paginated(
+                movie="", current_page=1, per_page=10, include_drafts=False
+            )
+            assert total_count == 1
+            assert len(movies) == 1
+            assert total_pages == 1
 
 
 class TestMoviesPosters:

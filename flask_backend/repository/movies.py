@@ -24,7 +24,7 @@ def create(title: str, slug: Optional[str] = None) -> Movie:
 
 
 def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
-    query = db_session.query(Movie).join(Screening).distinct(Movie.id)
+    query = db_session.query(Movie).join(Screening).distinct()
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
     query = query.order_by(Movie.slug)
