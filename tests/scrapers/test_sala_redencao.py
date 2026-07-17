@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -16,9 +17,18 @@ def _load_gcal_fixture() -> icalendar.Calendar:
 
 class TestSalaRedencao(unittest.TestCase):
     def test_get_events_blog_post_url(self):
+        """`_get_events_blog_post_url` should parse whatever `requests.get`
+        returns into event URLs - no live network call involved here."""
+        news_html = """
+        <a class="entire-meta-link" href="https://www.ufrgs.br/difusaocultural/sala-redencao-apresenta-programacao-de-cinema-japones/">Link</a>
+        <a class="entire-meta-link" href="https://www.ufrgs.br/difusaocultural/programacao-da-sala-redencao-explora-vanguardas-no-cinema/">Link</a>
+        <a class="entire-meta-link" href="https://www.ufrgs.br/difusaocultural/ciclo-cineciess-exibe-5-casas-na-sala-redencao/">Link</a>
+        """
         salaRedencao = SalaRedencao(date="2023-09-13")
-        salaRedencao.dir = os.path.join("tests/files/files_sala-redencao/2023-09-13")
-        salaRedencao._get_events_blog_post_url()
+        salaRedencao.scrape_dir = tempfile.mkdtemp()
+        with patch("scrapers.sala_redencao.requests.get") as mock_get:
+            mock_get.return_value.text = news_html
+            salaRedencao._get_events_blog_post_url()
         self.assertIsInstance(salaRedencao.events, list)
         assert len(salaRedencao.events) > 0
         for url in salaRedencao.events:
