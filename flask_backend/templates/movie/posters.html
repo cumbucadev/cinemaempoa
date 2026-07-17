@@ -2,12 +2,31 @@
 {% block meta_tags %}
     <meta name="description"
           content="Acesse o mosaico com todos os posters dos filmes cadastrados no site.">
+    <style>
+        .grid-sizer,
+        .grid-item {
+            width: 33.333%;
+        }
+
+        .grid-item {
+            height: auto;
+        }
+
+        @media (min-width: 400px) {
+            .grid-sizer,
+            .grid-item {
+                width: 25%;
+            }
+        }
+
+        @media (min-width: 700px) {
+            .grid-sizer,
+            .grid-item {
+                width: 325px;
+            }
+        }
+    </style>
 {% endblock meta_tags %}
-<style>
-    .grid-item {
-        width: 325px;
-    }
-</style>
 {% block header %}
     <h1>
         {% block title %}
@@ -31,6 +50,7 @@
 {% endblock header %}
 {% block content %}
     <section class="grid">
+        <div class="grid-sizer"></div>
         {% include "movie/movie_posters.html" %}
     </section>
     <script>
@@ -140,11 +160,12 @@
         }
 
         document.addEventListener("DOMContentLoaded", async (event) => {
-            const grid = document.querySelector('main');
+            const grid = document.querySelector('section.grid');
             masonry = new Masonry(grid, {
                 // options
                 itemSelector: '.grid-item',
-                columnWidth: 325
+                columnWidth: '.grid-sizer',
+                percentPosition: true
             });
             imagesLoaded(grid).on('progress', function() {
                 masonry.layout();
