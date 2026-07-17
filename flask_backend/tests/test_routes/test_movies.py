@@ -118,3 +118,127 @@ class TestMoviesIndex:
         # Draft movies should appear when logged in
         expected_test = f"Total de filmes encontrados: {len(sample_movies_with_screenings) + len(additional_draft_movies)}"
         assert expected_test.encode("utf-8") in response.data
+
+
+class TestMoviesPosters:
+    def test_posters_returns_200(self, client):
+        response = client.get("/movies/posters")
+        assert response.status_code == 200
+
+    def test_posters_cubism_returns_200(self, client):
+        response = client.get("/movies/posters/cubism")
+        assert response.status_code == 200
+
+    def test_posters_cubism_accepts_crop_position(self, client):
+        response = client.get("/movies/posters/cubism?crop_position=cover")
+        assert response.status_code == 200
+
+
+class TestMoviesPosterImages:
+    def test_requires_lazy_load_header(self, client):
+        response = client.get("/movies/posters/images")
+        assert response.status_code == 400
+
+    def test_invalid_page_returns_400(self, client):
+        response = client.get(
+            "/movies/posters/images?page=invalid", headers={"X-LAZY-LOAD": "1"}
+        )
+        assert response.status_code == 400
+
+    def test_no_screenings_returns_404(self, client):
+        response = client.get("/movies/posters/images", headers={"X-LAZY-LOAD": "1"})
+        assert response.status_code == 404
+
+    def test_returns_images_for_screenings_with_posters(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Com Poster", slug="filme-com-poster")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/posters/images", headers={"X-LAZY-LOAD": "1"})
+        assert response.status_code == 200
+        assert b"poster.jpg" in response.data
+
+
+class TestMoviesPosterImagesUrls:
+    def test_invalid_page_returns_400(self, client):
+        response = client.get("/movies/posters/images/urls?page=invalid")
+        assert response.status_code == 400
+
+    def test_no_screenings_returns_404(self, client):
+        response = client.get("/movies/posters/images/urls")
+        assert response.status_code == 404
+
+    def test_returns_unique_image_urls(self, client, app, setup_cinemas):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Com Poster", slug="filme-com-poster")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/posters/images/urls")
+        assert response.status_code == 200
+        assert response.get_json() == ["poster.jpg"]
+
+
+class TestMoviesSearch:
+    def test_requires_login(self, client):
+        response = client.get("/movies/search?title=x")
+        assert response.status_code == 302
+        assert b"/auth/login" in response.data
+
+    def test_returns_matching_titles(
+        self, auth_headers, app, sample_movies_with_screenings
+    ):
+        with app.app_context():
+            target_title = db_session.query(Movie).first().title
+        response = auth_headers.get(f"/movies/search?title={target_title}")
+        assert response.status_code == 200
+        titles = [item["title"] for item in response.get_json()]
+        assert target_title in titles
+
+
+class TestMovieShow:
+    def test_unknown_slug_returns_400(self, client):
+        response = client.get("/movies/does-not-exist")
+        assert response.status_code == 400
+
+    def test_shows_movie_with_images(self, client, app, setup_cinemas):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Individual", slug="filme-individual")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-individual")
+        assert response.status_code == 200
+        assert b"Filme Individual" in response.data

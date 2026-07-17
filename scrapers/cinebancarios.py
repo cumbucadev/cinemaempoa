@@ -26,7 +26,7 @@ class CineBancarios:
     def _get_url_content(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
         if os.path.exists(file):
-            with open(file, "r") as f:
+            with open(file) as f:
                 return f.read()
         r = requests.get(url)
         r.raise_for_status()

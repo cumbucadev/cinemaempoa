@@ -27,15 +27,15 @@ def _create_movie(title, slug, **extra):
 
 def _create_screening(movie, cinema_slug, dates=None, **extra):
     cinema = get_cinema_by_slug(cinema_slug)
-    defaults = dict(
-        description="desc",
-        image=None,
-        image_alt=None,
-        image_width=None,
-        image_height=None,
-        draft=False,
-        url=None,
-    )
+    defaults = {
+        "description": "desc",
+        "image": None,
+        "image_alt": None,
+        "image_width": None,
+        "image_height": None,
+        "draft": False,
+        "url": None,
+    }
     defaults.update(extra)
     screening = Screening(movie_id=movie.id, cinema_id=cinema.id, **defaults)
     db_session.add(screening)

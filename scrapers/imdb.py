@@ -7,8 +7,8 @@ from flask_backend.import_json import ScrappedFeature
 
 
 def infer_movie_country(general_info):
-    country_names_pt_br = {code: name for code, name in countries_for_language("pt-br")}
-    country_names_eng = {code: name for code, name in countries_for_language("en")}
+    country_names_pt_br = dict(countries_for_language("pt-br"))
+    country_names_eng = dict(countries_for_language("en"))
 
     movie_country_code = False
     for code in country_names_pt_br:
@@ -81,7 +81,7 @@ class IMDBScrapper:
         # will hold data in format {"imdb_movie_url": "https://...", "levenshtein_distance": "20"}
         imdb_search_result_movies = []
 
-        for index, movie_item in enumerate(movie_list):
+        for movie_item in movie_list:
             movie_item_name = movie_item.find("a").text
             distance_value = distance(movie_name, movie_item_name)
             movie_a_tag = movie_item.find("a")
@@ -114,7 +114,7 @@ class IMDBScrapper:
                     # director doesn't match, try next movie in result list
                     continue
             else:
-                country = infer_movie_country(movie["general_info"])
+                country = infer_movie_country(movie.general_info)
                 if country is None:
                     # scrapped movie has no defined director,
                     # no point in trying all movies in the imbd result list

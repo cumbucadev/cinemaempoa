@@ -82,7 +82,7 @@ def new():
                 flash(f"Post '{post.title}' criado com sucesso!", "success")
                 return redirect(url_for("admin_blog.edit", post_id=post.id))
             except Exception as e:
-                error = f"Erro ao criar post: {str(e)}"
+                error = f"Erro ao criar post: {e!s}"
 
         flash(error, "danger")
 
@@ -138,7 +138,7 @@ def edit(post_id):
                 else:
                     error = "Post não encontrado."
             except Exception as e:
-                error = f"Erro ao atualizar post: {str(e)}"
+                error = f"Erro ao atualizar post: {e!s}"
 
         flash(error, "danger")
 
@@ -160,7 +160,7 @@ def delete(post_id):
         else:
             flash("Erro ao deletar post.", "danger")
     except Exception as e:
-        flash(f"Erro ao deletar post: {str(e)}", "danger")
+        flash(f"Erro ao deletar post: {e!s}", "danger")
 
     return redirect(url_for("admin_blog.index"))
 
@@ -181,6 +181,6 @@ def toggle_publish(post_id):
         else:
             flash("Erro ao alterar status do post.", "danger")
     except Exception as e:
-        flash(f"Erro ao alterar status do post: {str(e)}", "danger")
+        flash(f"Erro ao alterar status do post: {e!s}", "danger")
 
     return redirect(url_for("admin_blog.index"))

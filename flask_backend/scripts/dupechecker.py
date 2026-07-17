@@ -44,12 +44,12 @@ def dupe_checker():
         dupped_info.append(dupped_movie)
 
     for dupped_movie in dupped_info:
-        for cin in dupped_movie["cinemas"].keys():
+        for cin in dupped_movie["cinemas"]:
             dupped_movie["cinemas"][cin]["images"] = list(
                 dupped_movie["cinemas"][cin]["images"]
             )
             dupped_movie["cinemas"][cin]["dates"] = sorted(
-                list(dupped_movie["cinemas"][cin]["dates"]),
+                dupped_movie["cinemas"][cin]["dates"],
                 key=lambda x: datetime.strptime(x, "%Y-%m-%dT%H:%M"),
             )
 

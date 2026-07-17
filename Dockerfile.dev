@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
@@ -11,11 +11,15 @@ ENV LC_ALL pt_BR.UTF-8
 ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR.UTF-8
 
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-# Install development dependencies
-RUN pip3 install --no-cache-dir debugpy
+# venv lives outside /app so it survives the dev bind mount (docker-compose.dev.yml
+# mounts the repo over /app, which would otherwise shadow a venv built at image time)
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY pyproject.toml uv.lock .
+RUN uv sync --frozen
 
 # Install git for code editor integration
 RUN apt-get install git -y
@@ -26,4 +30,4 @@ RUN apt-get install sqlite3 -y
 EXPOSE 5000
 
 # Just do nothing
-CMD ["tail", "-f", "/dev/null"] 
+CMD ["tail", "-f", "/dev/null"]

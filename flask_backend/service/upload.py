@@ -9,7 +9,9 @@ from werkzeug.utils import secure_filename
 from flask_backend.env_config import IMGBB_API_KEY
 
 
-def upload_image_to_api(app, image) -> Tuple[str, int, int]:
+# `app` is unused here but kept so this shares a call signature with
+# upload_image_to_local_disk, since save_image() calls both interchangeably.
+def upload_image_to_api(app, image) -> Tuple[str, int, int]:  # noqa: ARG001
     url = "https://api.imgbb.com/1/upload"
     payload = {
         "key": IMGBB_API_KEY,
@@ -27,10 +29,7 @@ def upload_image_to_api(app, image) -> Tuple[str, int, int]:
 def upload_image_to_local_disk(
     file, app, filename: Optional[str] = None
 ) -> Tuple[str, int, int]:
-    if filename:
-        filename = secure_filename(filename)
-    else:
-        filename = secure_filename(file.filename)
+    filename = secure_filename(filename) if filename else secure_filename(file.filename)
     img_savepath = os.path.join(app.config.get("UPLOAD_FOLDER"), filename)
 
     try:
