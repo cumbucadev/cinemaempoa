@@ -97,6 +97,7 @@ def poster_images():
             images.append(
                 {
                     "screening_id": screening.id,
+                    "movie_slug": screening.movie.slug,
                     "url": screening.image,
                     "width": imgDisplayWidth,
                     "height": math.ceil(
@@ -152,4 +153,15 @@ def show(slug):
     for screening in movie.screenings:
         if screening.image is not None:
             images.append(screening.image)
-    return render_template("movie/show.html", movie=movie, images=images)
+
+    selected_screening_id = request.args.get("screening", type=int)
+    valid_screening_ids = {s.id for s in movie.screenings if s.image}
+    if selected_screening_id not in valid_screening_ids:
+        selected_screening_id = None
+
+    return render_template(
+        "movie/show.html",
+        movie=movie,
+        images=images,
+        selected_screening_id=selected_screening_id,
+    )

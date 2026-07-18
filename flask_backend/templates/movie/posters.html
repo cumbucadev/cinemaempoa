@@ -173,6 +173,19 @@
                 masonry.layout();
             });
 
+            grid.addEventListener('click', (e) => {
+                const img = e.target.closest('img.grid-item');
+                if (!img) {
+                    return;
+                }
+                const slug = img.getAttribute('data-movie-slug');
+                const screeningId = img.getAttribute('data-screening-id');
+                if (!slug) {
+                    return;
+                }
+                window.location.href = `/movies/${slug}?screening=${screeningId}`;
+            });
+
             // Chamada inicial para carregar as primeiras imagens
             await fetchNextPage();
 

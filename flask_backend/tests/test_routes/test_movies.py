@@ -254,6 +254,27 @@ class TestMoviesPosterImages:
         assert response.status_code == 200
         assert b"poster.jpg" in response.data
 
+    def test_returns_movie_slug_for_each_image(self, client, app, setup_cinemas):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Com Poster", slug="filme-com-poster")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/posters/images", headers={"X-LAZY-LOAD": "1"})
+        assert response.status_code == 200
+        assert b'data-movie-slug="filme-com-poster"' in response.data
+
 
 class TestMoviesPosterImagesUrls:
     def test_invalid_page_returns_400(self, client):
@@ -324,3 +345,84 @@ class TestMovieShow:
         response = client.get("/movies/filme-individual")
         assert response.status_code == 200
         assert b"Filme Individual" in response.data
+
+    def test_carousel_opens_on_selected_screening(self, client, app, setup_cinemas):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Com Varias Sessoes", slug="filme-varias-sessoes")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d1",
+                    image="poster-um.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                ),
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d2",
+                    image="poster-dois.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 2), time="20:00")],
+                ),
+            ]
+            db_session.add(movie)
+            db_session.commit()
+            second_screening_id = movie.screenings[1].id
+
+        response = client.get(
+            f"/movies/filme-varias-sessoes?screening={second_screening_id}"
+        )
+        assert response.status_code == 200
+        html = response.data.decode()
+        first_slide = html[
+            html.index("poster-um.jpg") - 200 : html.index("poster-um.jpg")
+        ]
+        second_slide = html[
+            html.index("poster-dois.jpg") - 200 : html.index("poster-dois.jpg")
+        ]
+        assert "active" not in first_slide
+        assert "active" in second_slide
+
+    def test_invalid_screening_falls_back_to_first_slide(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(
+                title="Filme Com Sessao Invalida", slug="filme-sessao-invalida"
+            )
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d1",
+                    image="poster-um.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                ),
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d2",
+                    image="poster-dois.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 2), time="20:00")],
+                ),
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-sessao-invalida?screening=999999")
+        assert response.status_code == 200
+        html = response.data.decode()
+        first_slide = html[
+            html.index("poster-um.jpg") - 200 : html.index("poster-um.jpg")
+        ]
+        second_slide = html[
+            html.index("poster-dois.jpg") - 200 : html.index("poster-dois.jpg")
+        ]
+        assert "active" in first_slide
+        assert "active" not in second_slide

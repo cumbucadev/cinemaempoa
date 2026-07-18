@@ -1,6 +1,8 @@
 {% for image in images %}
     <img data-screening-id="{{ image['screening_id'] }}"
+         data-movie-slug="{{ image['movie_slug'] }}"
          class="grid-item"
+         style="cursor: pointer"
          src="{{ image['url'] }}"
          width="325"
          height="{{ image['height'] }}"

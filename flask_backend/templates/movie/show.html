@@ -53,7 +53,8 @@
             <div id="carouselExample" class="carousel slide mb-4">
                 <div class="carousel-inner">
                     {% for screening in movie['screenings'] if screening['image'] %}
-                        <div class="carousel-item {{ 'active' if loop.index0 == 0 else '' }}">
+                        {% set is_active = screening['id'] == selected_screening_id if selected_screening_id else loop.index0 == 0 %}
+                        <div class="carousel-item {{ 'active' if is_active else '' }}">
                             {# djlint:off #}
                             <img src="{{ screening['image'] }}"
                                  style="max-height: 100vh;
