@@ -79,11 +79,11 @@ def index():
         }
         screenings: List[Screening] = get_days_screenings_by_cinema_id(cinema.id, today)
         for screening in screenings:
-            if screening.draft and not user_logged_in:
+            if screening.draft is True and not user_logged_in:
                 continue
             # used to set <li> styling
             minHeight = None
-            if screening.image:
+            if screening.image is not None:
                 minHeight = math.ceil(
                     imgDisplayWidth / screening.image_width * screening.image_height
                 )
@@ -111,7 +111,7 @@ def index():
     alert_html = "<p class='mb-0'>O cinemaempoa <strong>mostra os filmes em exibição</strong> no "
     qtt_links = len(quicklinks)
     for idx, link in enumerate(quicklinks):
-        alert_html += f"<a href='#{link[0]}' class='alert-link'>{ link[1] }</a>"
+        alert_html += f"<a href='#{link[0]}' class='alert-link'>{link[1]}</a>"
         if qtt_links > 0 and idx < len(quicklinks) - 1:
             if idx < len(quicklinks) - 2:
                 alert_html += ", "
@@ -265,7 +265,7 @@ def create():
 @login_required
 def publish(id):
     screening = get_screening_by_id(id)
-    if not request.method == "POST":
+    if request.method != "POST":
         abort(405)
 
     if not screening:
@@ -359,7 +359,7 @@ def update(id):
 @bp.route("/screening/<int:id>/delete", methods=("POST",))
 @login_required
 def delete(id):
-    if not request.method == "POST":
+    if request.method != "POST":
         abort(405)
 
     screening = get_screening_by_id(id)

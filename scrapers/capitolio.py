@@ -27,10 +27,9 @@ class Capitolio:
         return os.path.join(self.dir, f"{day}.html")
 
     def _day_schedule_html(self, day) -> str:
-        if self.cache_html is True:
-            if os.path.exists(self._day_file(day)):
-                with open(self._day_file(day), "r") as file:
-                    return file.read()
+        if self.cache_html is True and os.path.exists(self._day_file(day)):
+            with open(self._day_file(day)) as file:
+                return file.read()
 
         response = requests.get(self._day_url(day))
         response.raise_for_status()
@@ -152,7 +151,7 @@ class Capitolio:
                         )
                         if match:
                             feature_film["time"] = feature_film["time"] + [
-                                f'{cur_day.strftime("%Y-%m-%d")}T{match.group(1)}'
+                                f"{cur_day.strftime('%Y-%m-%d')}T{match.group(1)}"
                             ]
                         else:
                             feature_film["time"] = feature_film["time"] + [

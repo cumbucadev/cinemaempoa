@@ -7,7 +7,8 @@ from scrapers.sala_redencao import SalaRedencao
 
 
 class Runner:
-    def __init__(self, cinemas=[]):
+    def __init__(self, cinemas=None):
+        cinemas = cinemas or []
         features = []
         if "capitolio" in cinemas:
             feature = {

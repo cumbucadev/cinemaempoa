@@ -12,9 +12,7 @@ def get_screening_by_id(screening_id: int) -> Optional[Screening]:
     return db_session.query(Screening).filter(Screening.id == screening_id).first()
 
 
-def get_days_screenings_by_cinema_id(
-    cinema_id: int, day: date
-) -> Tuple[ScreeningDate, str]:
+def get_days_screenings_by_cinema_id(cinema_id: int, day: date) -> List[Screening]:
     screening_dates = (
         db_session.query(Screening)
         .join(ScreeningDate)
@@ -27,7 +25,9 @@ def get_days_screenings_by_cinema_id(
     return screening_dates
 
 
-def get_month_screening_dates(cinema_slugs: List[str] = None) -> List[ScreeningDate]:
+def get_month_screening_dates(
+    cinema_slugs: Optional[List[str]] = None,
+) -> List[ScreeningDate]:
     month = date.today().replace(day=1)
     if month.month in [4, 6, 9, 11]:
         last_day = month + timedelta(days=30)

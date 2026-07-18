@@ -5,7 +5,12 @@ from slugify import slugify
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie, Screening
+from flask_backend.models import (
+    Movie,
+    MovieMetadataFetchAttempt,
+    PosterFetchAttempt,
+    Screening,
+)
 
 
 def create(title: str, slug: Optional[str] = None) -> Movie:
@@ -19,7 +24,7 @@ def create(title: str, slug: Optional[str] = None) -> Movie:
 
 
 def get_all(include_drafts: bool = False) -> List[Optional[Movie]]:
-    query = db_session.query(Movie).join(Screening).distinct(Movie.id)
+    query = db_session.query(Movie).join(Screening).distinct()
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
     query = query.order_by(Movie.slug)
@@ -32,7 +37,7 @@ def get_all_paginated(
     offset_value = (current_page - 1) * per_page
     # includes the `distinct` clause both on the select and the count queries
     # to avoid mismatches on pagination
-    query = db_session.query(Movie).join(Screening).distinct(Movie.id)
+    query = db_session.query(Movie).join(Screening).distinct()
 
     if include_drafts is False:
         query = query.filter(Screening.draft == False)  # noqa: E712
@@ -77,6 +82,10 @@ def get_paginated(
     return query.all()
 
 
+def get_by_id(movie_id: int) -> Optional[Movie]:
+    return db_session.query(Movie).filter(Movie.id == movie_id).first()
+
+
 def get_by_slug(slug: str) -> Optional[Movie]:
     return db_session.query(Movie).filter(Movie.slug == slug).first()
 
@@ -98,9 +107,15 @@ def get_movies_with_similar_titles(title: str) -> List[Movie]:
 def delete(movie: Movie) -> None:
     # delete all related screenings to maintain integrity
     for _scr in movie.screenings:
+        db_session.query(PosterFetchAttempt).filter(
+            PosterFetchAttempt.screening_id == _scr.id
+        ).delete(synchronize_session=False)
         # delete all related dates
         for _dt in _scr.dates:
             db_session.delete(_dt)
         db_session.delete(_scr)
+    db_session.query(MovieMetadataFetchAttempt).filter(
+        MovieMetadataFetchAttempt.movie_id == movie.id
+    ).delete(synchronize_session=False)
     db_session.delete(movie)
     db_session.commit()

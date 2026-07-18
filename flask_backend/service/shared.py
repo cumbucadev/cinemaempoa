@@ -28,7 +28,7 @@ def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
         return []
 
     if time_str.startswith("\n\n\nHorários: "):
-        stripped_time = time_str.strip("\n\n\nHorários: ").split("h")
+        stripped_time = time_str.removeprefix("\n\n\nHorários: ").split("h")
         return [f"{today_date}T{stripped_time[0]}"]
 
     # check if time_str is in format DD de MMMM | dia-da-semana | HHhMM,

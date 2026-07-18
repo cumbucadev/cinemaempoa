@@ -9,31 +9,43 @@
             {{ movie['title'] }}
         {% endblock title %}
     </h1>
-    <!-- <p>XXXX — XX — Xh XX min</p>
-    <p>
-        <span class="badge rounded-pill text-bg-primary">Fantasia</span>
-        <span class="badge rounded-pill text-bg-primary">Ação</span>
-    </p>
-    <dl>
-        <div class="d-flex">
-            <dt class="me-2">Direção</dt>
-            <dd>
-                --
-            </dd>
-        </div>
-        <div class="d-flex">
-            <dt class="me-2">Roteiristas</dt>
-            <dd>
-                --
-            </dd>
-        </div>
-        <div class="d-flex">
-            <dt class="me-2">Artistas</dt>
-            <dd>
-                ---
-            </dd>
-        </div>
-    </dl> -->
+    {% if movie['original_title'] and movie['original_title'] != movie['title'] %}
+        <p class="text-muted">{{ movie['original_title'] }}</p>
+    {% endif %}
+    {% if movie['release_year'] or movie['countries'] %}
+        <p>
+            {{ movie['release_year'] if movie['release_year'] }}
+            {% if movie['release_year'] and movie['countries'] %}—{% endif %}
+            {{ movie['countries']|map(attribute='name') |join(', ') if movie['countries'] }}
+        </p>
+    {% endif %}
+    {% if movie['genres'] %}
+        <p>
+            {% for genre in movie['genres'] %}
+                <span class="badge rounded-pill text-bg-primary">{{ genre['name'] }}</span>
+            {% endfor %}
+        </p>
+    {% endif %}
+    {% if movie['directors'] or movie['original_language'] %}
+        <dl>
+            {% if movie['directors'] %}
+                <div class="d-flex">
+                    <dt class="me-2">Direção</dt>
+                    <dd>
+                        {{ movie['directors']|map(attribute='name') |join(', ') }}
+                    </dd>
+                </div>
+            {% endif %}
+            {% if movie['original_language'] %}
+                <div class="d-flex">
+                    <dt class="me-2">Idioma original</dt>
+                    <dd>
+                        {{ movie['original_language'] }}
+                    </dd>
+                </div>
+            {% endif %}
+        </dl>
+    {% endif %}
 {% endblock header %}
 {% block content %}
     <div class="container">
@@ -41,7 +53,8 @@
             <div id="carouselExample" class="carousel slide mb-4">
                 <div class="carousel-inner">
                     {% for screening in movie['screenings'] if screening['image'] %}
-                        <div class="carousel-item {{ 'active' if loop.index0 == 0 else '' }}">
+                        {% set is_active = screening['id'] == selected_screening_id if selected_screening_id else loop.index0 == 0 %}
+                        <div class="carousel-item {{ 'active' if is_active else '' }}">
                             {# djlint:off #}
                             <img src="{{ screening['image'] }}"
                                  style="max-height: 100vh;
