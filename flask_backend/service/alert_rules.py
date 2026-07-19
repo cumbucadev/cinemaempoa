@@ -201,7 +201,9 @@ def evaluate_new_genre_combination(movie: Movie) -> Optional[AlertCandidate]:
     genre_ids = frozenset(g.id for g in movie.genres)
     if not genre_ids:
         return None
-    earlier_combinations = get_earlier_genre_id_sets(before=movie.created_at)
+    earlier_combinations = get_earlier_genre_id_sets(
+        before=movie.created_at, exclude_movie_id=movie.id
+    )
     if genre_ids in earlier_combinations:
         return None
     genre_names = ", ".join(g.name for g in movie.genres)

@@ -3,7 +3,7 @@ from math import ceil
 from typing import FrozenSet, List, Optional, Set, Tuple
 
 from slugify import slugify
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 from flask_backend.db import db_session
 from flask_backend.models import (
@@ -159,6 +159,17 @@ def mark_metadata_alerts_evaluated(movie_id: int) -> None:
     db_session.commit()
 
 
+def _earlier_than(before: datetime, exclude_movie_id: int):
+    """Movie.created_at < before, with Movie.id as a tie-breaker for movies
+    sharing the exact same created_at (e.g. rows backfilled with a single
+    flat CURRENT_TIMESTAMP by a migration) - otherwise two movies tied on
+    created_at would never see each other as "earlier"."""
+    return or_(
+        Movie.created_at < before,
+        and_(Movie.created_at == before, Movie.id < exclude_movie_id),
+    )
+
+
 def get_earlier_movies_with_director(
     director_id: int, before: datetime, exclude_movie_id: int
 ) -> List[Movie]:
@@ -166,7 +177,7 @@ def get_earlier_movies_with_director(
         db_session.query(Movie)
         .join(movie_directors, movie_directors.c.movie_id == Movie.id)
         .filter(movie_directors.c.director_id == director_id)
-        .filter(Movie.created_at < before)
+        .filter(_earlier_than(before, exclude_movie_id))
         .filter(Movie.id != exclude_movie_id)
         .all()
     )
@@ -178,19 +189,22 @@ def get_earlier_movies_with_collection(
     return (
         db_session.query(Movie)
         .filter(Movie.collection_id == collection_id)
-        .filter(Movie.created_at < before)
+        .filter(_earlier_than(before, exclude_movie_id))
         .filter(Movie.id != exclude_movie_id)
         .all()
     )
 
 
-def get_earlier_genre_id_sets(before: datetime) -> Set[FrozenSet[int]]:
-    """One frozenset of genre ids per movie created before `before` that has
-    at least one genre. Used to detect genre combinations not seen yet."""
+def get_earlier_genre_id_sets(
+    before: datetime, exclude_movie_id: int
+) -> Set[FrozenSet[int]]:
+    """One frozenset of genre ids per movie created before `before` (or tied
+    on created_at with a lower id than exclude_movie_id) that has at least
+    one genre. Used to detect genre combinations not seen yet."""
     rows = (
         db_session.query(movie_genres.c.movie_id, movie_genres.c.genre_id)
         .join(Movie, Movie.id == movie_genres.c.movie_id)
-        .filter(Movie.created_at < before)
+        .filter(_earlier_than(before, exclude_movie_id))
         .all()
     )
     genre_ids_by_movie: dict[int, Set[int]] = {}

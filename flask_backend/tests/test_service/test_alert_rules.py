@@ -203,6 +203,29 @@ class TestEvaluateDirectorRules:
             assert candidate is not None
             assert candidate.dedup_key == f"returning_director:{later.id}"
 
+    def test_debut_uses_id_as_tiebreaker_for_identical_created_at(
+        self, client, app, setup_cinemas
+    ):
+        # Regression test: a migration backfill can give many legacy movies
+        # the exact same created_at. Without an id tie-breaker, a
+        # lower-id ("earlier") movie tied on created_at would never be
+        # found as "earlier than" a higher-id movie sharing a director.
+        with client.application.app_context():
+            director = Director(tmdb_id=1, name="Jane Director")
+            db_session.add(director)
+            db_session.commit()
+
+            same_timestamp = datetime(2020, 1, 1)
+            earlier = _create_movie("Primeiro", "primeiro", created_at=same_timestamp)
+            earlier.directors.append(director)
+            later = _create_movie("Segundo", "segundo", created_at=same_timestamp)
+            later.directors.append(director)
+            db_session.commit()
+            assert earlier.id < later.id
+
+            assert evaluate_director_debut(earlier) is not None
+            assert evaluate_director_debut(later) is None
+
 
 class TestEvaluateNewGenreCombination:
     def test_fires_for_the_first_movie_with_a_given_combination_only(
@@ -236,6 +259,25 @@ class TestEvaluateNewGenreCombination:
         with client.application.app_context():
             movie = _create_movie("Filme", "filme")
             assert evaluate_new_genre_combination(movie) is None
+
+    def test_uses_id_as_tiebreaker_for_identical_created_at(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            drama = Genre(tmdb_id=1, name="Drama")
+            db_session.add(drama)
+            db_session.commit()
+
+            same_timestamp = datetime(2020, 1, 1)
+            first = _create_movie("Primeiro", "primeiro", created_at=same_timestamp)
+            first.genres.append(drama)
+            second = _create_movie("Segundo", "segundo", created_at=same_timestamp)
+            second.genres.append(drama)
+            db_session.commit()
+            assert first.id < second.id
+
+            assert evaluate_new_genre_combination(first) is not None
+            assert evaluate_new_genre_combination(second) is None
 
 
 class TestEvaluateSequelOrFranchise:
