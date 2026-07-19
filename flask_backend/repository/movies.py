@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from flask_backend.db import db_session
 from flask_backend.models import (
+    Alert,
     Movie,
     MovieMetadataFetchAttempt,
     PosterFetchAttempt,
@@ -120,6 +121,12 @@ def delete(movie: Movie) -> None:
     db_session.query(MovieMetadataFetchAttempt).filter(
         MovieMetadataFetchAttempt.movie_id == movie.id
     ).delete(synchronize_session=False)
+    # Alert.movie_id is non-nullable and is always set (even for
+    # screening-scoped rules), so this also covers alerts tied to the
+    # screenings deleted above.
+    db_session.query(Alert).filter(Alert.movie_id == movie.id).delete(
+        synchronize_session=False
+    )
     db_session.delete(movie)
     db_session.commit()
 
