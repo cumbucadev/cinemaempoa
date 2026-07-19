@@ -59,10 +59,14 @@ def _matched_rule_names(screening: Screening) -> set:
 
 
 def evaluate_new_movie(screening: Screening) -> Optional[AlertCandidate]:
-    """Fires once, for the movie's first-ever screening entry (earliest
-    created_at among screening.movie.screenings)."""
+    """Fires once, for the movie's first-ever published screening entry
+    (earliest created_at among screening.movie.screenings, excluding
+    drafts - a draft screening isn't announced yet, so it shouldn't be
+    able to block a later, published screening from being recognized as
+    the movie's "new" entry)."""
     movie = screening.movie
-    earliest = min(movie.screenings, key=lambda s: (s.created_at, s.id))
+    published_screenings = [s for s in movie.screenings if not s.draft]
+    earliest = min(published_screenings, key=lambda s: (s.created_at, s.id))
     if earliest.id != screening.id:
         return None
     return AlertCandidate(

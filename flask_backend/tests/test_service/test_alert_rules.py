@@ -87,6 +87,24 @@ class TestEvaluateNewMovie:
 
             assert candidate is None
 
+    def test_fires_for_first_published_screening_even_with_an_earlier_draft(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie("Filme", "filme")
+            _create_screening(
+                movie, "capitolio", created_at=datetime(2026, 1, 1), draft=True
+            )
+            published_screening = _create_screening(
+                movie, "cinebancarios", created_at=datetime(2026, 1, 2), draft=False
+            )
+
+            candidate = evaluate_new_movie(published_screening)
+
+            assert candidate is not None
+            assert candidate.rule_name == "new_movie"
+            assert candidate.dedup_key == f"new_movie:{movie.id}"
+
 
 class TestEvaluateSingleScreening:
     def test_fires_when_exactly_one_date(self, client, app, setup_cinemas):
