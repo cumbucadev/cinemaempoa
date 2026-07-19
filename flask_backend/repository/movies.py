@@ -170,6 +170,7 @@ def get_earlier_movies_with_director(
         .filter(movie_directors.c.director_id == director_id)
         .filter(_earlier_than(before, exclude_movie_id))
         .filter(Movie.id != exclude_movie_id)
+        .order_by(Movie.created_at.desc())
         .all()
     )
 
@@ -182,6 +183,7 @@ def get_earlier_movies_with_collection(
         .filter(Movie.collection_id == collection_id)
         .filter(_earlier_than(before, exclude_movie_id))
         .filter(Movie.id != exclude_movie_id)
+        .order_by(Movie.created_at.desc())
         .all()
     )
 

@@ -226,6 +226,35 @@ class TestEvaluateDirectorRules:
             assert evaluate_director_debut(earlier) is not None
             assert evaluate_director_debut(later) is None
 
+    def test_returning_lists_most_recent_prior_titles_first(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            director = Director(tmdb_id=1, name="Jane Director")
+            db_session.add(director)
+            db_session.commit()
+
+            oldest = _create_movie(
+                "Filme A", "filme-a", created_at=datetime(2018, 1, 1)
+            )
+            oldest.directors.append(director)
+            middle = _create_movie(
+                "Filme B", "filme-b", created_at=datetime(2019, 1, 1)
+            )
+            middle.directors.append(director)
+            newest = _create_movie(
+                "Filme C", "filme-c", created_at=datetime(2020, 1, 1)
+            )
+            newest.directors.append(director)
+            later = _create_movie("Segundo", "segundo", created_at=datetime(2021, 1, 1))
+            later.directors.append(director)
+            db_session.commit()
+
+            candidate = evaluate_returning_director(later)
+
+            assert candidate is not None
+            assert "Filme C, Filme B, Filme A" in candidate.drafted_text
+
 
 class TestEvaluateNewGenreCombination:
     def test_fires_for_the_first_movie_with_a_given_combination_only(
@@ -311,3 +340,33 @@ class TestEvaluateSequelOrFranchise:
         with client.application.app_context():
             movie = _create_movie("Filme", "filme")
             assert evaluate_sequel_or_franchise(movie) is None
+
+    def test_lists_most_recent_prior_titles_first(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            collection = Collection(tmdb_id=1, name="Bacurau Collection")
+            db_session.add(collection)
+            db_session.commit()
+
+            _create_movie(
+                "Bacurau",
+                "bacurau",
+                created_at=datetime(2018, 1, 1),
+                collection_id=collection.id,
+            )
+            _create_movie(
+                "Bacurau 2",
+                "bacurau-2",
+                created_at=datetime(2019, 1, 1),
+                collection_id=collection.id,
+            )
+            later = _create_movie(
+                "Bacurau 3",
+                "bacurau-3",
+                created_at=datetime(2020, 1, 1),
+                collection_id=collection.id,
+            )
+
+            candidate = evaluate_sequel_or_franchise(later)
+
+            assert candidate is not None
+            assert "Bacurau 2, Bacurau" in candidate.drafted_text
