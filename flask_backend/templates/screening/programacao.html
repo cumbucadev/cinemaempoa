@@ -29,7 +29,7 @@
     </div>
     <div class="row">
         {% for date, screenings in screening_dates.items() %}
-            <div class="col-md-8">
+            <div class="col-md-8" id="day-{{ date.isoformat() }}">
                 <strong class="mb-2 fs-5">{{ date.strftime("%d/%m/%Y") }}</strong>
                 <ul class="list-unstyled mb-3">
                     {% for screening in screenings %}
@@ -67,8 +67,29 @@
                 </ul>
             </div>
         {% endfor %}
+        <div class="programacao-scroll-spacer" aria-hidden="true"></div>
     </div>
+    <style>
+        .programacao-scroll-spacer {
+            min-height: 90vh;
+        }
+    </style>
     <script>
+        const todayId = "day-{{ today.isoformat() }}";
+        let scrollTarget = document.getElementById(todayId);
+        if (!scrollTarget) {
+            scrollTarget = Array.from(document.querySelectorAll('[id^="day-"]'))
+                .find(el => el.id > todayId);
+        }
+        if (scrollTarget) {
+            const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+            document.documentElement.style.scrollBehavior = "auto";
+            scrollTarget.scrollIntoView({
+                block: "start"
+            });
+            document.documentElement.style.scrollBehavior = previousScrollBehavior;
+        }
+
         document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const checkedCinemas = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => `cinema=${checkbox.value}`);

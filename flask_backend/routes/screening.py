@@ -169,6 +169,7 @@ def programacao():
         colors=COLORS,
         cinemas=all_cinemas,
         checked_cinemas=checked_cinemas,
+        today=date.today(),
     )
 
 
