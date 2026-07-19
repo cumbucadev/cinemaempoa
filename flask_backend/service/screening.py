@@ -23,6 +23,7 @@ from flask_backend.repository.screenings import (
     create as create_screening,
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
     update_screening_dates,
+    update_title_cleaning_info,
 )
 from flask_backend.service.title_cleaning import clean_title
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
@@ -212,8 +213,16 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                     is_draft=False,
                     image_alt=None,
                     url_origin=scrapped_feature.read_more,
+                    raw_title=title_cleaning_result.raw_title,
+                    title_cleaning_rules=",".join(title_cleaning_result.matched_rules)
+                    or None,
                 )
             else:
+                update_title_cleaning_info(
+                    screening,
+                    title_cleaning_result.raw_title,
+                    title_cleaning_result.matched_rules,
+                )
                 if cinema.slug == "capitolio":
                     # capitolio may occasionally change
                     # screening times for a given movie

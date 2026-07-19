@@ -128,6 +128,10 @@
                                        href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item {% if request.path == url_for('admin_alerts.index') %}active{% endif %}"
+                                       href="{{ url_for("admin_alerts.index") }}">Alertas</a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"
                                        href="{{ url_for("screening.import_screenings") }}">Importar
                                     sessões</a>
@@ -194,6 +198,10 @@
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('admin_blog.index') %}active{% endif %}"
                                    href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('admin_alerts.index') %}active{% endif %}"
+                                   href="{{ url_for("admin_alerts.index") }}">Alertas</a>
                             </li>
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('screening.import_screenings') %}active{% endif %}"

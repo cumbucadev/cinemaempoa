@@ -1,8 +1,9 @@
+from datetime import datetime
 from math import ceil
-from typing import List, Optional, Tuple
+from typing import FrozenSet, List, Optional, Set, Tuple
 
 from slugify import slugify
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 from flask_backend.db import db_session
 from flask_backend.models import (
@@ -10,13 +11,16 @@ from flask_backend.models import (
     MovieMetadataFetchAttempt,
     PosterFetchAttempt,
     Screening,
+    movie_directors,
+    movie_genres,
 )
+from flask_backend.repository import alerts
 
 
 def create(title: str, slug: Optional[str] = None) -> Movie:
     if slug is None:
         slug = slugify(title)
-    movie = Movie(title=title, slug=slug)
+    movie = Movie(title=title, slug=slug, created_at=datetime.now())
     db_session.add(movie)
     db_session.commit()
     db_session.refresh(movie)
@@ -117,5 +121,81 @@ def delete(movie: Movie) -> None:
     db_session.query(MovieMetadataFetchAttempt).filter(
         MovieMetadataFetchAttempt.movie_id == movie.id
     ).delete(synchronize_session=False)
+    alerts.delete_for_movie(movie.id)
     db_session.delete(movie)
     db_session.commit()
+
+
+def get_movies_due_for_metadata_alert_evaluation() -> List[Movie]:
+    """Movies whose director/genre/collection alert rules haven't been
+    evaluated yet: metadata_alerts_evaluated_at is NULL, and either the
+    movie already has a director, or metadata fetching for it has exhausted
+    every source in MOVIE_METADATA_SOURCES (so it will never get one)."""
+    from flask_backend.repository.movie_metadata_fetch_attempts import get_next_source
+
+    candidates = (
+        db_session.query(Movie)
+        .filter(Movie.metadata_alerts_evaluated_at.is_(None))
+        .all()
+    )
+    return [
+        movie
+        for movie in candidates
+        if movie.directors or get_next_source(movie.id) is None
+    ]
+
+
+def _earlier_than(before: datetime, exclude_movie_id: int):
+    """Movie.created_at < before, with Movie.id as a tie-breaker for movies
+    sharing the exact same created_at (e.g. rows backfilled with a single
+    flat CURRENT_TIMESTAMP by a migration) - otherwise two movies tied on
+    created_at would never see each other as "earlier"."""
+    return or_(
+        Movie.created_at < before,
+        and_(Movie.created_at == before, Movie.id < exclude_movie_id),
+    )
+
+
+def get_earlier_movies_with_director(
+    director_id: int, before: datetime, exclude_movie_id: int
+) -> List[Movie]:
+    return (
+        db_session.query(Movie)
+        .join(movie_directors, movie_directors.c.movie_id == Movie.id)
+        .filter(movie_directors.c.director_id == director_id)
+        .filter(_earlier_than(before, exclude_movie_id))
+        .filter(Movie.id != exclude_movie_id)
+        .order_by(Movie.created_at.desc())
+        .all()
+    )
+
+
+def get_earlier_movies_with_collection(
+    collection_id: int, before: datetime, exclude_movie_id: int
+) -> List[Movie]:
+    return (
+        db_session.query(Movie)
+        .filter(Movie.collection_id == collection_id)
+        .filter(_earlier_than(before, exclude_movie_id))
+        .filter(Movie.id != exclude_movie_id)
+        .order_by(Movie.created_at.desc())
+        .all()
+    )
+
+
+def get_earlier_genre_id_sets(
+    before: datetime, exclude_movie_id: int
+) -> Set[FrozenSet[int]]:
+    """One frozenset of genre ids per movie created before `before` (or tied
+    on created_at with a lower id than exclude_movie_id) that has at least
+    one genre. Used to detect genre combinations not seen yet."""
+    rows = (
+        db_session.query(movie_genres.c.movie_id, movie_genres.c.genre_id)
+        .join(Movie, Movie.id == movie_genres.c.movie_id)
+        .filter(_earlier_than(before, exclude_movie_id))
+        .all()
+    )
+    genre_ids_by_movie: dict[int, Set[int]] = {}
+    for movie_id, genre_id in rows:
+        genre_ids_by_movie.setdefault(movie_id, set()).add(genre_id)
+    return {frozenset(genre_ids) for genre_ids in genre_ids_by_movie.values()}

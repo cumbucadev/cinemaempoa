@@ -55,6 +55,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(admin_blog.bp)
 
+    from .routes.admin import alerts as admin_alerts
+
+    app.register_blueprint(admin_alerts.bp)
+
     from .routes import page
 
     app.register_blueprint(page.bp)

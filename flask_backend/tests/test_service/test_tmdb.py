@@ -118,3 +118,34 @@ class TestGetMovieDetails:
             details = tmdb_client.get_movie_details(123)
 
         assert details["release_year"] is None
+
+    def test_returns_collection_when_belongs_to_collection_present(self, tmdb_client):
+        response = Mock()
+        response.json.return_value = {
+            "genres": [],
+            "credits": {"crew": []},
+            "belongs_to_collection": {
+                "id": 10,
+                "name": "Bacurau Collection",
+                "poster_path": "/poster.jpg",
+                "backdrop_path": "/backdrop.jpg",
+            },
+        }
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            details = tmdb_client.get_movie_details(123)
+
+        assert details["collection"] == {"id": 10, "name": "Bacurau Collection"}
+
+    def test_returns_none_collection_when_belongs_to_collection_missing(
+        self, tmdb_client
+    ):
+        response = Mock()
+        response.json.return_value = {
+            "genres": [],
+            "credits": {"crew": []},
+            "belongs_to_collection": None,
+        }
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            details = tmdb_client.get_movie_details(123)
+
+        assert details["collection"] is None
