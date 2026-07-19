@@ -71,12 +71,13 @@ def get_all_paginated(
     return (movies, total_pages, total_count)
 
 
-def get_paginated(
+def get_paginated_screenings_with_image(
     current_page: int, per_page: int, include_drafts: bool = False
-) -> List[Optional[Movie]]:
+) -> List[Screening]:
     offset_value = (current_page - 1) * per_page
 
-    query = db_session.query(Screening).order_by(Screening.id.desc())
+    query = db_session.query(Screening).filter(Screening.image.isnot(None))
+    query = query.order_by(Screening.id.desc())
 
     if not include_drafts:
         query = query.filter(Screening.draft == False)  # noqa: E712
