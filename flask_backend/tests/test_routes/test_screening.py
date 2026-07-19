@@ -102,6 +102,14 @@ class TestScreeningProgramacao:
         response = client.get("/program?cinema=capitolio")
         assert response.status_code == 200
 
+    def test_programacao_marks_today_with_scroll_anchor(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme de Hoje")
+        response = client.get("/program")
+        today_id = f'id="day-{date.today().isoformat()}"'.encode()
+        assert today_id in response.data
+        assert b"scrollIntoView" in response.data
+
 
 class TestScreeningUpload:
     def test_upload_nonexistent_file_returns_404(self, client):
