@@ -50,6 +50,23 @@ class TestAdminAlertsIndex:
         response = auth_headers.get("/admin/alerts?status=bogus")
         assert response.status_code == 400
 
+    def test_admin_alerts_index_zero_limit_returns_400(
+        self, app, auth_headers, setup_cinemas
+    ):
+        movie_id = _create_movie(app)
+        _create_alert(app, movie_id, status="pending")
+
+        response = auth_headers.get("/admin/alerts?limit=0")
+        assert response.status_code == 400
+
+    def test_admin_alerts_index_zero_page_returns_400(self, auth_headers):
+        response = auth_headers.get("/admin/alerts?page=0")
+        assert response.status_code == 400
+
+    def test_admin_alerts_index_negative_page_returns_400(self, auth_headers):
+        response = auth_headers.get("/admin/alerts?page=-1")
+        assert response.status_code == 400
+
     def test_admin_alerts_index_defaults_to_pending(
         self, app, auth_headers, setup_cinemas
     ):

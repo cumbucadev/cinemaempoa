@@ -27,6 +27,9 @@ def index():
     except ValueError:
         abort(400)
 
+    if page < 1 or limit < 1:
+        abort(400)
+
     status = request.args.get("status", "pending")
     if status not in STATUS_FILTERS:
         abort(400)
