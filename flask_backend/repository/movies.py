@@ -150,15 +150,6 @@ def get_movies_due_for_metadata_alert_evaluation() -> List[Movie]:
     ]
 
 
-def mark_metadata_alerts_evaluated(movie_id: int) -> None:
-    movie = get_by_id(movie_id)
-    if movie is None:
-        return
-    movie.metadata_alerts_evaluated_at = datetime.now()
-    db_session.add(movie)
-    db_session.commit()
-
-
 def _earlier_than(before: datetime, exclude_movie_id: int):
     """Movie.created_at < before, with Movie.id as a tie-breaker for movies
     sharing the exact same created_at (e.g. rows backfilled with a single

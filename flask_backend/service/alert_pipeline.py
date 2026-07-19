@@ -11,16 +11,16 @@ Usage (via CLI):
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Dict, Optional
 
+from flask_backend.db import db_session
 from flask_backend.repository.alerts import create as create_alert, exists_by_dedup_key
 from flask_backend.repository.movies import (
     get_movies_due_for_metadata_alert_evaluation,
-    mark_metadata_alerts_evaluated,
 )
 from flask_backend.repository.screenings import (
     get_screenings_due_for_core_alert_evaluation,
-    mark_core_alerts_evaluated,
 )
 from flask_backend.service.alert_rules import CORE_SCREENING_RULES, METADATA_MOVIE_RULES
 
@@ -74,8 +74,12 @@ def run_pipeline(
             if candidate is not None:
                 _record_candidate(candidate, dry_run, result)
         if not dry_run:
-            mark_core_alerts_evaluated(screening.id)
+            screening.core_alerts_evaluated_at = datetime.now()
+            db_session.add(screening)
         result.screenings_evaluated += 1
+
+    if not dry_run and screenings:
+        db_session.commit()
 
     remaining_limit = None
     if limit is not None:
@@ -92,7 +96,11 @@ def run_pipeline(
                 if candidate is not None:
                     _record_candidate(candidate, dry_run, result)
             if not dry_run:
-                mark_metadata_alerts_evaluated(movie.id)
+                movie.metadata_alerts_evaluated_at = datetime.now()
+                db_session.add(movie)
             result.movies_evaluated += 1
+
+        if not dry_run and movies:
+            db_session.commit()
 
     return result

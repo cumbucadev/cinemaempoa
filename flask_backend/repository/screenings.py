@@ -124,15 +124,6 @@ def get_screenings_due_for_core_alert_evaluation() -> List[Screening]:
     )
 
 
-def mark_core_alerts_evaluated(screening_id: int) -> None:
-    screening = get_screening_by_id(screening_id)
-    if screening is None:
-        return
-    screening.core_alerts_evaluated_at = datetime.now()
-    db_session.add(screening)
-    db_session.commit()
-
-
 def update_screening_dates(
     screening: Screening, screening_dates: List[ScreeningDate]
 ) -> Screening:

@@ -1,4 +1,5 @@
 from datetime import datetime
+from unittest.mock import patch
 
 from flask_backend.db import db_session
 from flask_backend.models import Alert, Director, Movie, Screening, ScreeningDate
@@ -147,6 +148,54 @@ class TestRunPipelineDryRun:
 
             refreshed = db_session.query(Screening).filter_by(id=screening.id).one()
             assert refreshed.core_alerts_evaluated_at is None
+
+
+class TestRunPipelineCommitBatching:
+    def test_marking_screenings_evaluated_commits_once_not_per_row(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            screenings = []
+            for i in range(3):
+                movie = _create_movie(f"Filme {i}", f"filme-{i}")
+                screening = _create_screening(movie, "capitolio")
+                screenings.append(screening)
+                # pre-seed alerts for every candidate this screening would
+                # generate, so run_pipeline evaluates it (still due) but
+                # skips create_alert's own commit - isolating the commit
+                # count of the "mark evaluated" step itself
+                db_session.add_all(
+                    [
+                        Alert(
+                            rule_name="new_movie",
+                            movie_id=movie.id,
+                            screening_id=screening.id,
+                            dedup_key=f"new_movie:{movie.id}",
+                            drafted_text="text",
+                        ),
+                        Alert(
+                            rule_name="single_screening",
+                            movie_id=movie.id,
+                            screening_id=screening.id,
+                            dedup_key=f"single_screening:{screening.id}",
+                            drafted_text="text",
+                        ),
+                    ]
+                )
+            db_session.commit()
+
+            with patch.object(
+                db_session, "commit", wraps=db_session.commit
+            ) as commit_spy:
+                result = run_pipeline()
+
+            assert result.screenings_evaluated == 3
+            assert result.alerts_created == 0
+            # one commit for the whole core-alert phase, not one per screening
+            assert commit_spy.call_count == 1
+            for screening in screenings:
+                refreshed = db_session.query(Screening).filter_by(id=screening.id).one()
+                assert refreshed.core_alerts_evaluated_at is not None
 
 
 class TestRunPipelineLimit:
