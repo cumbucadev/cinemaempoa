@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}
+    Alertas
+{% endblock title %}
+{% block header %}
+    <div>
+        <h1>Alertas</h1>
+        <p>Filmes interessantes detectados na programação, prontos para postar nas redes sociais</p>
+    </div>
+{% endblock header %}
+{% block content %}
+    {% set rule_labels = {
+        "new_movie": "Filme novo",
+        "single_screening": "Sessão única",
+        "sessao_comentada": "Sessão comentada",
+        "mostra": "Mostra",
+        "director_debut": "Estreia de diretor(a)",
+        "returning_director": "Diretor(a) de volta",
+        "new_genre_combination": "Nova combinação de gênero",
+        "sequel_or_franchise": "Sequência/franquia"
+    } %}
+    <ul class="nav nav-tabs mb-3">
+        {% for filter_status, label in [("pending", "Pendentes"), ("posted", "Postados"), ("dismissed", "Descartados"), ("all", "Todos")] %}
+            <li class="nav-item">
+                <a class="nav-link {% if status == filter_status %}active{% endif %}"
+                   href="{{ url_for('admin_alerts.index', status=filter_status) }}">{{ label }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+    {% if alerts %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Regra</th>
+                        <th>Filme</th>
+                        <th>Texto sugerido</th>
+                        <th>Criado</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-info text-dark">{{ rule_labels.get(alert.rule_name, alert.rule_name) }}</span>
+                            </td>
+                            <td>
+                                {% if alert.movie.slug %}
+                                    <a href="{{ url_for('movie.show', slug=alert.movie.slug) }}"
+                                       class="text-decoration-none">{{ alert.movie.title }}</a>
+                                {% else %}
+                                    {{ alert.movie.title }}
+                                {% endif %}
+                            </td>
+                            <td class="w-25">
+                                <div class="input-group input-group-sm">
+                                    <textarea class="form-control" rows="2" readonly id="alert-text-{{ alert.id }}">{{ alert.drafted_text }}</textarea>
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            onclick="navigator.clipboard.writeText(document.getElementById('alert-text-{{ alert.id }}').value)">
+                                        Copiar
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <time datetime="{{ alert.created_at.isoformat() }}">
+                                    {{ alert.created_at.strftime("%d/%m/%Y %H:%M") }}
+                                </time>
+                            </td>
+                            <td>
+                                {% if alert.status == "pending" %}
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <form method="post"
+                                              action="{{ url_for('admin_alerts.mark_posted', alert_id=alert.id) }}"
+                                              class="d-inline">
+                                            <input type="hidden" name="status" value="{{ status }}">
+                                            <button type="submit" class="btn btn-outline-success">Marcar como postado</button>
+                                        </form>
+                                        <form method="post"
+                                              action="{{ url_for('admin_alerts.dismiss', alert_id=alert.id) }}"
+                                              class="d-inline">
+                                            <input type="hidden" name="status" value="{{ status }}">
+                                            <button type="submit" class="btn btn-outline-danger">Descartar</button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <span class="badge {% if alert.status == "posted" %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if alert.status == "posted" %}
+                                            Postado
+                                        {% else %}
+                                            Descartado
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        {% if pages > 1 %}
+            <nav aria-label="Navegação do admin">
+                <ul class="pagination justify-content-center">
+                    {% if prev_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('admin_alerts.index', page=prev_page, limit=limit, status=status) }}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    {% for page_num in range(1, pages + 1) %}
+                        <li class="page-item {% if page_num == curr_page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('admin_alerts.index', page=page_num, limit=limit, status=status) }}">{{ page_num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if next_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('admin_alerts.index', page=next_page, limit=limit, status=status) }}">Próximo</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <h3>Nenhum alerta encontrado</h3>
+            <p class="text-muted">Rode "flask generate-alerts" para avaliar a programação atual.</p>
+        </div>
+    {% endif %}
+{% endblock content %}

@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from flask_backend.db import db_session
 from flask_backend.models import (
+    Collection,
     Country,
     Director,
     Genre,
@@ -72,6 +73,53 @@ class TestRunPipeline:
             assert len(attempts) == 1
             assert attempts[0].status == "success"
             assert attempts[0].source == "tmdb"
+
+    def test_happy_path_sets_collection_when_present(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Bacurau 2", "bacurau-2")
+            movie_id = movie.id
+
+            tmdb_client = _tmdb_client(
+                search_result={"id": 999},
+                details={
+                    "genres": [],
+                    "directors": [],
+                    "countries": [],
+                    "collection": {"id": 10, "name": "Bacurau Collection"},
+                },
+            )
+            with patch(
+                "flask_backend.service.movie_metadata_pipeline.TMDBClient",
+                return_value=tmdb_client,
+            ):
+                run_pipeline()
+
+            movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert movie.collection is not None
+            assert movie.collection.name == "Bacurau Collection"
+
+            collections = (
+                db_session.query(Collection).filter(Collection.tmdb_id == 10).all()
+            )
+            assert len(collections) == 1
+
+    def test_happy_path_leaves_collection_unset_when_absent(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Filme Solo", "filme-solo")
+            movie_id = movie.id
+
+            tmdb_client = _tmdb_client(
+                search_result={"id": 999},
+                details={"genres": [], "directors": [], "countries": []},
+            )
+            with patch(
+                "flask_backend.service.movie_metadata_pipeline.TMDBClient",
+                return_value=tmdb_client,
+            ):
+                run_pipeline()
+
+            movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert movie.collection_id is None
 
     def test_not_found_on_tmdb_search(self, client, app):
         with client.application.app_context():

@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from flask_backend.db import db_session
 from flask_backend.models import (
+    Alert,
     Genre,
     Movie,
     MovieMetadataFetchAttempt,
@@ -226,6 +227,79 @@ class TestMergeMovies:
                 .count()
                 == 0
             )
+
+    def test_repoints_movie_scoped_alert_to_survivor(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            survivor = _create_movie("Filme", "filme")
+            duplicate = _create_movie("Cinema | Filme", "cinema-filme")
+            db_session.add(
+                Alert(
+                    rule_name="director_debut",
+                    movie_id=duplicate.id,
+                    screening_id=None,
+                    dedup_key=f"director_debut:{duplicate.id}",
+                    drafted_text="texto",
+                    status="pending",
+                    created_at=datetime.now(),
+                )
+            )
+            db_session.commit()
+
+            merge_movies(survivor, [duplicate])
+            db_session.commit()
+
+            alert = (
+                db_session.query(Alert)
+                .filter_by(dedup_key=f"director_debut:{duplicate.id}")
+                .one()
+            )
+            assert alert.movie_id == survivor.id
+
+    def test_repoints_screening_scoped_alert_on_fold_in(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            survivor = _create_movie("Filme", "filme")
+            duplicate = _create_movie("Cinema | Filme", "cinema-filme")
+            survivor_screening = _create_screening(survivor, "capitolio")
+            duplicate_screening = _create_screening(duplicate, "capitolio")
+            db_session.add(
+                Alert(
+                    rule_name="single_screening",
+                    movie_id=duplicate.id,
+                    screening_id=duplicate_screening.id,
+                    dedup_key=f"single_screening:{duplicate_screening.id}",
+                    drafted_text="texto",
+                    status="pending",
+                    created_at=datetime.now(),
+                )
+            )
+            db_session.commit()
+
+            merge_movies(survivor, [duplicate])
+            db_session.commit()
+
+            alert = (
+                db_session.query(Alert)
+                .filter_by(dedup_key=f"single_screening:{duplicate_screening.id}")
+                .one()
+            )
+            assert alert.screening_id == survivor_screening.id
+
+    def test_survivor_created_at_becomes_min_of_both(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            older = datetime(2020, 1, 1)
+            newer = datetime(2025, 1, 1)
+            survivor = _create_movie("Filme", "filme", created_at=newer)
+            duplicate = _create_movie(
+                "Cinema | Filme", "cinema-filme", created_at=older
+            )
+
+            merge_movies(survivor, [duplicate])
+            db_session.commit()
+
+            merged = db_session.query(Movie).filter_by(id=survivor.id).one()
+            assert merged.created_at == older
 
     def test_deletes_poster_fetch_attempts_for_discarded_screening(
         self, client, app, setup_cinemas

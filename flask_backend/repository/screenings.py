@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional, Tuple
 
 from sqlalchemy import func
@@ -73,6 +73,8 @@ def create(
     is_draft: Optional[bool] = False,
     image_alt: Optional[bool] = None,
     url_origin: Optional[str] = None,
+    raw_title: Optional[str] = None,
+    title_cleaning_rules: Optional[str] = None,
 ) -> Screening:
     screening = Screening(
         movie_id=movie_id,
@@ -85,11 +87,50 @@ def create(
         description=description,
         draft=is_draft,
         url=url_origin,
+        raw_title=raw_title,
+        title_cleaning_rules=title_cleaning_rules,
+        created_at=datetime.now(),
     )
     db_session.add(screening)
     db_session.commit()
     db_session.refresh(screening)
     return screening
+
+
+def update_title_cleaning_info(
+    screening: Screening, raw_title: str, matched_rule_names: List[str]
+) -> Screening:
+    """Refreshes raw_title to the latest scrape and unions matched_rule_names
+    into the screening's existing title_cleaning_rules, never dropping a
+    previously-detected annotation."""
+    screening.raw_title = raw_title
+    existing_rules = set((screening.title_cleaning_rules or "").split(",")) - {""}
+    all_rules = existing_rules | set(matched_rule_names)
+    screening.title_cleaning_rules = ",".join(sorted(all_rules)) or None
+    db_session.add(screening)
+    db_session.commit()
+    db_session.refresh(screening)
+    return screening
+
+
+def get_screenings_due_for_core_alert_evaluation() -> List[Screening]:
+    """Non-draft screenings whose core alert rules (new movie, single
+    screening, sessão comentada, mostra) haven't been evaluated yet."""
+    return (
+        db_session.query(Screening)
+        .filter(Screening.core_alerts_evaluated_at.is_(None))
+        .filter(Screening.draft == False)  # noqa: E712
+        .all()
+    )
+
+
+def mark_core_alerts_evaluated(screening_id: int) -> None:
+    screening = get_screening_by_id(screening_id)
+    if screening is None:
+        return
+    screening.core_alerts_evaluated_at = datetime.now()
+    db_session.add(screening)
+    db_session.commit()
 
 
 def update_screening_dates(

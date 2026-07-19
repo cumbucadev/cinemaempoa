@@ -234,6 +234,48 @@ class TestImportScrappedResults:
             movie = db_session.query(Movie).filter_by(slug="lobo-e-cao").one()
             assert movie.title == "Lobo e Cão"
 
+    def test_populates_raw_title_and_title_cleaning_rules_on_create(
+        self, client, app, setup_cinemas
+    ):
+        import_scrapped_results(
+            _create_scrapped_results_with_title(
+                "Capitolio", "capitolio", "Cinema | Lobo e Cão + debate"
+            ),
+            app,
+        )
+
+        with client.application.app_context():
+            movie = db_session.query(Movie).filter_by(slug="lobo-e-cao").one()
+            screening = movie.screenings[0]
+            assert screening.raw_title == "Cinema | Lobo e Cão + debate"
+            matched = set(screening.title_cleaning_rules.split(","))
+            assert "cinema_pipe" in matched
+            assert "debate_suffix" in matched
+
+    def test_unions_title_cleaning_rules_across_imports_without_dropping_old(
+        self, client, app, setup_cinemas
+    ):
+        import_scrapped_results(
+            _create_scrapped_results_with_title(
+                "CineBancarios", "cinebancarios", "Cinema | Lobo e Cão"
+            ),
+            app,
+        )
+        import_scrapped_results(
+            _create_scrapped_results_with_title(
+                "CineBancarios", "cinebancarios", "Lobo e Cão + debate"
+            ),
+            app,
+        )
+
+        with client.application.app_context():
+            movie = db_session.query(Movie).filter_by(slug="lobo-e-cao").one()
+            screening = movie.screenings[0]
+            matched = set(screening.title_cleaning_rules.split(","))
+            assert "cinema_pipe" in matched
+            assert "debate_suffix" in matched
+            assert screening.raw_title == "Lobo e Cão + debate"
+
     def test_sala_redencao_appends_to_existing_records_for_each_day(
         self, client, app, setup_cinemas
     ):

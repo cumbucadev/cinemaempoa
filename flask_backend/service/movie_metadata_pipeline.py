@@ -13,6 +13,9 @@ from typing import Optional
 
 from flask_backend.db import db_session
 from flask_backend.models import MOVIE_METADATA_SOURCES
+from flask_backend.repository.collections import (
+    get_or_create_by_tmdb_id as get_or_create_collection,
+)
 from flask_backend.repository.countries import (
     get_or_create_by_iso_code as get_or_create_country,
 )
@@ -164,6 +167,13 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
             country = get_or_create_country(c["iso_3166_1"], c["name"])
             if country not in movie.countries:
                 movie.countries.append(country)
+
+        collection_data = details.get("collection")
+        if collection_data and collection_data.get("id") is not None:
+            collection = get_or_create_collection(
+                collection_data["id"], collection_data["name"]
+            )
+            movie.collection_id = collection.id
 
         movie.original_title = details.get("original_title")
         movie.release_year = details.get("release_year")

@@ -102,6 +102,10 @@ class TMDBClient:
             - "original_language": Optional[str], ISO 639-1 code (e.g. "pt")
             - "countries": list of {"iso_3166_1": str, "name": str}, from
               production_countries
+            - "collection": Optional[{"id": int, "name": str}], from
+              belongs_to_collection - TMDB's own franchise/collection
+              grouping, already included in the base response with no
+              extra append_to_response needed
 
         Raises requests.RequestException on network / API errors.
         """
@@ -138,6 +142,14 @@ class TMDBClient:
             for c in data.get("production_countries", [])
         ]
 
+        belongs_to_collection = data.get("belongs_to_collection")
+        collection = None
+        if belongs_to_collection:
+            collection = {
+                "id": belongs_to_collection.get("id"),
+                "name": belongs_to_collection.get("name"),
+            }
+
         return {
             "genres": genres,
             "directors": directors,
@@ -145,4 +157,5 @@ class TMDBClient:
             "release_year": release_year,
             "original_language": data.get("original_language"),
             "countries": countries,
+            "collection": collection,
         }

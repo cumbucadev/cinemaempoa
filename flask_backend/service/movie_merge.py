@@ -15,6 +15,7 @@ from typing import List
 
 from flask_backend.db import db_session
 from flask_backend.models import (
+    Alert,
     Movie,
     MovieMetadataFetchAttempt,
     PosterFetchAttempt,
@@ -32,6 +33,7 @@ _SCREENING_BACKFILL_FIELDS = (
     "image_height",
     "description",
     "url",
+    "raw_title",
 )
 
 
@@ -91,6 +93,10 @@ def _backfill_screening_fields(existing: Screening, losing: Screening) -> None:
     for field in _SCREENING_BACKFILL_FIELDS:
         if not getattr(existing, field) and getattr(losing, field):
             setattr(existing, field, getattr(losing, field))
+    existing_rules = set((existing.title_cleaning_rules or "").split(",")) - {""}
+    losing_rules = set((losing.title_cleaning_rules or "").split(",")) - {""}
+    union_rules = existing_rules | losing_rules
+    existing.title_cleaning_rules = ",".join(sorted(union_rules)) or None
 
 
 def _merge_screenings(survivor: Movie, duplicate: Movie) -> None:
@@ -109,6 +115,13 @@ def _merge_screenings(survivor: Movie, duplicate: Movie) -> None:
         db_session.query(PosterFetchAttempt).filter(
             PosterFetchAttempt.screening_id == screening.id
         ).delete(synchronize_session=False)
+        # repoint alerts referencing the screening about to be deleted -
+        # dedup_key strings may go slightly stale (e.g. still mention the
+        # old screening_id), which is harmless since dedup_key is only
+        # consulted at alert-creation time, never re-derived.
+        db_session.query(Alert).filter(Alert.screening_id == screening.id).update(
+            {"screening_id": existing.id}
+        )
         db_session.delete(screening)
 
 
@@ -120,6 +133,10 @@ def merge_movies(survivor: Movie, duplicates: List[Movie]) -> None:
         _merge_scalar_fields(survivor, duplicate)
         _merge_associations(survivor, duplicate)
         _merge_screenings(survivor, duplicate)
+        survivor.created_at = min(survivor.created_at, duplicate.created_at)
+        db_session.query(Alert).filter(Alert.movie_id == duplicate.id).update(
+            {"movie_id": survivor.id}
+        )
         db_session.query(MovieMetadataFetchAttempt).filter(
             MovieMetadataFetchAttempt.movie_id == duplicate.id
         ).delete(synchronize_session=False)
