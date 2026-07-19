@@ -19,7 +19,7 @@ is the Flask app (routes, services, templates, CLI, migrations).
 | Seed DB | `flask --app flask_backend seed-db` |
 | Create migration | `flask --app flask_backend db-revision --autogenerate -m "message"` |
 | Apply migration | `flask --app flask_backend db-upgrade` |
-| Run scrapers | `./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim > import.json` |
+| Run scrapers | `./cinemaempoa.py -r capitolio sala-redencao cinebancarios paulo-amorim cine-cinco > import.json` |
 | Import scraped JSON | `flask --app flask_backend import-json /path/to/file.json` |
 | Run all tests | `pytest` |
 | Run backend tests | `pytest flask_backend/tests` |
@@ -45,7 +45,7 @@ Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-deduppe
 | Test fixtures | `flask_backend/tests/README.md` |
 | CI pipeline | `.github/workflows/ci.yml` |
 | Deployment | `.github/workflows/deploy-server.yml` |
-| Scheduled jobs | `.github/workflows/fetch-movie-metadata.yml`, `fetch-posters.yml`, `import-cinebancarios.yml`, `run-spiders.yml`, `update-sitemaps.yml` |
+| Scheduled jobs | `.github/workflows/fetch-movie-metadata.yml`, `fetch-posters.yml`, `import-cinebancarios.yml`, `import-cine-cinco.yml`, `run-spiders.yml`, `update-sitemaps.yml` |
 | Production runtime | `docker-compose.production.yml`, `Dockerfile.prod` |
 | DB backups | `backup-db.sh` |
 

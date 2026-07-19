@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 
 from scrapers.capitolio import Capitolio
+from scrapers.cine_cinco import CineCinco
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
 from scrapers.sala_redencao import SalaRedencao
@@ -15,7 +16,13 @@ if __name__ == "__main__":
         description="Extrai os horários das salas de cinema de Porto Alegre em formato JSON utilizando webscrapping.",
     )
 
-    allowed_rooms = ["capitolio", "sala-redencao", "cinebancarios", "paulo-amorim"]
+    allowed_rooms = [
+        "capitolio",
+        "sala-redencao",
+        "cinebancarios",
+        "paulo-amorim",
+        "cine-cinco",
+    ]
 
     parser.add_argument(
         "-r",
@@ -78,6 +85,15 @@ if __name__ == "__main__":
 
         with open(json_filename, "w") as json_file:
             json_file.write(dump_utf8_json(features))
+    if "cine-cinco" in args.rooms:
+        feature = {
+            "url": "https://www.pucrs.br/cultura/projetos/cine-cinco/",
+            "cinema": "Cine Cinco",
+            "slug": "cine-cinco",
+        }
+        cineCinco = CineCinco()
+        feature["features"] = cineCinco.get_daily_features_json()
+        features.append(feature)
 
     json_string = dump_utf8_json(features)
 

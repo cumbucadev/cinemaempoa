@@ -113,3 +113,29 @@ Por causa disso, optamos pelo uso de LLMs que consomem o conteúdo da postagem
 ser importado pra dentro da plataforma.
 
 Você pode ver a implementação (prompts e regras de negócio) no arquivo [./llms.py](./llms.py).
+
+## Cine Cinco
+
+O site do projeto é <https://www.pucrs.br/cultura/projetos/cine-cinco/>. Diferente do
+CineBancários, essa página é renderizada no servidor (não precisa de javascript pra
+carregar o conteúdo), então o HTML pode ser obtido com uma requisição HTTP comum.
+
+A programação inteira fica dentro de uma única `div.content`. Cada filme é um bloco de
+texto (título, pôster, direção, informações gerais, sinopse e sessão) separado dos
+outros por uma tag `<hr>`, mas assim como no CineBancários, a estrutura interna de cada
+bloco muda de postagem pra postagem (às vezes tem direção, às vezes não; às vezes tem
+`<a>` em volta do pôster, às vezes não). Por isso, também optamos por usar um LLM que
+consome o texto (sem tags HTML) do bloco `div.content` e retorna um JSON estruturado —
+implementação em [./llms.py](./llms.py), classe `CineCincoExtractorLLM`.
+
+Duas particularidades desse site, comparado ao CineBancários:
+
+- As datas de sessão (`Sessão: 1/7 • quarta — 17h`) não têm ano. Como a página não tem
+  um RSS feed com data de publicação, assumimos que o ano da sessão é sempre o ano
+  atual no momento da raspagem — uma limitação conhecida da v0 perto da virada do ano.
+- Como a página muda com pouca frequência (segundo a issue, a cada 1-2 semanas),
+  guardamos um hash SHA-256 do texto extraído em `cine-cinco/cache.json` junto com as
+  features já extraídas. Se o hash não mudou desde a última raspagem, pulamos a
+  chamada ao LLM inteiramente e reaproveitamos o resultado anterior — isso existe pra
+  controlar o custo das chamadas de LLM, já que rodar o scraper com frequência não
+  significa que o conteúdo da página realmente mudou.
