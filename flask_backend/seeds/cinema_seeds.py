@@ -22,5 +22,12 @@ def create_cinemas(db_session):
         slug="paulo-amorim",
         url="https://www.cinematecapauloamorim.com.br/",
     )
-    db_session.add_all([capitolio, sala_redencao, cinebancarios, paulo_amorim])
+    cine_cinco = Cinema(
+        name="Cine Cinco",
+        slug="cine-cinco",
+        url="https://www.pucrs.br/cultura/projetos/cine-cinco/",
+    )
+    db_session.add_all(
+        [capitolio, sala_redencao, cinebancarios, paulo_amorim, cine_cinco]
+    )
     db_session.commit()

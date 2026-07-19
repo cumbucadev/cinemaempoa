@@ -1,6 +1,7 @@
 from flask_backend.import_json import ScrappedResult
 from flask_backend.service.screening import import_scrapped_results
 from scrapers.capitolio import Capitolio
+from scrapers.cine_cinco import CineCinco
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
 from scrapers.sala_redencao import SalaRedencao
@@ -43,6 +44,15 @@ class Runner:
                 "url": "https://www.cinematecapauloamorim.com.br",
                 "cinema": "Cinemateca Paulo Amorim",
                 "slug": "paulo-amorim",
+            }
+            features.append(feature)
+
+        if "cine-cinco" in cinemas:
+            feature = {
+                "cls": CineCinco(),
+                "url": "https://www.pucrs.br/cultura/projetos/cine-cinco/",
+                "cinema": "Cine Cinco",
+                "slug": "cine-cinco",
             }
             features.append(feature)
 

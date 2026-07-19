@@ -23,7 +23,7 @@ class TestInitDbProdCommand:
 
         with app.app_context():
             assert db_session.query(User).count() == 1
-            assert db_session.query(Cinema).count() == 4
+            assert db_session.query(Cinema).count() == 5
 
     def test_running_twice_skips_existing_records(self, app, runner):
         runner.invoke(args=["init-db-prod"])
@@ -32,7 +32,7 @@ class TestInitDbProdCommand:
         assert result.exit_code == 0
         with app.app_context():
             assert db_session.query(User).count() == 1
-            assert db_session.query(Cinema).count() == 4
+            assert db_session.query(Cinema).count() == 5
 
 
 class TestSeedDbCommand:
@@ -47,7 +47,7 @@ class TestSeedDbCommand:
 
         assert result.exit_code == 0
         with app.app_context():
-            assert db_session.query(Cinema).count() == 4
+            assert db_session.query(Cinema).count() == 5
             assert db_session.query(User).count() == 1
 
     def test_skips_when_screenings_already_registered(self, runner):
