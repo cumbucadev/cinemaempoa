@@ -7,7 +7,7 @@ from flask_backend.repository.movies import (
     get_all_paginated as get_all_movies_paginated,
     get_by_slug,
     get_movies_with_similar_titles,
-    get_paginated,
+    get_paginated_screenings_with_image,
 )
 from flask_backend.routes.auth import login_required
 
@@ -78,7 +78,7 @@ def poster_images():
         abort(400)
 
     user_logged_in = g.user is not None
-    screenings_list = get_paginated(page, limit, user_logged_in)
+    screenings_list = get_paginated_screenings_with_image(page, limit, user_logged_in)
 
     if len(screenings_list) == 0:
         abort(404)
@@ -120,7 +120,7 @@ def poster_images_urls():
         abort(400)
 
     user_logged_in = g.user is not None
-    screenings_list = get_paginated(page, limit, user_logged_in)
+    screenings_list = get_paginated_screenings_with_image(page, limit, user_logged_in)
 
     if len(screenings_list) == 0:
         abort(404)

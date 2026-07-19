@@ -275,6 +275,46 @@ class TestMoviesPosterImages:
         assert response.status_code == 200
         assert b'data-movie-slug="filme-com-poster"' in response.data
 
+    def test_skips_screenings_without_poster_when_paginating(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+
+            movie_with_poster = Movie(title="Filme Com Poster", slug="filme-com-poster")
+            movie_with_poster.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie_with_poster)
+            db_session.commit()
+
+            # More recent screenings (higher id, sorted first) with no poster
+            # yet must not push the page-1 result set empty.
+            movie_without_poster = Movie(
+                title="Filme Sem Poster", slug="filme-sem-poster"
+            )
+            movie_without_poster.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+                for _ in range(4)
+            ]
+            db_session.add(movie_without_poster)
+            db_session.commit()
+
+        response = client.get("/movies/posters/images", headers={"X-LAZY-LOAD": "1"})
+        assert response.status_code == 200
+        assert b"poster.jpg" in response.data
+
 
 class TestMoviesPosterImagesUrls:
     def test_invalid_page_returns_400(self, client):
