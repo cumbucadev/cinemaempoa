@@ -57,6 +57,8 @@ def dedupper():
                         is_draft=screening.draft,
                         image_width=screening.image_width,
                         image_height=screening.image_height,
+                        raw_title=screening.raw_title,
+                        title_cleaning_rules=screening.title_cleaning_rules,
                         screening_dates=build_dates(
                             [f"{sd.date}T{sd.time}" for sd in screening.dates]
                         ),
@@ -80,6 +82,22 @@ def dedupper():
                             break
                     if not already_registered:
                         existing_dates.append(new_date)
+                # backfill raw_title/title_cleaning_rules from the screening
+                # about to be deleted, so alert rules that read them
+                # (evaluate_mostra/evaluate_sessao_comentada) keep working
+                if not screening_exists.raw_title and screening.raw_title:
+                    screening_exists.raw_title = screening.raw_title
+                existing_rules = set(
+                    (screening_exists.title_cleaning_rules or "").split(",")
+                ) - {""}
+                losing_rules = set(
+                    (screening.title_cleaning_rules or "").split(",")
+                ) - {""}
+                union_rules = existing_rules | losing_rules
+                screening_exists.title_cleaning_rules = (
+                    ",".join(sorted(union_rules)) or None
+                )
+                db_session.add(screening_exists)
                 # deletes the original screening since we already copied the necessary dates
                 delete_screening(screening)
                 # adds the copied dates to the existing screening
