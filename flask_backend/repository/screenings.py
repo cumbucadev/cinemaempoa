@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import Cinema, Screening, ScreeningDate
+from flask_backend.models import Alert, Cinema, Screening, ScreeningDate
 from flask_backend.service.shared import get_weekend_dates
 
 
@@ -176,6 +176,11 @@ def delete(
     # delete all related dates to maintain integrity
     for _date in screening.dates:
         db_session.delete(_date)
+    # screening-scoped alerts (new_movie, single_screening, sessao_comentada,
+    # mostra) don't make sense once their screening is gone
+    db_session.query(Alert).filter(Alert.screening_id == screening.id).delete(
+        synchronize_session=False
+    )
     db_session.delete(screening)
     db_session.commit()
 
