@@ -9,12 +9,13 @@ from flask import (
     url_for,
 )
 
+from flask_backend.models import ALERT_STATUSES
 from flask_backend.repository import alerts
 from flask_backend.routes.auth import login_required
 
 bp = Blueprint("admin_alerts", __name__)
 
-STATUS_FILTERS = ("pending", "posted", "dismissed", "all")
+STATUS_FILTERS = (*ALERT_STATUSES, "all")
 
 
 @bp.route("/admin/alerts")
@@ -58,15 +59,9 @@ def index():
 @login_required
 def mark_posted(alert_id):
     """Mark alert as posted"""
-    alert = alerts.get_by_id(alert_id)
-    if not alert:
+    if alerts.mark_posted(alert_id, user_id=g.user.id) is None:
         abort(404)
-
-    updated_alert = alerts.mark_posted(alert_id, user_id=g.user.id)
-    if updated_alert:
-        flash("Alerta marcado como postado!", "success")
-    else:
-        flash("Erro ao marcar alerta como postado.", "danger")
+    flash("Alerta marcado como postado!", "success")
 
     return redirect(
         url_for("admin_alerts.index", status=request.form.get("status", "pending"))
@@ -77,15 +72,9 @@ def mark_posted(alert_id):
 @login_required
 def dismiss(alert_id):
     """Dismiss alert"""
-    alert = alerts.get_by_id(alert_id)
-    if not alert:
+    if alerts.dismiss(alert_id, user_id=g.user.id) is None:
         abort(404)
-
-    updated_alert = alerts.dismiss(alert_id, user_id=g.user.id)
-    if updated_alert:
-        flash("Alerta descartado.", "success")
-    else:
-        flash("Erro ao descartar alerta.", "danger")
+    flash("Alerta descartado.", "success")
 
     return redirect(
         url_for("admin_alerts.index", status=request.form.get("status", "pending"))

@@ -4,7 +4,8 @@ from typing import List, Optional, Tuple
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import Alert, Cinema, Screening, ScreeningDate
+from flask_backend.models import Cinema, Screening, ScreeningDate
+from flask_backend.repository import alerts
 from flask_backend.service.shared import get_weekend_dates
 
 
@@ -97,6 +98,15 @@ def create(
     return screening
 
 
+def merge_title_cleaning_rules(
+    existing_rules: Optional[str], incoming_rules: Optional[str]
+) -> Optional[str]:
+    """Unions two comma-joined title_cleaning_rules strings, dropping empties."""
+    existing = set((existing_rules or "").split(",")) - {""}
+    incoming = set((incoming_rules or "").split(",")) - {""}
+    return ",".join(sorted(existing | incoming)) or None
+
+
 def update_title_cleaning_info(
     screening: Screening, raw_title: str, matched_rule_names: List[str]
 ) -> Screening:
@@ -104,9 +114,9 @@ def update_title_cleaning_info(
     into the screening's existing title_cleaning_rules, never dropping a
     previously-detected annotation."""
     screening.raw_title = raw_title
-    existing_rules = set((screening.title_cleaning_rules or "").split(",")) - {""}
-    all_rules = existing_rules | set(matched_rule_names)
-    screening.title_cleaning_rules = ",".join(sorted(all_rules)) or None
+    screening.title_cleaning_rules = merge_title_cleaning_rules(
+        screening.title_cleaning_rules, ",".join(matched_rule_names)
+    )
     db_session.add(screening)
     db_session.commit()
     db_session.refresh(screening)
@@ -167,11 +177,7 @@ def delete(
     # delete all related dates to maintain integrity
     for _date in screening.dates:
         db_session.delete(_date)
-    # screening-scoped alerts (new_movie, single_screening, sessao_comentada,
-    # mostra) don't make sense once their screening is gone
-    db_session.query(Alert).filter(Alert.screening_id == screening.id).delete(
-        synchronize_session=False
-    )
+    alerts.delete_for_screening(screening.id)
     db_session.delete(screening)
     db_session.commit()
 

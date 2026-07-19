@@ -23,18 +23,6 @@ POSTER_SOURCES = ["tmdb", "imdb"]
 # Ordered list of sources the movie metadata pipeline will try.
 MOVIE_METADATA_SOURCES = ["tmdb"]
 
-# Rules evaluated by the alert pipeline (flask_backend/service/alert_rules.py).
-ALERT_RULE_NAMES = [
-    "new_movie",
-    "single_screening",
-    "sessao_comentada",
-    "mostra",
-    "director_debut",
-    "returning_director",
-    "new_genre_combination",
-    "sequel_or_franchise",
-]
-
 ALERT_STATUSES = ["pending", "posted", "dismissed"]
 
 

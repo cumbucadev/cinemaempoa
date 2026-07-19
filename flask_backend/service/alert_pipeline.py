@@ -46,6 +46,7 @@ def _record_candidate(candidate, dry_run: bool, result: AlertPipelineResult) -> 
             dedup_key=candidate.dedup_key,
             drafted_text=candidate.drafted_text,
             context=json.dumps(candidate.context) if candidate.context else None,
+            commit=False,
         )
     result.alerts_created += 1
     result.alerts_by_rule[candidate.rule_name] = (

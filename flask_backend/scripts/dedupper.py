@@ -9,6 +9,7 @@ from flask_backend.repository.screenings import (
     create as create_screening,
     delete as delete_screening,
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
+    merge_title_cleaning_rules,
     update_screening_dates,
 )
 from flask_backend.service.screening import build_dates
@@ -87,15 +88,9 @@ def dedupper():
                 # (evaluate_mostra/evaluate_sessao_comentada) keep working
                 if not screening_exists.raw_title and screening.raw_title:
                     screening_exists.raw_title = screening.raw_title
-                existing_rules = set(
-                    (screening_exists.title_cleaning_rules or "").split(",")
-                ) - {""}
-                losing_rules = set(
-                    (screening.title_cleaning_rules or "").split(",")
-                ) - {""}
-                union_rules = existing_rules | losing_rules
-                screening_exists.title_cleaning_rules = (
-                    ",".join(sorted(union_rules)) or None
+                screening_exists.title_cleaning_rules = merge_title_cleaning_rules(
+                    screening_exists.title_cleaning_rules,
+                    screening.title_cleaning_rules,
                 )
                 db_session.add(screening_exists)
                 # deletes the original screening since we already copied the necessary dates

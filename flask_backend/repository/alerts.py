@@ -15,6 +15,7 @@ def create(
     dedup_key: str,
     drafted_text: str,
     context: Optional[str] = None,
+    commit: bool = True,
 ) -> Alert:
     alert = Alert(
         rule_name=rule_name,
@@ -27,8 +28,9 @@ def create(
         created_at=datetime.now(),
     )
     db_session.add(alert)
-    db_session.commit()
-    db_session.refresh(alert)
+    if commit:
+        db_session.commit()
+        db_session.refresh(alert)
     return alert
 
 
@@ -90,4 +92,40 @@ def get_pending_count() -> int:
         db_session.query(func.count(Alert.id))
         .filter(Alert.status == "pending")
         .scalar()
+    )
+
+
+def delete_for_movie(movie_id: int) -> None:
+    """Deletes every alert for `movie_id`. Alert.movie_id is non-nullable and
+    always set (even for screening-scoped rules), so this also covers alerts
+    tied to that movie's screenings."""
+    db_session.query(Alert).filter(Alert.movie_id == movie_id).delete(
+        synchronize_session=False
+    )
+
+
+def delete_for_screening(screening_id: int) -> None:
+    """Deletes screening-scoped alerts (new_movie, single_screening,
+    sessao_comentada, mostra) - they don't make sense once their screening
+    is gone."""
+    db_session.query(Alert).filter(Alert.screening_id == screening_id).delete(
+        synchronize_session=False
+    )
+
+
+def repoint_to_movie(old_movie_id: int, new_movie_id: int) -> None:
+    """Repoints alerts referencing `old_movie_id` to `new_movie_id`, e.g.
+    when merging duplicate movies."""
+    db_session.query(Alert).filter(Alert.movie_id == old_movie_id).update(
+        {"movie_id": new_movie_id}
+    )
+
+
+def repoint_to_screening(old_screening_id: int, new_screening_id: int) -> None:
+    """Repoints alerts referencing `old_screening_id` to `new_screening_id` -
+    dedup_key strings may go slightly stale (e.g. still mention the old
+    screening_id), which is harmless since dedup_key is only consulted at
+    alert-creation time, never re-derived."""
+    db_session.query(Alert).filter(Alert.screening_id == old_screening_id).update(
+        {"screening_id": new_screening_id}
     )
