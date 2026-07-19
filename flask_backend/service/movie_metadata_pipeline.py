@@ -169,7 +169,11 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
                 movie.countries.append(country)
 
         collection_data = details.get("collection")
-        if collection_data and collection_data.get("id") is not None:
+        if (
+            collection_data
+            and collection_data.get("id") is not None
+            and collection_data.get("name")
+        ):
             collection = get_or_create_collection(
                 collection_data["id"], collection_data["name"]
             )

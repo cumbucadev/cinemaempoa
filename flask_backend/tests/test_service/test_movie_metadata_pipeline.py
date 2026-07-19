@@ -103,6 +103,45 @@ class TestRunPipeline:
             )
             assert len(collections) == 1
 
+    def test_leaves_collection_unset_and_does_not_abort_batch_when_name_missing(
+        self, client, app
+    ):
+        with client.application.app_context():
+            no_name_movie = _create_movie("Bacurau 3", "bacurau-3")
+            no_name_movie_id = no_name_movie.id
+            other_movie = _create_movie("Outro Filme", "outro-filme")
+            other_movie_id = other_movie.id
+
+            tmdb_client = _tmdb_client(
+                search_result={"id": 999},
+                details={
+                    "genres": [],
+                    "directors": [],
+                    "countries": [],
+                    "collection": {"id": 10, "name": None},
+                },
+            )
+            with patch(
+                "flask_backend.service.movie_metadata_pipeline.TMDBClient",
+                return_value=tmdb_client,
+            ):
+                result = run_pipeline()
+
+            # both movies were processed - a missing collection name on the
+            # first one must not raise and abort the rest of the batch
+            assert result.processed == 2
+
+            no_name_movie = (
+                db_session.query(Movie).filter(Movie.id == no_name_movie_id).first()
+            )
+            assert no_name_movie.collection_id is None
+            assert db_session.query(Collection).filter_by(tmdb_id=10).first() is None
+
+            other_movie = (
+                db_session.query(Movie).filter(Movie.id == other_movie_id).first()
+            )
+            assert other_movie is not None
+
     def test_happy_path_leaves_collection_unset_when_absent(self, client, app):
         with client.application.app_context():
             movie = _create_movie("Filme Solo", "filme-solo")
