@@ -63,6 +63,24 @@ def get_by_movie_id_and_cinema_id(movie_id: int, cinema_id: int) -> Optional[Scr
     return screening
 
 
+def get_next_screening_date_for_movie(
+    movie_id: int, on_or_after: Optional[date] = None
+) -> Optional[ScreeningDate]:
+    """Earliest published (non-draft) ScreeningDate for a movie on or after
+    `on_or_after` (defaults to today) - the movie's "next showing"."""
+    on_or_after = on_or_after or date.today()
+    return (
+        db_session.query(ScreeningDate)
+        .join(Screening)
+        .filter(Screening.movie_id == movie_id)
+        .filter(Screening.draft == False)  # noqa: E712
+        .filter(func.date(ScreeningDate.date) >= on_or_after)
+        .order_by(func.date(ScreeningDate.date))
+        .order_by(func.time(ScreeningDate.time))
+        .first()
+    )
+
+
 def create(
     movie_id: int,
     description: str,

@@ -19,6 +19,51 @@
         "new_genre_combination": "Nova combinação de gênero",
         "sequel_or_franchise": "Sequência/franquia"
     } %}
+    {% macro alert_image(alert) %}
+        {% set screening_with_image = alert.movie.screenings | selectattr("image") | first %}
+        {% if screening_with_image %}
+            {# djlint:off #}
+            <img loading="lazy"
+                 src="{{ screening_with_image.image }}"
+                 alt="{{ screening_with_image.image_alt or alert.movie.title }}"
+                 class="img-fluid rounded"
+                 style="max-width: 80px; max-height: 80px;">
+            {# djlint:on #}
+        {% else %}
+            <span class="badge bg-warning text-dark">Sem imagem disponível</span>
+        {% endif %}
+    {% endmacro %}
+    {% macro alert_actions(alert, status, stacked=false) %}
+        {% if alert.status == "pending" %}
+            <div class="{% if stacked %}d-grid gap-2{% else %}btn-group btn-group-sm{% endif %}"
+                 {% if not stacked %}role="group"{% endif %}>
+                <form method="post"
+                      action="{{ url_for('admin_alerts.mark_posted', alert_id=alert.id) }}"
+                      class="d-inline">
+                    <input type="hidden" name="status" value="{{ status }}">
+                    <button type="submit"
+                            class="btn btn-outline-success {% if stacked %}w-100{% endif %}">
+                        Marcar como postado
+                    </button>
+                </form>
+                <form method="post"
+                      action="{{ url_for('admin_alerts.dismiss', alert_id=alert.id) }}"
+                      class="d-inline">
+                    <input type="hidden" name="status" value="{{ status }}">
+                    <button type="submit"
+                            class="btn btn-outline-danger {% if stacked %}w-100{% endif %}">Descartar</button>
+                </form>
+            </div>
+        {% else %}
+            <span class="badge {% if alert.status == "posted" %}bg-success{% else %}bg-secondary{% endif %}">
+                {% if alert.status == "posted" %}
+                    Postado
+                {% else %}
+                    Descartado
+                {% endif %}
+            </span>
+        {% endif %}
+    {% endmacro %}
     <ul class="nav nav-tabs mb-3">
         {% for filter_status, label in [("pending", "Pendentes"), ("posted", "Postados"), ("dismissed", "Descartados"), ("all", "Todos")] %}
             <li class="nav-item">
@@ -28,12 +73,14 @@
         {% endfor %}
     </ul>
     {% if alerts %}
-        <div class="table-responsive">
+        <!-- Desktop/tablet table -->
+        <div class="table-responsive d-none d-md-block">
             <table class="table table-striped align-middle">
                 <thead>
                     <tr>
                         <th>Regra</th>
                         <th>Filme</th>
+                        <th>Imagem</th>
                         <th>Texto sugerido</th>
                         <th>Criado</th>
                         <th>Ações</th>
@@ -53,9 +100,10 @@
                                     {{ alert.movie.title }}
                                 {% endif %}
                             </td>
+                            <td>{{ alert_image(alert) }}</td>
                             <td class="w-25">
                                 <div class="input-group input-group-sm">
-                                    <textarea class="form-control" rows="2" readonly id="alert-text-{{ alert.id }}">{{ alert.drafted_text }}</textarea>
+                                    <textarea class="form-control" rows="5" readonly id="alert-text-{{ alert.id }}">{{ alert.drafted_text }}</textarea>
                                     <button type="button"
                                             class="btn btn-outline-secondary"
                                             onclick="navigator.clipboard.writeText(document.getElementById('alert-text-{{ alert.id }}').value)">
@@ -68,36 +116,50 @@
                                     {{ alert.created_at.strftime("%d/%m/%Y %H:%M") }}
                                 </time>
                             </td>
-                            <td>
-                                {% if alert.status == "pending" %}
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <form method="post"
-                                              action="{{ url_for('admin_alerts.mark_posted', alert_id=alert.id) }}"
-                                              class="d-inline">
-                                            <input type="hidden" name="status" value="{{ status }}">
-                                            <button type="submit" class="btn btn-outline-success">Marcar como postado</button>
-                                        </form>
-                                        <form method="post"
-                                              action="{{ url_for('admin_alerts.dismiss', alert_id=alert.id) }}"
-                                              class="d-inline">
-                                            <input type="hidden" name="status" value="{{ status }}">
-                                            <button type="submit" class="btn btn-outline-danger">Descartar</button>
-                                        </form>
-                                    </div>
-                                {% else %}
-                                    <span class="badge {% if alert.status == "posted" %}bg-success{% else %}bg-secondary{% endif %}">
-                                        {% if alert.status == "posted" %}
-                                            Postado
-                                        {% else %}
-                                            Descartado
-                                        {% endif %}
-                                    </span>
-                                {% endif %}
-                            </td>
+                            <td>{{ alert_actions(alert, status) }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        <!-- Mobile cards -->
+        <div class="d-md-none">
+            {% for alert in alerts %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-info text-dark">{{ rule_labels.get(alert.rule_name, alert.rule_name) }}</span>
+                            <time class="text-muted small"
+                                  datetime="{{ alert.created_at.isoformat() }}">
+                                {{ alert.created_at.strftime("%d/%m/%Y %H:%M") }}
+                            </time>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <h6 class="card-title mb-0">
+                                {% if alert.movie.slug %}
+                                    <a href="{{ url_for('movie.show', slug=alert.movie.slug) }}"
+                                       class="text-decoration-none">{{ alert.movie.title }}</a>
+                                {% else %}
+                                    {{ alert.movie.title }}
+                                {% endif %}
+                            </h6>
+                            {{ alert_image(alert) }}
+                        </div>
+                        <div class="input-group input-group-sm mb-3">
+                            <textarea class="form-control"
+                                      rows="5"
+                                      readonly
+                                      id="alert-text-mobile-{{ alert.id }}">{{ alert.drafted_text }}</textarea>
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    onclick="navigator.clipboard.writeText(document.getElementById('alert-text-mobile-{{ alert.id }}').value)">
+                                Copiar
+                            </button>
+                        </div>
+                        {{ alert_actions(alert, status, stacked=true) }}
+                    </div>
+                </div>
+            {% endfor %}
         </div>
         <!-- Pagination -->
         {% if pages > 1 %}

@@ -12,6 +12,7 @@ from flask import (
 from flask_backend.models import ALERT_STATUSES
 from flask_backend.repository import alerts
 from flask_backend.routes.auth import login_required
+from flask_backend.service import alert_text
 
 bp = Blueprint("admin_alerts", __name__)
 
@@ -38,6 +39,7 @@ def index():
     pending_alerts, pages, qtt_alerts = alerts.get_all_paginated(
         page, limit, status=None if status == "all" else status
     )
+    alert_text.refresh_pending(pending_alerts)
 
     prev_page = page - 1 if page > 1 else None
     next_page = page + 1 if page < pages else None
