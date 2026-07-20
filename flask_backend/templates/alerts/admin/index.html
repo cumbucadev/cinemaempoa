@@ -62,6 +62,16 @@
                     Descartado
                 {% endif %}
             </span>
+            {% if alert.resolved_at %}
+                <div class="text-muted small mt-1">
+                    {% if alert.status == "posted" %}
+                        Postado em
+                    {% else %}
+                        Descartado em
+                    {% endif %}
+                    <time datetime="{{ alert.resolved_at.isoformat() }}">{{ alert.resolved_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                </div>
+            {% endif %}
         {% endif %}
     {% endmacro %}
     <ul class="nav nav-tabs mb-3">

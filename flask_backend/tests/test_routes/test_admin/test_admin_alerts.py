@@ -210,6 +210,97 @@ class TestAdminAlertsIndex:
         assert response.status_code == 200
         assert "Sem imagem disponível".encode() in response.data
 
+    def test_image_column_shown_regardless_of_status_tab(
+        self, app, auth_headers, setup_cinemas
+    ):
+        for index, (status, query) in enumerate(
+            [
+                ("posted", "?status=posted"),
+                ("dismissed", "?status=dismissed"),
+                ("posted", "?status=all"),
+            ]
+        ):
+            image_url = f"https://example.com/duna-{index}.jpg"
+            with app.app_context():
+                movie = Movie(
+                    title="Duna",
+                    slug=f"duna-{index}",
+                    created_at=datetime.now(),
+                )
+                db_session.add(movie)
+                db_session.commit()
+
+                cinema = get_cinema_by_slug("capitolio")
+                screening = Screening(
+                    movie_id=movie.id,
+                    cinema_id=cinema.id,
+                    description="desc",
+                    draft=False,
+                    image=image_url,
+                    image_alt="Cartaz",
+                    created_at=datetime.now(),
+                )
+                db_session.add(screening)
+                db_session.commit()
+
+                alert = Alert(
+                    rule_name="new_movie",
+                    movie_id=movie.id,
+                    screening_id=screening.id,
+                    dedup_key=f"new_movie:{movie.id}",
+                    drafted_text="texto",
+                    status=status,
+                    created_at=datetime.now(),
+                )
+                db_session.add(alert)
+                db_session.commit()
+
+            response = auth_headers.get(f"/admin/alerts{query}")
+            assert response.status_code == 200
+            assert f'src="{image_url}"'.encode() in response.data
+
+
+class TestAdminAlertsPostedTab:
+    def test_posted_tab_shows_resolved_at_date(self, app, auth_headers, setup_cinemas):
+        movie_id = _create_movie(app)
+        alert_id = _create_alert(app, movie_id, status="posted")
+
+        with app.app_context():
+            alert = db_session.query(Alert).filter_by(id=alert_id).one()
+            alert.resolved_at = datetime(2026, 7, 15, 14, 30)
+            db_session.commit()
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert b"Postado em" in response.data
+        assert b"15/07/2026 14:30" in response.data
+
+    def test_dismissed_tab_shows_resolved_at_date(
+        self, app, auth_headers, setup_cinemas
+    ):
+        movie_id = _create_movie(app)
+        alert_id = _create_alert(app, movie_id, status="dismissed")
+
+        with app.app_context():
+            alert = db_session.query(Alert).filter_by(id=alert_id).one()
+            alert.resolved_at = datetime(2026, 7, 16, 9, 0)
+            db_session.commit()
+
+        response = auth_headers.get("/admin/alerts?status=dismissed")
+        assert response.status_code == 200
+        assert b"Descartado em" in response.data
+        assert b"16/07/2026 09:00" in response.data
+
+    def test_posted_tab_without_resolved_at_omits_date(
+        self, app, auth_headers, setup_cinemas
+    ):
+        movie_id = _create_movie(app)
+        _create_alert(app, movie_id, status="posted")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert b"Postado em" not in response.data
+
 
 class TestAdminAlertsMarkPosted:
     def test_mark_posted_requires_login(self, app, client, setup_cinemas):
