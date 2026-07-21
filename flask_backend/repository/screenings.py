@@ -94,6 +94,7 @@ def create(
     url_origin: Optional[str] = None,
     raw_title: Optional[str] = None,
     title_cleaning_rules: Optional[str] = None,
+    pipeline_run_id: Optional[int] = None,
 ) -> Screening:
     screening = Screening(
         movie_id=movie_id,
@@ -108,6 +109,7 @@ def create(
         url=url_origin,
         raw_title=raw_title,
         title_cleaning_rules=title_cleaning_rules,
+        pipeline_run_id=pipeline_run_id,
         created_at=datetime.now(),
     )
     db_session.add(screening)

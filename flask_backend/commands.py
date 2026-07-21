@@ -35,33 +35,61 @@ def register_commands(app):
     app.cli.add_command(generate_alerts)
 
 
-@click.command("import-json")
-@click.argument("json_path")
-def import_json(json_path):
+def _run_import_json(run, json_path):
+    from flask_backend.repository import pipeline_runs
+
     with open(json_path) as json_file:
         try:
             parsed_json = json.load(json_file)
         except (json.decoder.JSONDecodeError, UnicodeDecodeError):
-            click.echo("Arquivo .json inválido ou não encontrado", err=True)
+            message = "Arquivo .json inválido ou não encontrado"
+            pipeline_runs.finish(run.id, status="error", error_message=message)
+            click.echo(message, err=True)
             return
 
     runner = Runner()
     try:
         runner.parse_scrapped_json(parsed_json)
     except Exception:
-        click.echo("Arquivo .json com estrutura inválida para importação", err=True)
+        message = "Arquivo .json com estrutura inválida para importação"
+        pipeline_runs.finish(run.id, status="error", error_message=message)
+        click.echo(message, err=True)
         return
+
+    slugs = sorted({c.slug for c in runner.scrapped_results.cinemas})
+    pipeline_runs.set_source(run.id, ",".join(slugs))
 
     # validate all cinemas exist in db
     for json_cinema in runner.scrapped_results.cinemas:
         cinema = get_cinema_by_slug(json_cinema.slug)
         if cinema is None:
-            click.echo(f"Sala {json_cinema.slug} não encontrada.", err=True)
+            message = f"Sala {json_cinema.slug} não encontrada."
+            pipeline_runs.finish(run.id, status="error", error_message=message)
+            click.echo(message, err=True)
             return
 
     # all validations passed, import screenings :)
-    created_features = runner.import_scrapped_results(current_app)
+    created_features = runner.import_scrapped_results(
+        current_app, pipeline_run_id=run.id
+    )
+    status = "warning" if created_features == 0 else "success"
+    pipeline_runs.finish(
+        run.id, status=status, summary=json.dumps({"created": created_features})
+    )
     click.echo(f"«{created_features}» sessões criadas com sucesso!")
+
+
+@click.command("import-json")
+@click.argument("json_path")
+def import_json(json_path):
+    from flask_backend.repository import pipeline_runs
+
+    run = pipeline_runs.start("import-json")
+    try:
+        _run_import_json(run, json_path)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
 
 
 @click.command("dupe-check")

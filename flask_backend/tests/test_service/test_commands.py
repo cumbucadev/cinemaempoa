@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch
 
+from flask_backend.db import db_session
+from flask_backend.models import PipelineRun, Screening
 from flask_backend.service.movie_metadata_pipeline import (
     PipelineResult as MetadataPipelineResult,
 )
@@ -64,6 +66,114 @@ class TestImportJsonCommand:
 
         result = runner.invoke(args=["import-json", str(json_path)])
         assert "sessões criadas com sucesso" in result.output
+
+    def test_success_creates_pipeline_run_with_source_and_summary(
+        self, app, runner, tmp_path, setup_cinemas
+    ):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio",
+                "features": [
+                    {
+                        "poster": "",
+                        "time": ["2026-08-01T19:00"],
+                        "title": "Filme via CLI 2",
+                        "original_title": "",
+                        "price": "",
+                        "director": "",
+                        "classification": "",
+                        "general_info": "",
+                        "excerpt": "um filme",
+                        "read_more": "",
+                    }
+                ],
+            }
+        ]
+        json_path = tmp_path / "valid2.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "success"
+            assert run.source == "capitolio"
+            assert run.finished_at is not None
+            assert '"created": 1' in run.summary
+
+            screening = (
+                db_session.query(Screening).filter_by(pipeline_run_id=run.id).one()
+            )
+            assert screening.movie.title == "Filme via CLI 2"
+
+    def test_zero_screenings_created_marks_run_as_warning(
+        self, app, runner, tmp_path, setup_cinemas
+    ):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio",
+                "features": [],
+            }
+        ]
+        json_path = tmp_path / "empty.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "warning"
+
+    def test_invalid_json_marks_run_as_error(self, app, runner, tmp_path):
+        json_path = tmp_path / "bad.json"
+        json_path.write_text("not-valid-json{")
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.source is None
+            assert "inválido" in run.error_message
+
+    def test_unknown_cinema_marks_run_as_error(self, app, runner, tmp_path):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Inexistente",
+                "slug": "inexistente",
+                "features": [],
+            }
+        ]
+        json_path = tmp_path / "unknown-cinema2.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "error"
+            assert "não encontrada" in run.error_message
 
 
 class TestThinWrapperCommands:
