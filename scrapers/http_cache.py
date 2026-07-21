@@ -22,7 +22,9 @@ def fetch_page(cache_path: str, fetch: Callable[[], requests.Response]) -> str:
     response.raise_for_status()
 
     if _dev_cache_enabled():
-        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        cache_dir = os.path.dirname(cache_path)
+        if cache_dir:
+            os.makedirs(cache_dir, exist_ok=True)
         with open(cache_path, "w") as f:
             f.write(response.text)
 

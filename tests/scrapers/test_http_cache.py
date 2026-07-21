@@ -27,6 +27,17 @@ class TestFetchPage:
         assert html == "<html>fetched</html>"
         assert cache_path.read_text() == "<html>fetched</html>"
 
+    def test_fetches_and_caches_with_bare_filename(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        mock_response = MagicMock(text="<html>fetched</html>")
+        fetch = MagicMock(return_value=mock_response)
+
+        html = fetch_page("page.html", fetch)
+
+        fetch.assert_called_once()
+        assert html == "<html>fetched</html>"
+        assert (tmp_path / "page.html").read_text() == "<html>fetched</html>"
+
     def test_production_never_reads_or_writes_cache(self, tmp_path):
         cache_path = tmp_path / "page.html"
         cache_path.write_text("<html>stale</html>")
