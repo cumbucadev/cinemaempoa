@@ -2,7 +2,7 @@ import io
 from datetime import date
 from unittest.mock import MagicMock, patch
 
-from google.genai.errors import ClientError
+from google.genai.errors import ClientError, ServerError
 
 from flask_backend.db import db_session
 from flask_backend.models import Alert, Cinema, Movie, Screening, ScreeningDate
@@ -518,7 +518,25 @@ class TestScreeningDescribeImage:
                 content_type="multipart/form-data",
             )
         assert response.status_code == 502
-        assert response.get_json()["details"] == "Erro ao gerar descrição da imagem."
+        assert (
+            response.get_json()["details"]
+            == "Erro ao gerar descrição da imagem. Tente novamente."
+        )
+
+    def test_describe_image_server_error_returns_502(self, auth_headers):
+        mock_gemini = MagicMock()
+        mock_gemini.prompt_image.side_effect = ServerError(code=503, response_json={})
+        with patch("flask_backend.routes.screening.Gemini", return_value=mock_gemini):
+            response = auth_headers.post(
+                "/screening/image/describe",
+                data={"image": (io.BytesIO(b"fake"), "photo.jpg")},
+                content_type="multipart/form-data",
+            )
+        assert response.status_code == 502
+        assert (
+            response.get_json()["details"]
+            == "Erro ao gerar descrição da imagem. Tente novamente."
+        )
 
     def test_describe_image_success(self, auth_headers):
         mock_gemini = MagicMock()
