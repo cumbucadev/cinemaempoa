@@ -1,4 +1,3 @@
-import json
 import math
 from datetime import date, datetime
 from typing import List
@@ -21,7 +20,6 @@ from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
     get_by_id as get_cinema_by_id,
-    get_by_slug as get_cinema_by_slug,
 )
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
@@ -38,7 +36,6 @@ from flask_backend.repository.screenings import (
 )
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
-from flask_backend.service.runner import Runner
 from flask_backend.service.screening import (
     build_dates,
     save_image,
@@ -374,95 +371,6 @@ def delete(id):
     delete_screening(screening)
     flash(f"Sessão «{movie_title}» deletado com sucesso!", "success")
     return redirect(url_for("screening.index"))
-
-
-@bp.route("/screening/scrap", methods=["POST"])
-@login_required
-def runScrap():
-    cinemas = []
-
-    if "capitolio" in request.form:
-        cinemas.append("capitolio")
-
-    if "redencao" in request.form:
-        cinemas.append("redencao")
-
-    if "cinebancarios" in request.form:
-        cinemas.append("cinebancarios")
-
-    if "pauloAmorim" in request.form:
-        cinemas.append("pauloAmorim")
-
-    runner = Runner(cinemas)
-
-    try:
-        runner.scrap()
-    except Exception as e:
-        flash("Ocorreu um problema no processo de scrapping", "danger")
-        print(e)
-        return render_template("screening/import.html", suggestions=[])
-
-    try:
-        runner.parse_scrapped_json()
-    except Exception as e:
-        flash("Ocorreu um problema ao processar os dados raspados", "danger")
-        print(e)
-        return render_template("screening/import.html", suggestions=[])
-
-    # validate all cinemas exist in db
-    for json_cinema in runner.scrapped_results.cinemas:
-        cinema = get_cinema_by_slug(json_cinema.slug)
-        if cinema is None:
-            flash(f"Sala {json_cinema.slug} não encontrada.")
-            return render_template("screening/import.html", suggestions=[])
-
-    created_features = runner.import_scrapped_results(current_app)
-    flash(f"«{created_features}» sessões criadas com sucesso!", "success")
-
-    return redirect(url_for("screening.import_screenings"))
-
-
-@bp.route("/screening/import", methods=("GET", "POST"))
-@login_required
-def import_screenings():
-    suggestions = []
-    if request.method == "POST":
-        if "json_file" not in request.files:
-            flash("Nenhum arquivo enviado", "danger")
-            return render_template("screening/import.html", suggestions=suggestions)
-
-        json_file = request.files["json_file"]
-
-        if json_file.filename == "":
-            flash("Nenhum arquivo selecionado", "danger")
-            return render_template("screening/import.html", suggestions=suggestions)
-
-        try:
-            parsed_json = json.load(json_file)
-        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
-            flash("Arquivo .json inválido", "danger")
-            return render_template("screening/import.html", suggestions=suggestions)
-        runner = Runner()
-        try:
-            runner.parse_scrapped_json(parsed_json)
-        except Exception as e:
-            flash("Arquivo .json com estrutura inválida para importação", "danger")
-            print(e)
-            return render_template("screening/import.html", suggestions=suggestions)
-
-        # validate all cinemas exist in db
-        for json_cinema in runner.scrapped_results.cinemas:
-            cinema = get_cinema_by_slug(json_cinema.slug)
-            if cinema is None:
-                flash(f"Sala {json_cinema.slug} não encontrada.")
-                return render_template("screening/import.html", suggestions=suggestions)
-
-        # all validations passed, import screenings :)
-        created_features = runner.import_scrapped_results(current_app)
-
-        flash(f"«{created_features}» sessões criadas com sucesso!", "success")
-
-    return render_template("screening/import.html", suggestions=suggestions)
 
 
 @bp.route("/screening/image/describe", methods=("POST",))
