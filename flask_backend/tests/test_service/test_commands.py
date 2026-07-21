@@ -282,6 +282,25 @@ class TestFetchPostersCommand:
             )
             assert run.status == "warning"
 
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.poster_pipeline.run_pipeline",
+            side_effect=RuntimeError("tmdb indisponível"),
+        ):
+            result = runner.invoke(args=["fetch-posters"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-posters")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "tmdb indisponível" in run.error_message
+
 
 class TestPosterReviewCommand:
     def test_no_pending_reviews(self, runner):
@@ -363,6 +382,25 @@ class TestFetchMovieMetadataCommand:
             )
             assert run.status == "warning"
 
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.movie_metadata_pipeline.run_pipeline",
+            side_effect=RuntimeError("tmdb indisponível"),
+        ):
+            result = runner.invoke(args=["fetch-movie-metadata"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-movie-metadata")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "tmdb indisponível" in run.error_message
+
 
 class TestMovieMetadataReviewCommand:
     def test_no_pending_reviews(self, runner):
@@ -424,3 +462,22 @@ class TestGenerateAlertsCommand:
                 .one()
             )
             assert run.status == "success"
+
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.alert_pipeline.run_pipeline",
+            side_effect=RuntimeError("db indisponível"),
+        ):
+            result = runner.invoke(args=["generate-alerts"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="generate-alerts")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "db indisponível" in run.error_message

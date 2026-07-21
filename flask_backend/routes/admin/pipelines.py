@@ -66,12 +66,13 @@ def _group_label(pipeline_name, source):
 
 
 def _detail_url(run):
-    """Link to the Task 7 detail page, or None if it doesn't exist yet.
+    """Link to the run detail page, or None if the URL can't be built.
 
-    Task 7 adds the `admin_pipelines.detail` endpoint. Until it lands,
-    `url_for` would raise BuildError on every history render (not just on
-    click), so this guards it and lets the template fall back to plain
-    text.
+    Defensive guard: `url_for` can raise BuildError for reasons unrelated
+    to this specific run (e.g. the endpoint gets renamed, its blueprint
+    isn't registered in some context). Catching it here lets the template
+    degrade gracefully to a plain-text fallback instead of crashing the
+    whole history/index page render.
     """
     try:
         return url_for(
