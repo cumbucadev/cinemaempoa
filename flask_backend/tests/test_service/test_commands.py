@@ -297,6 +297,39 @@ class TestFetchMovieMetadataCommand:
             result = runner.invoke(args=["fetch-movie-metadata", "--dry-run"])
         assert "movie-metadata-review" in result.output
 
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = MetadataPipelineResult(processed=5, metadata_found=5, errors=0)
+        with patch(
+            "flask_backend.service.movie_metadata_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-movie-metadata"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-movie-metadata")
+                .one()
+            )
+            assert run.status == "success"
+            assert '"processed": 5' in run.summary
+
+    def test_creates_pipeline_run_with_warning_status_on_errors(self, app, runner):
+        result_obj = MetadataPipelineResult(processed=5, metadata_found=3, errors=2)
+        with patch(
+            "flask_backend.service.movie_metadata_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-movie-metadata"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-movie-metadata")
+                .one()
+            )
+            assert run.status == "warning"
+
 
 class TestMovieMetadataReviewCommand:
     def test_no_pending_reviews(self, runner):

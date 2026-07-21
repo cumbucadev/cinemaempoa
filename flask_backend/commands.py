@@ -200,6 +200,7 @@ def fetch_movie_metadata(limit, dry_run, verbose):
     Tenta fontes na ordem: TMDB.
     Registra cada tentativa para evitar repetição.
     """
+    from flask_backend.repository import pipeline_runs
     from flask_backend.service.movie_metadata_pipeline import run_pipeline
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -208,7 +209,27 @@ def fetch_movie_metadata(limit, dry_run, verbose):
     if dry_run:
         click.echo("=== Modo dry-run: nenhuma requisição será feita ===\n")
 
-    result = run_pipeline(limit=limit, dry_run=dry_run)
+    run = pipeline_runs.start("fetch-movie-metadata")
+    try:
+        result = run_pipeline(limit=limit, dry_run=dry_run, pipeline_run_id=run.id)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    status = "warning" if result.errors > 0 else "success"
+    pipeline_runs.finish(
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "processed": result.processed,
+                "metadata_found": result.metadata_found,
+                "metadata_not_found": result.metadata_not_found,
+                "errors": result.errors,
+                "skipped_all_sources_tried": result.skipped_all_sources_tried,
+            }
+        ),
+    )
 
     click.echo(f"\n{'=' * 40}")
     click.echo("Resultado da busca de metadados de filmes:")

@@ -67,7 +67,11 @@ _SOURCE_HANDLERS = {
 }
 
 
-def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> PipelineResult:
+def run_pipeline(
+    limit: Optional[int] = None,
+    dry_run: bool = False,
+    pipeline_run_id: Optional[int] = None,
+) -> PipelineResult:
     """Main entry point for the movie metadata pipeline.
 
     For each movie without a director:
@@ -79,6 +83,7 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
     Args:
         limit: Maximum number of movies to process. None = all.
         dry_run: If True, only report what would be done without making requests.
+        pipeline_run_id: If provided, tag created attempts with this run id.
 
     Returns:
         A PipelineResult summarising the run.
@@ -132,6 +137,7 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
                 source=next_source,
                 status="error",
                 error_message=str(exc)[:500],
+                pipeline_run_id=pipeline_run_id,
             )
             result.errors += 1
             result.processed += 1
@@ -148,6 +154,7 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
                 movie_id=movie.id,
                 source=next_source,
                 status="not_found",
+                pipeline_run_id=pipeline_run_id,
             )
             result.metadata_not_found += 1
             result.processed += 1
@@ -196,6 +203,7 @@ def run_pipeline(limit: Optional[int] = None, dry_run: bool = False) -> Pipeline
             movie_id=movie.id,
             source=next_source,
             status="success",
+            pipeline_run_id=pipeline_run_id,
         )
         result.metadata_found += 1
         result.processed += 1
