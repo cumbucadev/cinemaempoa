@@ -6,7 +6,6 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-from flask_backend.env_config import DEEPSEEK_API_KEY
 from scrapers.http_cache import fetch_page
 from scrapers.llm_cache import get_features_with_cache
 from scrapers.llms import CineBancariosExtractorLLM
@@ -61,7 +60,7 @@ class CineBancarios:
         gemini_output_str = gemini.extract_screenings_from_text(self.pubDate, text)
         if gemini_output_str is None:
             return None
-        self._last_gemini_output = json.loads(gemini_output_str)
+        gemini_output = json.loads(gemini_output_str)
         return [
             {
                 "poster": movie.get("image_url"),
@@ -73,26 +72,12 @@ class CineBancarios:
                 "excerpt": movie.get("excerpt"),
                 "read_more": self.postLink,
             }
-            for movie in self._last_gemini_output["movies"]
+            for movie in gemini_output["movies"]
         ]
 
     def get_daily_features_json(self):
         soup = self._get_current_blog_post_soup()
         text = self._get_text_from_soup(soup)
-
-        self._last_gemini_output = None
-        features = get_features_with_cache(
+        return get_features_with_cache(
             self.cache_file, text, lambda: self._extract_features(text)
         )
-
-        # Only cross-check against deepseek when gemini actually ran: if its
-        # output was served from cache there is nothing fresh to compare.
-        if DEEPSEEK_API_KEY is not None and self._last_gemini_output is not None:
-            deepseek = CineBancariosExtractorLLM("deepseek-chat")
-            deepseek_output = deepseek.extract_screenings_from_text(self.pubDate, text)
-
-            if self._last_gemini_output != deepseek_output:
-                # TODO: notify the website admin, we need to verify which one is correct
-                pass
-
-        return features
