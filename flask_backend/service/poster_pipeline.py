@@ -94,7 +94,10 @@ def _extract_director_from_description(description: str) -> Optional[str]:
 
 
 def run_pipeline(
-    current_app, limit: Optional[int] = None, dry_run: bool = False
+    current_app,
+    limit: Optional[int] = None,
+    dry_run: bool = False,
+    pipeline_run_id: Optional[int] = None,
 ) -> PipelineResult:
     """Main entry point for the poster pipeline.
 
@@ -165,6 +168,7 @@ def run_pipeline(
                 source=next_source,
                 status="error",
                 error_message=str(exc)[:500],
+                pipeline_run_id=pipeline_run_id,
             )
             result.errors += 1
             result.processed += 1
@@ -181,6 +185,7 @@ def run_pipeline(
                 screening_id=screening.id,
                 source=next_source,
                 status="not_found",
+                pipeline_run_id=pipeline_run_id,
             )
             result.posters_not_found += 1
             result.processed += 1
@@ -201,6 +206,7 @@ def run_pipeline(
                 source=next_source,
                 status="error",
                 error_message=f"Download falhou: {image_url}",
+                pipeline_run_id=pipeline_run_id,
             )
             result.errors += 1
             result.processed += 1
@@ -227,6 +233,7 @@ def run_pipeline(
             screening_id=screening.id,
             source=next_source,
             status="success",
+            pipeline_run_id=pipeline_run_id,
         )
         result.posters_found += 1
         result.processed += 1

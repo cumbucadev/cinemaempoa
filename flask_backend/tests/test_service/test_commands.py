@@ -249,6 +249,38 @@ class TestFetchPostersCommand:
             result = runner.invoke(args=["fetch-posters", "--verbose"])
         assert "poster-review" in result.output
 
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = PosterPipelineResult(processed=3, posters_found=3, errors=0)
+        with patch(
+            "flask_backend.service.poster_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-posters"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-posters")
+                .one()
+            )
+            assert run.status == "success"
+
+    def test_creates_pipeline_run_with_warning_status_on_errors(self, app, runner):
+        result_obj = PosterPipelineResult(processed=3, posters_found=1, errors=2)
+        with patch(
+            "flask_backend.service.poster_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-posters"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-posters")
+                .one()
+            )
+            assert run.status == "warning"
+
 
 class TestPosterReviewCommand:
     def test_no_pending_reviews(self, runner):

@@ -129,6 +129,7 @@ def fetch_posters(limit, dry_run, verbose):
     Tenta fontes na ordem: TMDB, IMDB.
     Registra cada tentativa para evitar repetição.
     """
+    from flask_backend.repository import pipeline_runs
     from flask_backend.service.poster_pipeline import run_pipeline
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -137,7 +138,29 @@ def fetch_posters(limit, dry_run, verbose):
     if dry_run:
         click.echo("=== Modo dry-run: nenhuma requisição será feita ===\n")
 
-    result = run_pipeline(current_app, limit=limit, dry_run=dry_run)
+    run = pipeline_runs.start("fetch-posters")
+    try:
+        result = run_pipeline(
+            current_app, limit=limit, dry_run=dry_run, pipeline_run_id=run.id
+        )
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    status = "warning" if result.errors > 0 else "success"
+    pipeline_runs.finish(
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "processed": result.processed,
+                "posters_found": result.posters_found,
+                "posters_not_found": result.posters_not_found,
+                "errors": result.errors,
+                "skipped_all_sources_tried": result.skipped_all_sources_tried,
+            }
+        ),
+    )
 
     click.echo(f"\n{'=' * 40}")
     click.echo("Resultado da busca de posters:")
