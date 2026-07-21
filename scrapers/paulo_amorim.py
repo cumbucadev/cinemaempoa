@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from scrapers.http_cache import fetch_page
+
 
 class CinematecaPauloAmorim:
     def __init__(self):
@@ -30,19 +32,14 @@ class CinematecaPauloAmorim:
 
         return cur_date
 
-    def _get_page_html(self, file, url):
-        """Returns contents from file, or GET from url and save to file"""
-        if os.path.exists(file):
-            with open(file) as f:
-                return f.read()
-
+    def _fetch_page(self, url):
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=0.5)
         adapter = HTTPAdapter(max_retries=retry)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
 
-        r = session.get(
+        return session.get(
             url,
             headers={
                 "Host": "www.cinematecapauloamorim.com.br",
@@ -55,10 +52,9 @@ class CinematecaPauloAmorim:
             },
         )
 
-        r.raise_for_status()
-        with open(file, "w") as f:
-            f.write(r.text)
-        return r.text
+    def _get_page_html(self, file, url):
+        """Returns contents from file, or GET from url and save to file"""
+        return fetch_page(file, lambda: self._fetch_page(url))
 
     def _get_movies_on_programacao(self):
         # if a movie is listed under programacao, we

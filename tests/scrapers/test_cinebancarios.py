@@ -1,10 +1,13 @@
+import json
 import os
 import xml.etree.ElementTree as ET
+from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
 
 from scrapers.cinebancarios import CineBancarios
+from scrapers.llm_cache import hash_text
 
 
 class TestCineBancarios:
@@ -125,4 +128,109 @@ segundas-feiras&lt;/i&gt;&lt;/p&gt;
 
         assert cinebancarios._get_current_blog_post_soup() == BeautifulSoup(
             expected_xml.text, "html.parser"
+        )
+
+
+class TestGetDailyFeaturesJson:
+    FIXTURE_DIR = "tests/files/files_cinebancarios/2023-08-27"
+
+    def _make_scraper(self, tmp_path):
+        scraper = CineBancarios()
+        scraper.todays_dir = self.FIXTURE_DIR
+        scraper.cache_file = os.path.join(tmp_path, "cache.json")
+        return scraper
+
+    def test_cache_hit_skips_gemini_call(self, tmp_path):
+        scraper = self._make_scraper(tmp_path)
+        soup = scraper._get_current_blog_post_soup()
+        text = scraper._get_text_from_soup(soup)
+        content_hash = hash_text(text)
+        cached_features = [{"title": "Cached Movie"}]
+        with open(scraper.cache_file, "w") as f:
+            json.dump({"content_hash": content_hash, "features": cached_features}, f)
+
+        with (
+            patch("scrapers.cinebancarios.DEEPSEEK_API_KEY", None),
+            patch(
+                "scrapers.cinebancarios.CineBancariosExtractorLLM"
+            ) as mock_extractor_cls,
+        ):
+            result = scraper.get_daily_features_json()
+
+        mock_extractor_cls.assert_not_called()
+        assert result == cached_features
+
+    def test_cache_miss_calls_gemini_and_saves_cache(self, tmp_path):
+        scraper = self._make_scraper(tmp_path)
+        llm_output = json.dumps(
+            {
+                "movies": [
+                    {
+                        "title": "Retratos Fantasmas",
+                        "image_url": "https://example.com/poster.jpg",
+                        "general_info": "Brasil/Documentário/2022/93min",
+                        "director": "Kleber Mendonça Filho",
+                        "classification": "14 anos",
+                        "excerpt": "sinopse",
+                        "screening_dates": ["2023-08-24 15:00"],
+                    }
+                ]
+            }
+        )
+
+        with (
+            patch("scrapers.cinebancarios.DEEPSEEK_API_KEY", None),
+            patch(
+                "scrapers.cinebancarios.CineBancariosExtractorLLM"
+            ) as mock_extractor_cls,
+        ):
+            mock_extractor_cls.return_value.extract_screenings_from_text.return_value = llm_output
+            result = scraper.get_daily_features_json()
+
+        mock_extractor_cls.return_value.extract_screenings_from_text.assert_called_once()
+        assert result[0]["title"] == "Retratos Fantasmas"
+
+        with open(scraper.cache_file) as f:
+            cache = json.load(f)
+        assert cache["features"] == result
+
+    def test_deepseek_skipped_when_gemini_cache_hit(self, tmp_path):
+        scraper = self._make_scraper(tmp_path)
+        soup = scraper._get_current_blog_post_soup()
+        text = scraper._get_text_from_soup(soup)
+        content_hash = hash_text(text)
+        cached_features = [{"title": "Cached Movie"}]
+        with open(scraper.cache_file, "w") as f:
+            json.dump({"content_hash": content_hash, "features": cached_features}, f)
+
+        with (
+            patch("scrapers.cinebancarios.DEEPSEEK_API_KEY", "fake-key"),
+            patch(
+                "scrapers.cinebancarios.CineBancariosExtractorLLM"
+            ) as mock_extractor_cls,
+        ):
+            result = scraper.get_daily_features_json()
+
+        # gemini's extraction is served from cache, so there's nothing fresh
+        # to compare against - the deepseek cross-check must not run.
+        mock_extractor_cls.assert_not_called()
+        assert result == cached_features
+
+    def test_deepseek_runs_on_gemini_cache_miss(self, tmp_path):
+        scraper = self._make_scraper(tmp_path)
+        llm_output = json.dumps({"movies": []})
+
+        with (
+            patch("scrapers.cinebancarios.DEEPSEEK_API_KEY", "fake-key"),
+            patch(
+                "scrapers.cinebancarios.CineBancariosExtractorLLM"
+            ) as mock_extractor_cls,
+        ):
+            mock_extractor_cls.return_value.extract_screenings_from_text.return_value = llm_output
+            scraper.get_daily_features_json()
+
+        # gemini ran fresh, so the deepseek cross-check should run too:
+        # once for gemini's own extraction, once for deepseek's.
+        assert (
+            mock_extractor_cls.return_value.extract_screenings_from_text.call_count == 2
         )

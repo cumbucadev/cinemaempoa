@@ -5,14 +5,13 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 
+from scrapers.http_cache import fetch_page
+
 
 class Capitolio:
     def __init__(self):
         self.url = "https://www.capitolio.org.br"
         self.dir = os.path.join("capitolio")
-        # use "True" to avoid redownloading
-        # html files when debugging
-        self.cache_html = False
 
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
@@ -27,18 +26,7 @@ class Capitolio:
         return os.path.join(self.dir, f"{day}.html")
 
     def _day_schedule_html(self, day) -> str:
-        if self.cache_html is True and os.path.exists(self._day_file(day)):
-            with open(self._day_file(day)) as file:
-                return file.read()
-
-        response = requests.get(self._day_url(day))
-        response.raise_for_status()
-
-        if self.cache_html is True:
-            with open(self._day_file(day), "w") as file:
-                file.write(response.text)
-
-        return response.text
+        return fetch_page(self._day_file(day), lambda: requests.get(self._day_url(day)))
 
     def get_daily_features_json(self):
         """Deprecated: Use get_weekly_features_json() instead"""

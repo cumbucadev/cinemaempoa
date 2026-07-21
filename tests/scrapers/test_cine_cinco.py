@@ -6,6 +6,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from scrapers.cine_cinco import CineCinco
+from scrapers.llm_cache import hash_text
 
 FIXTURE_DIR = "tests/files/files_cine_cinco/2026-07-19"
 
@@ -57,7 +58,7 @@ class TestGetDailyFeaturesJson:
     def test_cache_hit_skips_llm_call(self, tmp_path):
         scraper = _make_scraper(tmp_path)
         content_text = scraper._get_text_from_soup(scraper._get_content_soup())
-        content_hash = scraper._hash_text(content_text)
+        content_hash = hash_text(content_text)
         cached_features = [{"title": "Cached Movie", "excerpt": "..."}]
         with open(scraper.cache_file, "w") as f:
             json.dump({"content_hash": content_hash, "features": cached_features}, f)
