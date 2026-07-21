@@ -20,29 +20,27 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           script: |
+            set -euo pipefail
+
             cd cinemaempoa
             git pull
-            
+
             echo "🔄 Building Docker image..."
             docker compose -f docker-compose.shared.yml build flask
-            
+
             echo "🔄 Running database migrations..."
             docker compose -f docker-compose.shared.yml run --rm flask flask --app flask_backend db-upgrade
             echo "✅ Migrations completed."
-            
+
             echo "🚀 Starting application..."
             docker compose -f docker-compose.shared.yml up -d flask
 
-            echo "🔎 Truncating Docker container logs..."
-            truncate -s 0 /var/lib/docker/containers/*/*-json.log
-            echo "✅ Logs cleared."
-            
             echo "🗑️  Removing all stopped containers..."
             docker container prune -f
             echo "✅ Stopped containers removed."
-            
+
             echo "🧹 Cleaning up old Docker images (older than 12h)..."
             docker image prune -a -f --filter "until=12h"
             echo "✅ Old unused images cleaned up."
-            
+
             echo "🎉 Docker cleanup complete!"
