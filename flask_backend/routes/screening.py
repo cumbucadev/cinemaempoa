@@ -14,6 +14,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
+from google.genai.errors import ClientError
 from werkzeug.exceptions import abort
 
 from flask_backend.models import Screening
@@ -387,21 +388,15 @@ def describe_image():
         return jsonify({"details": "Chave de API Gemini não configurada."}), 500
 
     prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
-    prompt_response = gemini.prompt_image(image, prompt_text)
-    if "candidates" not in prompt_response or len(prompt_response["candidates"]) == 0:
+    try:
+        image_description = gemini.prompt_image(image, prompt_text)
+    except ClientError as e:
         return jsonify(
-            {
-                "details": "Não foi possível gerar uma descrição para a imagem.",
-                "info": prompt_response,
-            }
-        )
-    candidate = prompt_response["candidates"][0]
-    if "content" not in candidate:
+            {"details": "Erro ao gerar descrição da imagem.", "info": str(e)}
+        ), 502
+
+    if not image_description:
         return jsonify(
-            {
-                "details": "Não foi possível gerar uma descrição para a imagem.",
-                "info": prompt_response,
-            }
+            {"details": "Não foi possível gerar uma descrição para a imagem."}
         )
-    image_description = candidate["content"]["parts"][0]["text"]
     return jsonify(text=image_description.strip())

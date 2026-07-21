@@ -2,6 +2,8 @@ import io
 from datetime import date
 from unittest.mock import MagicMock, patch
 
+from google.genai.errors import ClientError
+
 from flask_backend.db import db_session
 from flask_backend.models import Alert, Cinema, Movie, Screening, ScreeningDate
 
@@ -491,9 +493,9 @@ class TestScreeningDescribeImage:
         assert response.status_code == 500
         assert "Chave de API Gemini" in response.get_data(as_text=True)
 
-    def test_describe_image_no_candidates_in_response(self, auth_headers):
+    def test_describe_image_empty_response(self, auth_headers):
         mock_gemini = MagicMock()
-        mock_gemini.prompt_image.return_value = {}
+        mock_gemini.prompt_image.return_value = None
         with patch("flask_backend.routes.screening.Gemini", return_value=mock_gemini):
             response = auth_headers.post(
                 "/screening/image/describe",
@@ -506,28 +508,21 @@ class TestScreeningDescribeImage:
             == "Não foi possível gerar uma descrição para a imagem."
         )
 
-    def test_describe_image_no_content_in_candidate(self, auth_headers):
+    def test_describe_image_rate_limit_returns_502(self, auth_headers):
         mock_gemini = MagicMock()
-        mock_gemini.prompt_image.return_value = {"candidates": [{}]}
+        mock_gemini.prompt_image.side_effect = ClientError(code=429, response_json={})
         with patch("flask_backend.routes.screening.Gemini", return_value=mock_gemini):
             response = auth_headers.post(
                 "/screening/image/describe",
                 data={"image": (io.BytesIO(b"fake"), "photo.jpg")},
                 content_type="multipart/form-data",
             )
-        assert response.status_code == 200
-        assert (
-            response.get_json()["details"]
-            == "Não foi possível gerar uma descrição para a imagem."
-        )
+        assert response.status_code == 502
+        assert response.get_json()["details"] == "Erro ao gerar descrição da imagem."
 
     def test_describe_image_success(self, auth_headers):
         mock_gemini = MagicMock()
-        mock_gemini.prompt_image.return_value = {
-            "candidates": [
-                {"content": {"parts": [{"text": "  Uma bela descrição.  "}]}}
-            ]
-        }
+        mock_gemini.prompt_image.return_value = "  Uma bela descrição.  "
         with patch("flask_backend.routes.screening.Gemini", return_value=mock_gemini):
             response = auth_headers.post(
                 "/screening/image/describe",

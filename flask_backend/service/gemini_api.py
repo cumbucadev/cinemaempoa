@@ -1,48 +1,29 @@
-import base64
-
-import requests
+from google import genai
+from google.genai import types
 
 from flask_backend.env_config import GEMINI_API_KEY
 
 
 class Gemini:
-    """Interacts with google's Gemini API
+    """Interacts with Google's Gemini API via the google-genai SDK
     https://ai.google.dev/gemini-api/docs"""
+
+    MODEL = "gemini-2.5-flash"
 
     def __init__(self):
         if GEMINI_API_KEY is None:
             raise ValueError("Invalid Gemini API key")
-        self.headers = {"Content-Type": "application/json"}
-        self.api_key = GEMINI_API_KEY
-        self.models = {
-            "gemini-pro-vision": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision",  # this one seems to be discontinued
-            "gemini-1.5-flash-latest": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest",
-        }
-
-    def _get_url(self, model, resource):
-        return f"{self.models[model]}:{resource}?key={self.api_key}"
+        self.client = genai.Client(api_key=GEMINI_API_KEY)
 
     def prompt_image(self, image, text):
-        """Based on https://ai.google.dev/gemini-api/docs/get-started/rest#text-and-image_input"""
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": text},
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": base64.b64encode(image.read()).decode("utf-8"),
-                            }
-                        },
-                    ]
-                }
-            ]
-        }
-        r = requests.post(
-            self._get_url("gemini-1.5-flash-latest", "generateContent"),
-            json=payload,
-            headers=self.headers,
+        response = self.client.models.generate_content(
+            model=self.MODEL,
+            contents=[
+                text,
+                types.Part.from_bytes(
+                    data=image.read(),
+                    mime_type=image.mimetype or "image/jpeg",
+                ),
+            ],
         )
-        r.raise_for_status()
-        return r.json()
+        return response.text
