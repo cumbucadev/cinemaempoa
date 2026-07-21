@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -17,6 +18,7 @@ def load_cache(cache_file: str) -> Optional[dict]:
 
 
 def save_cache(cache_file: str, content_hash: str, features: list) -> None:
+    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
     with open(cache_file, "w") as f:
         json.dump(
             {
