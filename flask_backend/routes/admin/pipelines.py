@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, abort, render_template, request, url_for
 from werkzeug.routing import BuildError
 
@@ -87,6 +89,9 @@ def index():
                 "display_status": (
                     pipeline_runs.display_status(latest) if latest else None
                 ),
+                "summary_obj": (
+                    json.loads(latest.summary) if latest and latest.summary else None
+                ),
             }
         )
     return render_template("pipelines/admin/index.html", rows=rows)
@@ -120,6 +125,9 @@ def history(pipeline_name):
         label=_group_label(pipeline_name, source),
         runs=runs,
         display_statuses={run.id: pipeline_runs.display_status(run) for run in runs},
+        summaries={
+            run.id: (json.loads(run.summary) if run.summary else None) for run in runs
+        },
         detail_urls={run.id: _detail_url(run) for run in runs},
         curr_page=page,
         prev_page=prev_page,

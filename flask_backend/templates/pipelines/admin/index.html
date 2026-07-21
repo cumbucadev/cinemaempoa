@@ -57,9 +57,9 @@
                         </td>
                         <td>
                             {% if row.latest_run and row.latest_run.error_message %}
-                                {{ row.latest_run.error_message | safe }}
+                                {{ row.latest_run.error_message }}
                             {% elif row.latest_run and row.latest_run.summary %}
-                                {{ row.latest_run.summary | safe }}
+                                {{ row.summary_obj | tojson }}
                             {% else %}
                                 —
                             {% endif %}

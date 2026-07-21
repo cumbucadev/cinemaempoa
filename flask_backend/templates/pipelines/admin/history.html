@@ -52,9 +52,9 @@
                             </td>
                             <td>
                                 {% if run.error_message %}
-                                    {{ run.error_message | safe }}
+                                    {{ run.error_message }}
                                 {% elif run.summary %}
-                                    {{ run.summary | safe }}
+                                    {{ summaries[run.id] | tojson }}
                                 {% else %}
                                     —
                                 {% endif %}
