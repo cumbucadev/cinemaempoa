@@ -17,6 +17,7 @@ def _create_screening(
     image=None,
     image_width=None,
     image_height=None,
+    image_alt=None,
 ):
     cinema = _get_cinema(cinema_slug)
     movie = Movie(title=movie_title, slug=movie_title.lower().replace(" ", "-"))
@@ -31,6 +32,7 @@ def _create_screening(
         image=image,
         image_width=image_width,
         image_height=image_height,
+        image_alt=image_alt,
         dates=[ScreeningDate(date=date.today(), time="20:00")],
     )
     db_session.add(screening)
@@ -81,6 +83,34 @@ class TestScreeningIndex:
             _create_screening(movie_title="Filme Rascunho Logado", draft=True)
         response = auth_headers.get("/")
         assert b"Filme Rascunho Logado" in response.data
+
+
+class TestScreeningIndexAltBadge:
+    def test_shows_alt_badge_when_image_alt_present(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Com Alt",
+                image="poster.jpg",
+                image_width=100,
+                image_height=200,
+                image_alt="Descrição do poster",
+            )
+        response = client.get("/")
+        html = response.get_data(as_text=True)
+        assert 'class="alt-badge' in html
+        assert 'data-bs-content="Descrição do poster"' in html
+
+    def test_hides_alt_badge_when_image_alt_missing(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Sem Alt",
+                image="poster.jpg",
+                image_width=100,
+                image_height=200,
+            )
+        response = client.get("/")
+        html = response.get_data(as_text=True)
+        assert 'class="alt-badge' not in html
 
 
 class TestScreeningWeekend:

@@ -48,6 +48,25 @@
             background: none !important;
             padding: 0 !important;
         }
+
+        .alt-badge {
+            position: absolute;
+            bottom: 0.5rem;
+            left: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            border: none;
+            padding: 0.15rem 0.5rem;
+            cursor: pointer;
+        }
+
+        .alt-badge:hover,
+        .alt-badge:focus {
+            background-color: rgba(0, 0, 0, 0.85);
+        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -306,6 +325,12 @@
     );
     const tooltipList = [...tooltipTriggerList].map(
         (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+    );
+    const popoverTriggerList = document.querySelectorAll(
+        "[data-bs-toggle='popover']"
+    );
+    const popoverList = [...popoverTriggerList].map(
+        (popoverTriggerEl) => new bootstrap.Popover(popoverTriggerEl)
     );
 </script>
 <script>

@@ -275,6 +275,53 @@ class TestMoviesPosterImages:
         assert response.status_code == 200
         assert b'data-movie-slug="filme-com-poster"' in response.data
 
+    def test_includes_image_alt_when_present(self, client, app, setup_cinemas):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Com Alt", slug="filme-com-alt")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster-alt.jpg",
+                    image_alt="Descrição alternativa do poster",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/posters/images", headers={"X-LAZY-LOAD": "1"})
+        assert response.status_code == 200
+        assert 'alt="Descrição alternativa do poster"' in response.get_data(
+            as_text=True
+        )
+
+    def test_omits_alt_attribute_when_image_alt_missing(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Sem Alt", slug="filme-sem-alt")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster-sem-alt.jpg",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/posters/images", headers={"X-LAZY-LOAD": "1"})
+        assert response.status_code == 200
+        assert "alt=" not in response.get_data(as_text=True)
+
     def test_skips_screenings_without_poster_when_paginating(
         self, client, app, setup_cinemas
     ):
@@ -466,3 +513,80 @@ class TestMovieShow:
         ]
         assert "active" in first_slide
         assert "active" not in second_slide
+
+    def test_shows_alt_badge_for_single_image_when_image_alt_present(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Show Alt", slug="filme-show-alt")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    image_alt="Descrição do poster único",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-show-alt")
+        html = response.get_data(as_text=True)
+        assert 'class="alt-badge' in html
+        assert 'data-bs-content="Descrição do poster único"' in html
+
+    def test_hides_alt_badge_for_single_image_when_image_alt_missing(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Show Sem Alt", slug="filme-show-sem-alt")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="poster.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-show-sem-alt")
+        html = response.get_data(as_text=True)
+        assert 'class="alt-badge' not in html
+
+    def test_shows_alt_badge_on_each_carousel_slide(self, client, app, setup_cinemas):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Carrossel Alt", slug="filme-carrossel-alt")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d1",
+                    image="poster-um.jpg",
+                    image_alt="Alt do poster um",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                ),
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d2",
+                    image="poster-dois.jpg",
+                    image_alt="Alt do poster dois",
+                    image_width=100,
+                    image_height=200,
+                    dates=[ScreeningDate(date=date(2026, 8, 2), time="20:00")],
+                ),
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-carrossel-alt")
+        html = response.get_data(as_text=True)
+        assert html.count('class="alt-badge') == 2
+        assert 'data-bs-content="Alt do poster um"' in html
+        assert 'data-bs-content="Alt do poster dois"' in html
