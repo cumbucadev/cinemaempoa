@@ -1,0 +1,11 @@
+{% macro alt_badge(image_alt) %}
+    {% if image_alt %}
+        <button type="button"
+                class="alt-badge badge rounded-pill"
+                data-bs-toggle="popover"
+                data-bs-trigger="focus"
+                data-bs-placement="top"
+                data-bs-content="{{ image_alt }}"
+                aria-label="Ver texto alternativo da imagem">ALT</button>
+    {% endif %}
+{% endmacro %}

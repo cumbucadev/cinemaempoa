@@ -99,6 +99,7 @@ def poster_images():
                     "screening_id": screening.id,
                     "movie_slug": screening.movie.slug,
                     "url": screening.image,
+                    "image_alt": screening.image_alt,
                     "width": imgDisplayWidth,
                     "height": math.ceil(
                         imgDisplayWidth / screening.image_width * screening.image_height

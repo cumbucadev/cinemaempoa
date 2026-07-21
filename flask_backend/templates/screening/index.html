@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/alt_badge.html" import alt_badge %}
 {% block meta_tags %}
     {% set cinemas_list = cinemas_with_screenings | map(attribute='name') | join(', ') %}
     <meta name="description"
@@ -33,11 +34,14 @@
                                 screening_date['image'] %}
                                 <li class="mb-5 clearfix"
                                     style="min-height: {{ screening_date['min_height'] }}px">
-                                    <img class="img-fluid rounded float-sm-start shadow-sm mb-3 me-0 me-sm-3"
-                                        src="{{ screening_date['image'] }}" width="{{ screening_date['image_display_width'] }}"
-                                        height="{{ screening_date['min_height'] }}" {% if loop.index !=1 %}loading="lazy"{% endif %} {% if
-                                        screening_date['image_alt'] %} alt="{{ screening_date['image_alt'] }}"
-                                        title="{{ screening_date['image_alt'] }}" {% endif %} />
+                                    <div class="position-relative float-sm-start shadow-sm mb-3 me-0 me-sm-3">
+                                        <img class="img-fluid rounded"
+                                            src="{{ screening_date['image'] }}" width="{{ screening_date['image_display_width'] }}"
+                                            height="{{ screening_date['min_height'] }}" {% if loop.index !=1 %}loading="lazy"{% endif %} {% if
+                                            screening_date['image_alt'] %} alt="{{ screening_date['image_alt'] }}"
+                                            title="{{ screening_date['image_alt'] }}" {% endif %} />
+                                            {{ alt_badge(screening_date['image_alt']) }}
+                                        </div>
                                     {% else %}
                                     </li>
                                     <li class="mb-5">
