@@ -81,6 +81,18 @@ def _detail_url(run):
         return None
 
 
+def _display_statuses_by_run_id(runs):
+    return {run.id: pipeline_runs.display_status(run) for run in runs}
+
+
+def _summaries_by_run_id(runs):
+    return {run.id: (json.loads(run.summary) if run.summary else None) for run in runs}
+
+
+def _detail_urls_by_run_id(runs):
+    return {run.id: _detail_url(run) for run in runs}
+
+
 @bp.route("/admin/pipelines")
 @login_required
 def index():
@@ -134,11 +146,9 @@ def history(pipeline_name):
         source=source,
         label=_group_label(pipeline_name, source),
         runs=runs,
-        display_statuses={run.id: pipeline_runs.display_status(run) for run in runs},
-        summaries={
-            run.id: (json.loads(run.summary) if run.summary else None) for run in runs
-        },
-        detail_urls={run.id: _detail_url(run) for run in runs},
+        display_statuses=_display_statuses_by_run_id(runs),
+        summaries=_summaries_by_run_id(runs),
+        detail_urls=_detail_urls_by_run_id(runs),
         curr_page=page,
         prev_page=prev_page,
         next_page=next_page,
