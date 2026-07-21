@@ -42,7 +42,13 @@
                 <button type="button"
                         id="gen-alt-btn"
                         class="btn btn-secondary"
-                        onclick="fetchImageAltText(event)">Gerar alt text</button>
+                        onclick="fetchImageAltText(event)">
+                    <span id="gen-alt-spinner"
+                          class="spinner-border spinner-border-sm d-none"
+                          role="status"
+                          aria-hidden="true"></span>
+                    <span id="gen-alt-btn-label">Gerar alt text</span>
+                </button>
             </div>
             <input class="form-control"
                    name="movie_poster"
@@ -163,7 +169,9 @@
                 }
 
                 async function fetchImageAltText(e) {
-                    const btn = e.target;
+                    const btn = e.currentTarget;
+                    const spinner = document.getElementById("gen-alt-spinner");
+                    const label = document.getElementById("gen-alt-btn-label");
 
                     const image_input = document.getElementById("movie_poster");
                     const current_movie_poster = document.getElementById("current_movie_poster")
@@ -190,25 +198,30 @@
                     }
 
                     btn.disabled = true;
-                    const response = await fetch("/screening/image/describe", {
-                        method: "POST",
-                        body: form
-                    });
-                    const payload = await response.json();
+                    spinner.classList.remove("d-none");
+                    label.textContent = "Gerando...";
+                    try {
+                        const response = await fetch("/screening/image/describe", {
+                            method: "POST",
+                            body: form
+                        });
+                        const payload = await response.json();
 
-                    if (!response.ok) {
-                        alert(payload.details);
-                        if (payload.hasOwnProperty("info")) {
-                            console.log(payload.info);
+                        if (!response.ok) {
+                            alert(payload.details);
+                            if (payload.hasOwnProperty("info")) {
+                                console.log(payload.info);
+                            }
                         }
+
+                        if (response.ok) {
+                            image_alt.value = payload.text;
+                        }
+                    } finally {
+                        btn.disabled = false;
+                        spinner.classList.add("d-none");
+                        label.textContent = "Gerar alt text";
                     }
-
-                    if (response.ok) {
-                        image_alt.value = payload.text;
-                    }
-
-                    btn.disabled = false;
-
                 }
             </script>
         {% endblock content %}

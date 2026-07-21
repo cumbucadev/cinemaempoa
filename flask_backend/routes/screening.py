@@ -14,7 +14,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
-from google.genai.errors import ClientError
+from google.genai.errors import APIError
 from werkzeug.exceptions import abort
 
 from flask_backend.models import Screening
@@ -390,9 +390,12 @@ def describe_image():
     prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
     try:
         image_description = gemini.prompt_image(image, prompt_text)
-    except ClientError as e:
+    except APIError as e:
         return jsonify(
-            {"details": "Erro ao gerar descrição da imagem.", "info": str(e)}
+            {
+                "details": "Erro ao gerar descrição da imagem. Tente novamente.",
+                "info": str(e),
+            }
         ), 502
 
     if not image_description:
