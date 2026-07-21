@@ -16,6 +16,7 @@ def create(
     drafted_text: str,
     context: Optional[str] = None,
     commit: bool = True,
+    pipeline_run_id: Optional[int] = None,
 ) -> Alert:
     alert = Alert(
         rule_name=rule_name,
@@ -26,6 +27,7 @@ def create(
         context=context,
         status="pending",
         created_at=datetime.now(),
+        pipeline_run_id=pipeline_run_id,
     )
     db_session.add(alert)
     if commit:

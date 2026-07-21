@@ -35,7 +35,12 @@ class AlertPipelineResult:
     alerts_by_rule: Dict[str, int] = field(default_factory=dict)
 
 
-def _record_candidate(candidate, dry_run: bool, result: AlertPipelineResult) -> None:
+def _record_candidate(
+    candidate,
+    dry_run: bool,
+    result: AlertPipelineResult,
+    pipeline_run_id: Optional[int] = None,
+) -> None:
     if exists_by_dedup_key(candidate.dedup_key):
         return
     if not dry_run:
@@ -47,6 +52,7 @@ def _record_candidate(candidate, dry_run: bool, result: AlertPipelineResult) -> 
             drafted_text=candidate.drafted_text,
             context=json.dumps(candidate.context) if candidate.context else None,
             commit=False,
+            pipeline_run_id=pipeline_run_id,
         )
     result.alerts_created += 1
     result.alerts_by_rule[candidate.rule_name] = (
@@ -61,7 +67,9 @@ def _record_candidate(candidate, dry_run: bool, result: AlertPipelineResult) -> 
 
 
 def run_pipeline(
-    limit: Optional[int] = None, dry_run: bool = False
+    limit: Optional[int] = None,
+    dry_run: bool = False,
+    pipeline_run_id: Optional[int] = None,
 ) -> AlertPipelineResult:
     result = AlertPipelineResult()
 
@@ -73,7 +81,7 @@ def run_pipeline(
         for rule_fn in CORE_SCREENING_RULES:
             candidate = rule_fn(screening)
             if candidate is not None:
-                _record_candidate(candidate, dry_run, result)
+                _record_candidate(candidate, dry_run, result, pipeline_run_id)
         if not dry_run:
             screening.core_alerts_evaluated_at = datetime.now()
             db_session.add(screening)
@@ -95,7 +103,7 @@ def run_pipeline(
             for rule_fn in METADATA_MOVIE_RULES:
                 candidate = rule_fn(movie)
                 if candidate is not None:
-                    _record_candidate(candidate, dry_run, result)
+                    _record_candidate(candidate, dry_run, result, pipeline_run_id)
             if not dry_run:
                 movie.metadata_alerts_evaluated_at = datetime.now()
                 db_session.add(movie)

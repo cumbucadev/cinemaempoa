@@ -342,6 +342,7 @@ def generate_alerts(limit, dry_run, verbose):
 
     Revise-os em /admin/alerts.
     """
+    from flask_backend.repository import pipeline_runs
     from flask_backend.service.alert_pipeline import run_pipeline
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -350,7 +351,24 @@ def generate_alerts(limit, dry_run, verbose):
     if dry_run:
         click.echo("=== Modo dry-run: nenhum alerta será gravado ===\n")
 
-    result = run_pipeline(limit=limit, dry_run=dry_run)
+    run = pipeline_runs.start("generate-alerts")
+    try:
+        result = run_pipeline(limit=limit, dry_run=dry_run, pipeline_run_id=run.id)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    pipeline_runs.finish(
+        run.id,
+        status="success",
+        summary=json.dumps(
+            {
+                "screenings_evaluated": result.screenings_evaluated,
+                "movies_evaluated": result.movies_evaluated,
+                "alerts_created": result.alerts_created,
+            }
+        ),
+    )
 
     click.echo(f"\n{'=' * 40}")
     click.echo("Resultado da geração de alertas:")

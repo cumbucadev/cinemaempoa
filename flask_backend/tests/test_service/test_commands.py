@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from flask_backend.db import db_session
 from flask_backend.models import PipelineRun, Screening
+from flask_backend.service.alert_pipeline import AlertPipelineResult
 from flask_backend.service.movie_metadata_pipeline import (
     PipelineResult as MetadataPipelineResult,
 )
@@ -386,3 +387,40 @@ class TestMovieMetadataReviewCommand:
         ):
             result = runner.invoke(args=["movie-metadata-review"])
         assert "Outro Filme" in result.output
+
+
+class TestGenerateAlertsCommand:
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = AlertPipelineResult(
+            screenings_evaluated=2, movies_evaluated=1, alerts_created=1
+        )
+        with patch(
+            "flask_backend.service.alert_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["generate-alerts"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="generate-alerts")
+                .one()
+            )
+            assert run.status == "success"
+            assert '"alerts_created": 1' in run.summary
+
+    def test_zero_alerts_created_is_still_success(self, app, runner):
+        result_obj = AlertPipelineResult(screenings_evaluated=2, movies_evaluated=1)
+        with patch(
+            "flask_backend.service.alert_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["generate-alerts"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="generate-alerts")
+                .one()
+            )
+            assert run.status == "success"
