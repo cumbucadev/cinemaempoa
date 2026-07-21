@@ -25,6 +25,8 @@ MOVIE_METADATA_SOURCES = ["tmdb"]
 
 ALERT_STATUSES = ["pending", "posted", "dismissed"]
 
+PIPELINE_RUN_STATUSES = ["running", "success", "warning", "error"]
+
 
 class User(Base):
     __tablename__ = "users"
@@ -164,6 +166,12 @@ class Screening(Base):
     # screening. NULL means "still due" - see
     # flask_backend/service/alert_pipeline.py.
     core_alerts_evaluated_at = Column(DateTime, nullable=True, index=True)
+    # Set when this screening was created by a tracked pipeline run (e.g.
+    # import-json). NULL for screenings created manually via /admin or by
+    # scripts/dedupper.py.
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
 
     movie: Mapped["Movie"] = relationship(back_populates="screenings")
     cinema: Mapped["Cinema"] = relationship()
@@ -181,6 +189,35 @@ class ScreeningDate(Base):
     screening: Mapped["Screening"] = relationship(back_populates="dates")
 
 
+class PipelineRun(Base):
+    """One row per invocation of a tracked pipeline CLI command (import-json,
+    fetch-posters, fetch-movie-metadata, generate-alerts). Powers the
+    /admin/pipelines health dashboard and lets a specific run's output be
+    looked up exactly via the pipeline_run_id columns on Screening, Alert,
+    MovieMetadataFetchAttempt and PosterFetchAttempt, instead of guessing
+    from timestamps."""
+
+    __tablename__ = "pipeline_runs"
+
+    id = Column(Integer, primary_key=True)
+    # e.g. "import-json", "fetch-posters", "fetch-movie-metadata",
+    # "generate-alerts" - the flask CLI command name.
+    pipeline_name = Column(String, nullable=False, index=True)
+    # For "import-json" only: the sorted, comma-joined cinema slugs targeted
+    # by this invocation (e.g. "capitolio,paulo-amorim,sala-redencao"),
+    # since the same CLI command covers cinema groups that run on very
+    # different schedules. NULL for the other three pipelines, and also
+    # NULL for import-json runs that failed before the JSON could be
+    # parsed (the cinema slugs aren't known yet at that point).
+    source = Column(String, nullable=True)
+    started_at = Column(DateTime, nullable=False)
+    finished_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=False)  # see PIPELINE_RUN_STATUSES
+    # JSON-encoded result counts (e.g. {"processed": 5, "errors": 1}).
+    summary = Column(Text, nullable=True)
+    error_message = Column(String, nullable=True)
+
+
 class PosterFetchAttempt(Base):
     """Tracks each attempt to fetch a poster for a screening from an external source.
 
@@ -196,6 +233,9 @@ class PosterFetchAttempt(Base):
     status = Column(String, nullable=False)  # "success", "not_found", "error"
     attempted_at = Column(DateTime, nullable=False)
     error_message = Column(String, nullable=True)
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
 
     screening: Mapped["Screening"] = relationship()
 
@@ -216,6 +256,9 @@ class MovieMetadataFetchAttempt(Base):
     status = Column(String, nullable=False)  # "success", "not_found", "error"
     attempted_at = Column(DateTime, nullable=False)
     error_message = Column(String, nullable=True)
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
 
     movie: Mapped["Movie"] = relationship()
 
@@ -247,6 +290,10 @@ class Alert(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     resolved_at = Column(DateTime, nullable=True)
     resolved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # Set when this alert was created by a tracked generate-alerts run.
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
 
     movie: Mapped["Movie"] = relationship()
     screening: Mapped[Optional["Screening"]] = relationship()
