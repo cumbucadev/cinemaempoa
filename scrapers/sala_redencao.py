@@ -7,6 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 from zoneinfo import ZoneInfo
 
+from scrapers.http_cache import fetch_page
 from utils import get_formatted_day_str, string_is_day
 
 
@@ -50,14 +51,7 @@ class SalaRedencao:
 
     def _get_page_html(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
-        if os.path.exists(file):
-            with open(file) as f:
-                return f.read()
-        r = requests.get(url)
-        r.raise_for_status()
-        with open(file, "w") as f:
-            f.write(r.text)
-        return r.text
+        return fetch_page(file, lambda: requests.get(url))
 
     def _get_events_blog_post_url(self):
         landing_page_soup = BeautifulSoup(self._get_news_page_html(), "html.parser")

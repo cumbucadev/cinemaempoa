@@ -5,7 +5,7 @@ from llama_index.core import Settings
 from llama_index.core.bridge.pydantic import BaseModel
 from llama_index.core.llms import ChatMessage
 
-from flask_backend.env_config import DEEPSEEK_API_KEY, GEMINI_API_KEY
+from flask_backend.env_config import GEMINI_API_KEY
 
 
 class Movie(BaseModel):
@@ -29,15 +29,7 @@ def _build_llm(model_name):
         from llama_index.llms.google_genai import GoogleGenAI
 
         return GoogleGenAI(model=model_name, api_key=GEMINI_API_KEY)
-    if model_name == "deepseek-chat":
-        if DEEPSEEK_API_KEY is None:
-            raise ValueError("DEEPSEEK_API_KEY is not set")
-        from llama_index.llms.deepseek import DeepSeek
-
-        return DeepSeek(model=model_name, api_key=DEEPSEEK_API_KEY)
-    raise ValueError(
-        "Invalid model name. Supported models: gemini-2.0-flash, deepseek-chat"
-    )
+    raise ValueError("Invalid model name. Supported models: gemini-2.5-flash")
 
 
 class CineBancariosExtractorLLM:

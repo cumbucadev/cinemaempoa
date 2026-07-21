@@ -33,7 +33,7 @@ Copie o arquivo `example.env` para `.env` e preencha os valores necessários:
 
     cp example.env .env
 
-Algumas funcionalidades (posters, metadados de filmes) dependem de chaves de API de terceiros (`TMDB_API_TOKEN`, `IMGBB_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`). Elas só são necessárias se você for usar essas features específicas.
+Algumas funcionalidades (posters, metadados de filmes) dependem de chaves de API de terceiros (`TMDB_API_TOKEN`, `IMGBB_API_KEY`, `GEMINI_API_KEY`). Elas só são necessárias se você for usar essas features específicas.
 
 ### Instalando o projeto usando Docker
 

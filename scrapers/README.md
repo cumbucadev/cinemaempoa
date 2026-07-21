@@ -3,28 +3,52 @@
 Este diretório possui a implementação para raspagem
 de dados nos sites do cinema.
 
-Cada site possui seu próprio scraper devido às particularidades da estrutura dos sites.
+Cada site possui seu próprio scraper devido às particularidades da estrutura
+dos sites.
+
+## Cache
+
+Todos os scrapers seguem a mesma política de cache, implementada nos módulos
+compartilhados [./http_cache.py](./http_cache.py) e [./llm_cache.py](./llm_cache.py):
+
+- **Requisições HTTP**: sem cache em produção — cada execução busca a página
+  novamente. Fora de produção (`APP_ENVIRONMENT != "production"`), a resposta é
+  salva em disco e reaproveitada em execuções seguintes, principalmente pra
+  facilitar iteração local sem martelar os sites de origem. Ver `fetch_page` em
+  [./http_cache.py](./http_cache.py).
+- **Parsing determinístico**: nunca é cacheado — cada execução reprocessa o HTML
+  já obtido.
+- **Chamadas de LLM**: sempre cacheadas, em qualquer ambiente, com base em um hash
+  SHA-256 do texto extraído da página (ver `get_features_with_cache` em
+  [./llm_cache.py](./llm_cache.py)). Isso existe pra controlar o custo/limite de
+  taxa das chamadas de LLM, já que rodar o scraper com frequência não significa
+  que o conteúdo da página realmente mudou.
 
 ## CineBancários
 
-O site do projeto é <https://cinebancarios.blogspot.com/>. Se você acessá-lo com o javascript do navegador desabilitado, vai
-notar que o site fica uma página em branco.
+O site do projeto é <https://cinebancarios.blogspot.com/>. Se você acessá-lo
+com o javascript do navegador desabilitado, vai notar que o site fica uma
+página em branco.
 
-Isso é porque o blogspot é renderizado no lado do cliente. Isso dificulta o webscrapping pois precisariamos de uma
-ferramenta capaz de rodar javascript.
+Isso é porque o blogspot é renderizado no lado do cliente. Isso dificulta o
+webscrapping pois precisariamos de uma ferramenta capaz de rodar javascript.
 
-Pra burlar esse problema, nós acessamos o [feed RSS](https://pt.wikipedia.org/wiki/RSS) do site (disponível em <http://cinebancarios.blogspot.com/feeds/posts/default?alt=rss>).
+Pra burlar esse problema, nós acessamos o [feed RSS](https://pt.wikipedia.org/wiki/RSS)
+do site (disponível em <http://cinebancarios.blogspot.com/feeds/posts/default?alt=rss>).
 
-O feed é em formato XML, mas, aninhado dentro do XML, existe o conteúdo HTML das postagens.
+O feed é em formato XML, mas, aninhado dentro do XML, existe o conteúdo HTML
+das postagens.
 
-O blogspot gera o HTML da página de forma bem desestruturada e caótica. Ao invés dos campos serem bem definidos, o HTML das postagens costuma mudar, mesmo quando a
-estrutura do conteúdo é a mesma.
+O blogspot gera o HTML da página de forma bem desestruturada e caótica. Ao invés
+dos campos serem bem definidos, o HTML das postagens costuma mudar, mesmo quando
+a estrutura do conteúdo é a mesma.
 
 !["Exemplo de bloco de texto contendo definição de filme no site cinebancários"](./docs/example-cinebancarios-1.png)
 
-O bloco de texto acima (disponível em <https://cinebancarios.blogspot.com/2024/09/premiado-o-dia-que-te-conheci-estreia.html>) tem a seguinte estrutura HTML:
+O bloco de texto acima (disponível em <https://cinebancarios.blogspot.com/2024/09/premiado-o-dia-que-te-conheci-estreia.html>)
+tem a seguinte estrutura HTML:
 
-```
+```html
 <p>
     <span>
         <strong>
@@ -40,9 +64,11 @@ O bloco de texto acima (disponível em <https://cinebancarios.blogspot.com/2024/
 </p>
 ```
 
-Repare que não tem nada indicando onde está o título do filme, onde está o país, gênero, ano, etc.
+Repare que não tem nada indicando onde está o título do filme, onde está o
+país, gênero, ano, etc.
 
-Por causa disso, é preciso se basear no conteúdo da página: notamos que o padrão utilizado é sempre colocar **Sinopse:** para descrever o assunto do filme.
+Por causa disso, é preciso se basear no conteúdo da página: notamos que o
+padrão utilizado é sempre colocar **Sinopse:** para descrever o assunto do filme.
 
 Acima da sinopse, fica uma linha com o país de origem, o gênero, ano e duração do filme.
 
@@ -52,9 +78,10 @@ Outras postagens, porém, seguem outro padrão:
 
 !["Postagem no cinebancarios sobre o filme 'Quando eu me encontrar'"](./docs/example-cinebancarios-2.png)
 
-Na imagem acima (disponível em <https://cinebancarios.blogspot.com/2024/09/assexybilidade-de-daniel-goncalves.html>), o HTML do bloco é diferente do anterior:
+Na imagem acima (disponível em <https://cinebancarios.blogspot.com/2024/09/assexybilidade-de-daniel-goncalves.html>),
+o HTML do bloco é diferente do anterior:
 
-```
+```html
 <p>
     <b>
         <span>
@@ -106,7 +133,8 @@ Na imagem acima (disponível em <https://cinebancarios.blogspot.com/2024/09/asse
 </p>
 ```
 
-Repare que o título do filme não está mais dentro de um `<strong>`, o gênero e país, que antes estavam soltos, agora estão dentro do seu próprio `<span>`, etc.
+Repare que o título do filme não está mais dentro de um `<strong>`, o gênero
+e país, que antes estavam soltos, agora estão dentro do seu próprio `<span>`, etc.
 
 Por causa disso, optamos pelo uso de LLMs que consomem o conteúdo da postagem
 (apenas o texto, sem as tags HTML) e (tentam) retornar um JSON válido que pode
@@ -116,26 +144,23 @@ Você pode ver a implementação (prompts e regras de negócio) no arquivo [./ll
 
 ## Cine Cinco
 
-O site do projeto é <https://www.pucrs.br/cultura/projetos/cine-cinco/>. Diferente do
-CineBancários, essa página é renderizada no servidor (não precisa de javascript pra
-carregar o conteúdo), então o HTML pode ser obtido com uma requisição HTTP comum.
+O site do projeto é <https://www.pucrs.br/cultura/projetos/cine-cinco/>. Diferente
+do CineBancários, essa página é renderizada no servidor (não precisa de
+javascript pra carregar o conteúdo), então o HTML pode ser obtido com uma
+requisição HTTP comum.
 
-A programação inteira fica dentro de uma única `div.content`. Cada filme é um bloco de
-texto (título, pôster, direção, informações gerais, sinopse e sessão) separado dos
-outros por uma tag `<hr>`, mas assim como no CineBancários, a estrutura interna de cada
-bloco muda de postagem pra postagem (às vezes tem direção, às vezes não; às vezes tem
-`<a>` em volta do pôster, às vezes não). Por isso, também optamos por usar um LLM que
-consome o texto (sem tags HTML) do bloco `div.content` e retorna um JSON estruturado —
-implementação em [./llms.py](./llms.py), classe `CineCincoExtractorLLM`.
+A programação inteira fica dentro de uma única `div.content`. Cada filme é
+um bloco de texto (título, pôster, direção, informações gerais, sinopse e
+sessão) separado dos outros por uma tag `<hr>`, mas assim como no CineBancários,
+a estrutura interna de cada bloco muda de postagem pra postagem (às vezes tem
+direção, às vezes não; às vezes tem `<a>` em volta do pôster, às vezes não). Por
+isso, também optamos por usar um LLM que consome o texto (sem tags HTML) do
+bloco `div.content` e retorna um JSON estruturado — implementação em [./llms.py](./llms.py),
+classe `CineCincoExtractorLLM`.
 
-Duas particularidades desse site, comparado ao CineBancários:
+Particularidade desse site, comparado ao CineBancários:
 
-- As datas de sessão (`Sessão: 1/7 • quarta — 17h`) não têm ano. Como a página não tem
-  um RSS feed com data de publicação, assumimos que o ano da sessão é sempre o ano
-  atual no momento da raspagem — uma limitação conhecida da v0 perto da virada do ano.
-- Como a página muda com pouca frequência (segundo a issue, a cada 1-2 semanas),
-  guardamos um hash SHA-256 do texto extraído em `cine-cinco/cache.json` junto com as
-  features já extraídas. Se o hash não mudou desde a última raspagem, pulamos a
-  chamada ao LLM inteiramente e reaproveitamos o resultado anterior — isso existe pra
-  controlar o custo das chamadas de LLM, já que rodar o scraper com frequência não
-  significa que o conteúdo da página realmente mudou.
+- As datas de sessão (`Sessão: 1/7 • quarta — 17h`) não têm ano. Como a
+página não tem um RSS feed com data de publicação, assumimos que o ano da
+sessão é sempre o ano atual no momento da raspagem — uma limitação conhecida
+da v0 perto da virada do ano.

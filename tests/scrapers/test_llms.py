@@ -22,13 +22,6 @@ class TestGetLlm:
         ):
             CineBancariosExtractorLLM("gemini-2.5-flash")
 
-    def test_deepseek_without_api_key_raises_value_error(self):
-        with (
-            patch("scrapers.llms.DEEPSEEK_API_KEY", None),
-            pytest.raises(ValueError, match="DEEPSEEK_API_KEY is not set"),
-        ):
-            CineBancariosExtractorLLM("deepseek-chat")
-
     def test_invalid_model_name_raises_value_error(self):
         with pytest.raises(ValueError, match="Invalid model name"):
             CineBancariosExtractorLLM("not-a-real-model")
@@ -41,10 +34,6 @@ class TestGetLlm:
         ):
             CineBancariosExtractorLLM("gemini-2.5-flash")
         mock_cls.assert_called_once_with(model="gemini-2.5-flash", api_key="fake-key")
-
-    # Note: the deepseek-chat branch's happy path (`from llama_index.llms.deepseek
-    # import DeepSeek`) isn't covered here - llama-index-llms-deepseek isn't an
-    # installed dependency, so that import can't be exercised in this environment.
 
 
 class TestExtractScreeningsFromText:

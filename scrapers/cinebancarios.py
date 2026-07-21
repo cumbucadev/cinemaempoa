@@ -6,7 +6,8 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-from flask_backend.env_config import DEEPSEEK_API_KEY
+from scrapers.http_cache import fetch_page
+from scrapers.llm_cache import get_features_with_cache
 from scrapers.llms import CineBancariosExtractorLLM
 
 
@@ -23,16 +24,11 @@ class CineBancarios:
         if not os.path.exists(self.todays_dir):
             os.mkdir(self.todays_dir)
 
+        self.cache_file = os.path.join(self.dir, "cache.json")
+
     def _get_url_content(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
-        if os.path.exists(file):
-            with open(file) as f:
-                return f.read()
-        r = requests.get(url)
-        r.raise_for_status()
-        with open(file, "w") as f:
-            f.write(r.text)
-        return r.text
+        return fetch_page(file, lambda: requests.get(url))
 
     def _get_today_ymd(self):
         cur_datetime = datetime.now()
@@ -59,22 +55,14 @@ class CineBancarios:
             script_or_style.extract()
         return soup.get_text()
 
-    def get_daily_features_json(self):
-        soup = self._get_current_blog_post_soup()
-        text = self._get_text_from_soup(soup)
+    def _extract_features(self, text):
         gemini = CineBancariosExtractorLLM("gemini-2.5-flash")
         gemini_output_str = gemini.extract_screenings_from_text(self.pubDate, text)
+        if gemini_output_str is None:
+            return None
         gemini_output = json.loads(gemini_output_str)
-        if DEEPSEEK_API_KEY is not None:
-            deepseek = CineBancariosExtractorLLM("deepseek-chat")
-            deepseek_output = deepseek.extract_screenings_from_text(self.pubDate, text)
-
-            if gemini_output != deepseek_output:
-                # TODO: notify the website admin, we need to verify which one is correct
-                pass
-        features = []
-        for movie in gemini_output["movies"]:
-            feature = {
+        return [
+            {
                 "poster": movie.get("image_url"),
                 "time": movie.get("screening_dates"),
                 "title": movie.get("title"),
@@ -84,5 +72,12 @@ class CineBancarios:
                 "excerpt": movie.get("excerpt"),
                 "read_more": self.postLink,
             }
-            features.append(feature)
-        return features
+            for movie in gemini_output["movies"]
+        ]
+
+    def get_daily_features_json(self):
+        soup = self._get_current_blog_post_soup()
+        text = self._get_text_from_soup(soup)
+        return get_features_with_cache(
+            self.cache_file, text, lambda: self._extract_features(text)
+        )

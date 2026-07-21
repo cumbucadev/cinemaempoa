@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+from flask_backend.utils.enums.environment import EnvironmentEnum
 from scrapers.capitolio import Capitolio
 
 FIXTURE_DIR = os.path.join("tests/files/files_capitolio")
@@ -10,7 +11,6 @@ FIXTURE_DIR = os.path.join("tests/files/files_capitolio")
 def _make_capitolio():
     capitolio = Capitolio()
     capitolio.dir = FIXTURE_DIR
-    capitolio.cache_html = True
     return capitolio
 
 
@@ -49,7 +49,6 @@ class TestCapitolio:
     def test_day_schedule_html_fetches_and_caches_when_missing(self, tmp_path):
         capitolio = Capitolio()
         capitolio.dir = str(tmp_path)
-        capitolio.cache_html = True
 
         mock_response = MagicMock(text="<html>fetched</html>")
         with patch(
@@ -62,13 +61,15 @@ class TestCapitolio:
         cached_file = tmp_path / "2026-09-01.html"
         assert cached_file.read_text() == "<html>fetched</html>"
 
-    def test_day_schedule_html_does_not_cache_when_disabled(self, tmp_path):
+    def test_day_schedule_html_does_not_cache_in_production(self, tmp_path):
         capitolio = Capitolio()
         capitolio.dir = str(tmp_path)
-        capitolio.cache_html = False
 
         mock_response = MagicMock(text="<html>live</html>")
-        with patch("scrapers.capitolio.requests.get", return_value=mock_response):
+        with (
+            patch("scrapers.http_cache.APP_ENVIRONMENT", EnvironmentEnum.PRODUCTION),
+            patch("scrapers.capitolio.requests.get", return_value=mock_response),
+        ):
             html = capitolio._day_schedule_html("2026-09-02")
 
         assert html == "<html>live</html>"

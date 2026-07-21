@@ -51,6 +51,11 @@
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
+    {% if not is_production %}
+        {# djlint:off #}
+        <div class="text-center py-1" style="background-color: #ffc107; color: #000;" data-goatcounter-skip>Ambiente de desenvolvimento</div>
+        {# djlint:on #}
+    {% endif %}
     <header id="header">
         {# djlint:off #}
         <nav class="navbar" style="
