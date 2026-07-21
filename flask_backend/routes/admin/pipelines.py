@@ -4,6 +4,16 @@ from flask import Blueprint, abort, render_template, request, url_for
 from werkzeug.routing import BuildError
 
 from flask_backend.repository import pipeline_runs
+from flask_backend.repository.alerts import get_by_pipeline_run_id as get_alerts_by_run
+from flask_backend.repository.movie_metadata_fetch_attempts import (
+    get_by_pipeline_run_id as get_metadata_attempts_by_run,
+)
+from flask_backend.repository.poster_fetch_attempts import (
+    get_by_pipeline_run_id as get_poster_attempts_by_run,
+)
+from flask_backend.repository.screenings import (
+    get_by_pipeline_run_id as get_screenings_by_run,
+)
 from flask_backend.routes.auth import login_required
 
 bp = Blueprint("admin_pipelines", __name__)
@@ -135,4 +145,34 @@ def history(pipeline_name):
         pages=pages,
         limit=limit,
         qtt_runs=qtt_runs,
+    )
+
+
+@bp.route("/admin/pipelines/<pipeline_name>/<int:run_id>")
+@login_required
+def detail(pipeline_name, run_id):
+    """Full item list for one specific run."""
+    run = pipeline_runs.get_by_id(run_id)
+    if run is None or run.pipeline_name != pipeline_name:
+        abort(404)
+
+    screenings, metadata_attempts, poster_attempts, alerts = [], [], [], []
+    if pipeline_name == "import-json":
+        screenings = get_screenings_by_run(run_id)
+    elif pipeline_name == "fetch-movie-metadata":
+        metadata_attempts = get_metadata_attempts_by_run(run_id)
+    elif pipeline_name == "fetch-posters":
+        poster_attempts = get_poster_attempts_by_run(run_id)
+    elif pipeline_name == "generate-alerts":
+        alerts = get_alerts_by_run(run_id)
+
+    return render_template(
+        "pipelines/admin/detail.html",
+        run=run,
+        label=_group_label(run.pipeline_name, run.source),
+        display_status=pipeline_runs.display_status(run),
+        screenings=screenings,
+        metadata_attempts=metadata_attempts,
+        poster_attempts=poster_attempts,
+        alerts=alerts,
     )

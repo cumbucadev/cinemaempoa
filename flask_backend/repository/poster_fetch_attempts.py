@@ -71,3 +71,12 @@ def get_screenings_needing_manual_review() -> List[Screening]:
         if all(source in attempted for source in POSTER_SOURCES):
             result.append(screening)
     return result
+
+
+def get_by_pipeline_run_id(pipeline_run_id: int) -> List[PosterFetchAttempt]:
+    return (
+        db_session.query(PosterFetchAttempt)
+        .filter(PosterFetchAttempt.pipeline_run_id == pipeline_run_id)
+        .order_by(PosterFetchAttempt.id)
+        .all()
+    )

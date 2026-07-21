@@ -217,3 +217,12 @@ def get_weekend_screening_dates() -> Tuple[List[ScreeningDate], date, date, date
         saturday_date,
         sunday_date,
     )
+
+
+def get_by_pipeline_run_id(pipeline_run_id: int) -> List[Screening]:
+    return (
+        db_session.query(Screening)
+        .filter(Screening.pipeline_run_id == pipeline_run_id)
+        .order_by(Screening.id)
+        .all()
+    )
