@@ -60,6 +60,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(admin_alerts.bp)
 
+    from .routes.admin import pipelines as admin_pipelines
+
+    app.register_blueprint(admin_pipelines.bp)
+
     from .routes import page
 
     app.register_blueprint(page.bp)
