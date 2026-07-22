@@ -10,6 +10,7 @@ def create(
     source: str,
     status: str,
     error_message: Optional[str] = None,
+    pipeline_run_id: Optional[int] = None,
 ) -> PosterFetchAttempt:
     attempt = PosterFetchAttempt(
         screening_id=screening_id,
@@ -17,6 +18,7 @@ def create(
         status=status,
         attempted_at=datetime.now(),
         error_message=error_message,
+        pipeline_run_id=pipeline_run_id,
     )
     db_session.add(attempt)
     db_session.commit()
@@ -69,3 +71,12 @@ def get_screenings_needing_manual_review() -> List[Screening]:
         if all(source in attempted for source in POSTER_SOURCES):
             result.append(screening)
     return result
+
+
+def get_by_pipeline_run_id(pipeline_run_id: int) -> List[PosterFetchAttempt]:
+    return (
+        db_session.query(PosterFetchAttempt)
+        .filter(PosterFetchAttempt.pipeline_run_id == pipeline_run_id)
+        .order_by(PosterFetchAttempt.id)
+        .all()
+    )

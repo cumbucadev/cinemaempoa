@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}
+    Pipelines
+{% endblock title %}
+{% block header %}
+    <div>
+        <h1>Pipelines</h1>
+        <p>Saúde das rotinas automatizadas de importação e enriquecimento de dados</p>
+    </div>
+{% endblock header %}
+{% block content %}
+    {% set status_labels = {
+        "running": "Em execução",
+        "success": "Sucesso",
+        "warning": "Alerta",
+        "error": "Erro",
+        "interrupted": "Interrompida"
+    } %}
+    {% set status_classes = {
+        "running": "bg-info text-dark",
+        "success": "bg-success",
+        "warning": "bg-warning text-dark",
+        "error": "bg-danger",
+        "interrupted": "bg-secondary"
+    } %}
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Pipeline</th>
+                    <th>Status</th>
+                    <th>Última execução</th>
+                    <th>Resumo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('admin_pipelines.history', pipeline_name=row.pipeline_name, source=row.source) }}">
+                                {{ row.label }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if row.display_status %}
+                                <span class="badge {{ status_classes[row.display_status] }}">{{ status_labels[row.display_status] }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Nunca executado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.latest_run %}
+                                <time datetime="{{ row.latest_run.started_at.isoformat() }}">{{ row.latest_run.started_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.latest_run and row.latest_run.error_message %}
+                                {{ row.latest_run.error_message }}
+                            {% elif row.latest_run and row.latest_run.summary %}
+                                {{ row.summary_obj | tojson }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}

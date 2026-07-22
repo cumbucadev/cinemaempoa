@@ -271,3 +271,21 @@ class TestRunPipeline:
             assert directors[0] in movie_b.directors
             assert countries[0] in movie_a.countries
             assert countries[0] in movie_b.countries
+
+    def test_attempts_are_tagged_with_pipeline_run_id(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Filme Tagueado", "filme-tagueado")
+
+            tmdb_client = _tmdb_client(search_result=None)
+            with patch(
+                "flask_backend.service.movie_metadata_pipeline.TMDBClient",
+                return_value=tmdb_client,
+            ):
+                run_pipeline(pipeline_run_id=42)
+
+            attempt = (
+                db_session.query(MovieMetadataFetchAttempt)
+                .filter(MovieMetadataFetchAttempt.movie_id == movie.id)
+                .one()
+            )
+            assert attempt.pipeline_run_id == 42

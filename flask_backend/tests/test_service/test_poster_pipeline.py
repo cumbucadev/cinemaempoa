@@ -214,6 +214,23 @@ class TestRunPipeline:
             assert attempt.status == "error"
             assert "Download falhou" in attempt.error_message
 
+    def test_attempts_are_tagged_with_pipeline_run_id(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening_without_poster()
+
+            with patch(
+                "flask_backend.service.poster_pipeline._try_tmdb", return_value=None
+            ):
+                run_pipeline(app, pipeline_run_id=42)
+
+            attempt = (
+                db_session.query(PosterFetchAttempt)
+                .filter_by(screening_id=screening_id)
+                .one()
+            )
+            assert attempt.status == "not_found"
+            assert attempt.pipeline_run_id == 42
+
     def test_extracts_director_from_description_for_imdb_handler(
         self, client, app, setup_cinemas
     ):

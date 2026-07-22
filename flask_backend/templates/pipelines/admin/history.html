@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}
+    {{ label }}
+{% endblock title %}
+{% block header %}
+    <div>
+        <h1>{{ label }}</h1>
+        <p>
+            <a href="{{ url_for("admin_pipelines.index") }}">← Voltar para Pipelines</a>
+        </p>
+    </div>
+{% endblock header %}
+{% block content %}
+    {% set status_labels = {
+        "running": "Em execução",
+        "success": "Sucesso",
+        "warning": "Alerta",
+        "error": "Erro",
+        "interrupted": "Interrompida"
+    } %}
+    {% set status_classes = {
+        "running": "bg-info text-dark",
+        "success": "bg-success",
+        "warning": "bg-warning text-dark",
+        "error": "bg-danger",
+        "interrupted": "bg-secondary"
+    } %}
+    {% if runs %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Início</th>
+                        <th>Status</th>
+                        <th>Resumo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                        <tr>
+                            <td>
+                                {% if detail_urls[run.id] %}
+                                    <a href="{{ detail_urls[run.id] }}">
+                                        <time datetime="{{ run.started_at.isoformat() }}">{{ run.started_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                                    </a>
+                                {% else %}
+                                    <time datetime="{{ run.started_at.isoformat() }}">{{ run.started_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {{ status_classes[display_statuses[run.id]] }}">{{ status_labels[display_statuses[run.id]] }}</span>
+                            </td>
+                            <td>
+                                {% if run.error_message %}
+                                    {{ run.error_message }}
+                                {% elif run.summary %}
+                                    {{ summaries[run.id] | tojson }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if pages > 1 %}
+            <nav aria-label="Navegação do admin">
+                <ul class="pagination justify-content-center">
+                    {% if prev_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('admin_pipelines.history', pipeline_name=pipeline_name, source=source, page=prev_page, limit=limit) }}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    {% for page_num in range(1, pages + 1) %}
+                        <li class="page-item {% if page_num == curr_page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('admin_pipelines.history', pipeline_name=pipeline_name, source=source, page=page_num, limit=limit) }}">{{ page_num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if next_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('admin_pipelines.history', pipeline_name=pipeline_name, source=source, page=next_page, limit=limit) }}">Próximo</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <p>Nenhuma execução registrada ainda.</p>
+    {% endif %}
+{% endblock content %}

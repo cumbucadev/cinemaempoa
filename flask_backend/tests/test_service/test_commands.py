@@ -1,6 +1,9 @@
 import json
 from unittest.mock import patch
 
+from flask_backend.db import db_session
+from flask_backend.models import PipelineRun, Screening
+from flask_backend.service.alert_pipeline import AlertPipelineResult
 from flask_backend.service.movie_metadata_pipeline import (
     PipelineResult as MetadataPipelineResult,
 )
@@ -64,6 +67,114 @@ class TestImportJsonCommand:
 
         result = runner.invoke(args=["import-json", str(json_path)])
         assert "sessões criadas com sucesso" in result.output
+
+    def test_success_creates_pipeline_run_with_source_and_summary(
+        self, app, runner, tmp_path, setup_cinemas
+    ):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio",
+                "features": [
+                    {
+                        "poster": "",
+                        "time": ["2026-08-01T19:00"],
+                        "title": "Filme via CLI 2",
+                        "original_title": "",
+                        "price": "",
+                        "director": "",
+                        "classification": "",
+                        "general_info": "",
+                        "excerpt": "um filme",
+                        "read_more": "",
+                    }
+                ],
+            }
+        ]
+        json_path = tmp_path / "valid2.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "success"
+            assert run.source == "capitolio"
+            assert run.finished_at is not None
+            assert '"created": 1' in run.summary
+
+            screening = (
+                db_session.query(Screening).filter_by(pipeline_run_id=run.id).one()
+            )
+            assert screening.movie.title == "Filme via CLI 2"
+
+    def test_zero_screenings_created_marks_run_as_warning(
+        self, app, runner, tmp_path, setup_cinemas
+    ):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio",
+                "features": [],
+            }
+        ]
+        json_path = tmp_path / "empty.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "warning"
+
+    def test_invalid_json_marks_run_as_error(self, app, runner, tmp_path):
+        json_path = tmp_path / "bad.json"
+        json_path.write_text("not-valid-json{")
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.source is None
+            assert "inválido" in run.error_message
+
+    def test_unknown_cinema_marks_run_as_error(self, app, runner, tmp_path):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Inexistente",
+                "slug": "inexistente",
+                "features": [],
+            }
+        ]
+        json_path = tmp_path / "unknown-cinema2.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "error"
+            assert "não encontrada" in run.error_message
 
 
 class TestThinWrapperCommands:
@@ -139,6 +250,57 @@ class TestFetchPostersCommand:
             result = runner.invoke(args=["fetch-posters", "--verbose"])
         assert "poster-review" in result.output
 
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = PosterPipelineResult(processed=3, posters_found=3, errors=0)
+        with patch(
+            "flask_backend.service.poster_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-posters"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-posters")
+                .one()
+            )
+            assert run.status == "success"
+
+    def test_creates_pipeline_run_with_warning_status_on_errors(self, app, runner):
+        result_obj = PosterPipelineResult(processed=3, posters_found=1, errors=2)
+        with patch(
+            "flask_backend.service.poster_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-posters"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-posters")
+                .one()
+            )
+            assert run.status == "warning"
+
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.poster_pipeline.run_pipeline",
+            side_effect=RuntimeError("tmdb indisponível"),
+        ):
+            result = runner.invoke(args=["fetch-posters"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-posters")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "tmdb indisponível" in run.error_message
+
 
 class TestPosterReviewCommand:
     def test_no_pending_reviews(self, runner):
@@ -187,6 +349,58 @@ class TestFetchMovieMetadataCommand:
             result = runner.invoke(args=["fetch-movie-metadata", "--dry-run"])
         assert "movie-metadata-review" in result.output
 
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = MetadataPipelineResult(processed=5, metadata_found=5, errors=0)
+        with patch(
+            "flask_backend.service.movie_metadata_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-movie-metadata"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-movie-metadata")
+                .one()
+            )
+            assert run.status == "success"
+            assert '"processed": 5' in run.summary
+
+    def test_creates_pipeline_run_with_warning_status_on_errors(self, app, runner):
+        result_obj = MetadataPipelineResult(processed=5, metadata_found=3, errors=2)
+        with patch(
+            "flask_backend.service.movie_metadata_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["fetch-movie-metadata"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-movie-metadata")
+                .one()
+            )
+            assert run.status == "warning"
+
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.movie_metadata_pipeline.run_pipeline",
+            side_effect=RuntimeError("tmdb indisponível"),
+        ):
+            result = runner.invoke(args=["fetch-movie-metadata"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="fetch-movie-metadata")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "tmdb indisponível" in run.error_message
+
 
 class TestMovieMetadataReviewCommand:
     def test_no_pending_reviews(self, runner):
@@ -211,3 +425,59 @@ class TestMovieMetadataReviewCommand:
         ):
             result = runner.invoke(args=["movie-metadata-review"])
         assert "Outro Filme" in result.output
+
+
+class TestGenerateAlertsCommand:
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = AlertPipelineResult(
+            screenings_evaluated=2, movies_evaluated=1, alerts_created=1
+        )
+        with patch(
+            "flask_backend.service.alert_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["generate-alerts"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="generate-alerts")
+                .one()
+            )
+            assert run.status == "success"
+            assert '"alerts_created": 1' in run.summary
+
+    def test_zero_alerts_created_is_still_success(self, app, runner):
+        result_obj = AlertPipelineResult(screenings_evaluated=2, movies_evaluated=1)
+        with patch(
+            "flask_backend.service.alert_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["generate-alerts"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="generate-alerts")
+                .one()
+            )
+            assert run.status == "success"
+
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.alert_pipeline.run_pipeline",
+            side_effect=RuntimeError("db indisponível"),
+        ):
+            result = runner.invoke(args=["generate-alerts"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="generate-alerts")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "db indisponível" in run.error_message

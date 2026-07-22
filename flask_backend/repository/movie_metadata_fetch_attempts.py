@@ -14,6 +14,7 @@ def create(
     source: str,
     status: str,
     error_message: Optional[str] = None,
+    pipeline_run_id: Optional[int] = None,
 ) -> MovieMetadataFetchAttempt:
     attempt = MovieMetadataFetchAttempt(
         movie_id=movie_id,
@@ -21,6 +22,7 @@ def create(
         status=status,
         attempted_at=datetime.now(),
         error_message=error_message,
+        pipeline_run_id=pipeline_run_id,
     )
     db_session.add(attempt)
     db_session.commit()
@@ -67,3 +69,12 @@ def get_movies_needing_manual_review() -> List[Movie]:
         if all(source in attempted for source in MOVIE_METADATA_SOURCES):
             result.append(movie)
     return result
+
+
+def get_by_pipeline_run_id(pipeline_run_id: int) -> List[MovieMetadataFetchAttempt]:
+    return (
+        db_session.query(MovieMetadataFetchAttempt)
+        .filter(MovieMetadataFetchAttempt.pipeline_run_id == pipeline_run_id)
+        .order_by(MovieMetadataFetchAttempt.id)
+        .all()
+    )

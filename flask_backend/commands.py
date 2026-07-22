@@ -35,33 +35,61 @@ def register_commands(app):
     app.cli.add_command(generate_alerts)
 
 
-@click.command("import-json")
-@click.argument("json_path")
-def import_json(json_path):
+def _run_import_json(run, json_path):
+    from flask_backend.repository import pipeline_runs
+
     with open(json_path) as json_file:
         try:
             parsed_json = json.load(json_file)
         except (json.decoder.JSONDecodeError, UnicodeDecodeError):
-            click.echo("Arquivo .json inválido ou não encontrado", err=True)
+            message = "Arquivo .json inválido ou não encontrado"
+            pipeline_runs.finish(run.id, status="error", error_message=message)
+            click.echo(message, err=True)
             return
 
     runner = Runner()
     try:
         runner.parse_scrapped_json(parsed_json)
     except Exception:
-        click.echo("Arquivo .json com estrutura inválida para importação", err=True)
+        message = "Arquivo .json com estrutura inválida para importação"
+        pipeline_runs.finish(run.id, status="error", error_message=message)
+        click.echo(message, err=True)
         return
+
+    slugs = sorted({c.slug for c in runner.scrapped_results.cinemas})
+    pipeline_runs.set_source(run.id, ",".join(slugs))
 
     # validate all cinemas exist in db
     for json_cinema in runner.scrapped_results.cinemas:
         cinema = get_cinema_by_slug(json_cinema.slug)
         if cinema is None:
-            click.echo(f"Sala {json_cinema.slug} não encontrada.", err=True)
+            message = f"Sala {json_cinema.slug} não encontrada."
+            pipeline_runs.finish(run.id, status="error", error_message=message)
+            click.echo(message, err=True)
             return
 
     # all validations passed, import screenings :)
-    created_features = runner.import_scrapped_results(current_app)
+    created_features = runner.import_scrapped_results(
+        current_app, pipeline_run_id=run.id
+    )
+    status = "warning" if created_features == 0 else "success"
+    pipeline_runs.finish(
+        run.id, status=status, summary=json.dumps({"created": created_features})
+    )
     click.echo(f"«{created_features}» sessões criadas com sucesso!")
+
+
+@click.command("import-json")
+@click.argument("json_path")
+def import_json(json_path):
+    from flask_backend.repository import pipeline_runs
+
+    run = pipeline_runs.start("import-json")
+    try:
+        _run_import_json(run, json_path)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
 
 
 @click.command("dupe-check")
@@ -101,6 +129,7 @@ def fetch_posters(limit, dry_run, verbose):
     Tenta fontes na ordem: TMDB, IMDB.
     Registra cada tentativa para evitar repetição.
     """
+    from flask_backend.repository import pipeline_runs
     from flask_backend.service.poster_pipeline import run_pipeline
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -109,7 +138,29 @@ def fetch_posters(limit, dry_run, verbose):
     if dry_run:
         click.echo("=== Modo dry-run: nenhuma requisição será feita ===\n")
 
-    result = run_pipeline(current_app, limit=limit, dry_run=dry_run)
+    run = pipeline_runs.start("fetch-posters")
+    try:
+        result = run_pipeline(
+            current_app, limit=limit, dry_run=dry_run, pipeline_run_id=run.id
+        )
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    status = "warning" if result.errors > 0 else "success"
+    pipeline_runs.finish(
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "processed": result.processed,
+                "posters_found": result.posters_found,
+                "posters_not_found": result.posters_not_found,
+                "errors": result.errors,
+                "skipped_all_sources_tried": result.skipped_all_sources_tried,
+            }
+        ),
+    )
 
     click.echo(f"\n{'=' * 40}")
     click.echo("Resultado da busca de posters:")
@@ -172,6 +223,7 @@ def fetch_movie_metadata(limit, dry_run, verbose):
     Tenta fontes na ordem: TMDB.
     Registra cada tentativa para evitar repetição.
     """
+    from flask_backend.repository import pipeline_runs
     from flask_backend.service.movie_metadata_pipeline import run_pipeline
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -180,7 +232,27 @@ def fetch_movie_metadata(limit, dry_run, verbose):
     if dry_run:
         click.echo("=== Modo dry-run: nenhuma requisição será feita ===\n")
 
-    result = run_pipeline(limit=limit, dry_run=dry_run)
+    run = pipeline_runs.start("fetch-movie-metadata")
+    try:
+        result = run_pipeline(limit=limit, dry_run=dry_run, pipeline_run_id=run.id)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    status = "warning" if result.errors > 0 else "success"
+    pipeline_runs.finish(
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "processed": result.processed,
+                "metadata_found": result.metadata_found,
+                "metadata_not_found": result.metadata_not_found,
+                "errors": result.errors,
+                "skipped_all_sources_tried": result.skipped_all_sources_tried,
+            }
+        ),
+    )
 
     click.echo(f"\n{'=' * 40}")
     click.echo("Resultado da busca de metadados de filmes:")
@@ -270,6 +342,7 @@ def generate_alerts(limit, dry_run, verbose):
 
     Revise-os em /admin/alerts.
     """
+    from flask_backend.repository import pipeline_runs
     from flask_backend.service.alert_pipeline import run_pipeline
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -278,7 +351,24 @@ def generate_alerts(limit, dry_run, verbose):
     if dry_run:
         click.echo("=== Modo dry-run: nenhum alerta será gravado ===\n")
 
-    result = run_pipeline(limit=limit, dry_run=dry_run)
+    run = pipeline_runs.start("generate-alerts")
+    try:
+        result = run_pipeline(limit=limit, dry_run=dry_run, pipeline_run_id=run.id)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    pipeline_runs.finish(
+        run.id,
+        status="success",
+        summary=json.dumps(
+            {
+                "screenings_evaluated": result.screenings_evaluated,
+                "movies_evaluated": result.movies_evaluated,
+                "alerts_created": result.alerts_created,
+            }
+        ),
+    )
 
     click.echo(f"\n{'=' * 40}")
     click.echo("Resultado da geração de alertas:")

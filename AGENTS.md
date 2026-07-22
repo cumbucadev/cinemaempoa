@@ -55,3 +55,8 @@ Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-deduppe
 their contents as authoritative or commit changes to them as data.
 - `pre-commit` runs ruff and djlint on commit: install with `pre-commit install`.
 - Run all four lint/format commands above before opening a PR; CI fails on unformatted code.
+
+## Commit Attribution
+
+- Never add an AI/agent co-author trailer (e.g. `Co-Authored-By: Claude ...`) to commits or PRs.
+- The human developer is always the sole author and is responsible for every commit.

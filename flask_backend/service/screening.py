@@ -148,7 +148,9 @@ def get_image_metadata(img_path):
     return loaded_image.width, loaded_image.height
 
 
-def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
+def import_scrapped_results(
+    scrapped_results: ScrappedResult, current_app, pipeline_run_id: Optional[int] = None
+):
     created_features = 0
     scrapped_cinema: ScrappedCinema
     for scrapped_cinema in scrapped_results.cinemas:
@@ -216,6 +218,7 @@ def import_scrapped_results(scrapped_results: ScrappedResult, current_app):
                     raw_title=title_cleaning_result.raw_title,
                     title_cleaning_rules=",".join(title_cleaning_result.matched_rules)
                     or None,
+                    pipeline_run_id=pipeline_run_id,
                 )
             else:
                 update_title_cleaning_info(

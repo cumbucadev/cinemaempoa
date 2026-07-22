@@ -1,6 +1,6 @@
 from datetime import datetime
 from math import ceil
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from sqlalchemy import func
 
@@ -16,6 +16,7 @@ def create(
     drafted_text: str,
     context: Optional[str] = None,
     commit: bool = True,
+    pipeline_run_id: Optional[int] = None,
 ) -> Alert:
     alert = Alert(
         rule_name=rule_name,
@@ -26,6 +27,7 @@ def create(
         context=context,
         status="pending",
         created_at=datetime.now(),
+        pipeline_run_id=pipeline_run_id,
     )
     db_session.add(alert)
     if commit:
@@ -128,4 +130,13 @@ def repoint_to_screening(old_screening_id: int, new_screening_id: int) -> None:
     alert-creation time, never re-derived."""
     db_session.query(Alert).filter(Alert.screening_id == old_screening_id).update(
         {"screening_id": new_screening_id}
+    )
+
+
+def get_by_pipeline_run_id(pipeline_run_id: int) -> List[Alert]:
+    return (
+        db_session.query(Alert)
+        .filter(Alert.pipeline_run_id == pipeline_run_id)
+        .order_by(Alert.id)
+        .all()
     )

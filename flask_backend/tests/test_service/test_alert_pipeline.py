@@ -80,6 +80,17 @@ class TestRunPipelineCorePass:
             assert result.screenings_evaluated == 0
             assert result.alerts_created == 0
 
+    def test_alerts_are_tagged_with_pipeline_run_id(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie("Filme Tagueado", "filme-tagueado")
+            _create_screening(movie, "capitolio")
+
+            run_pipeline(pipeline_run_id=42)
+
+            alerts = db_session.query(Alert).filter_by(movie_id=movie.id).all()
+            assert len(alerts) == 2
+            assert all(alert.pipeline_run_id == 42 for alert in alerts)
+
 
 class TestRunPipelineMetadataPass:
     def test_creates_director_debut_alert_for_movie_with_director(

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}
+    {{ label }}
+{% endblock title %}
+{% block header %}
+    <div>
+        <h1>{{ label }}</h1>
+        <p>
+            <a href="{{ url_for('admin_pipelines.history', pipeline_name=run.pipeline_name, source=run.source) }}">← Voltar para o histórico</a>
+        </p>
+    </div>
+{% endblock header %}
+{% block content %}
+    {% set status_labels = {
+        "running": "Em execução",
+        "success": "Sucesso",
+        "warning": "Alerta",
+        "error": "Erro",
+        "interrupted": "Interrompida"
+    } %}
+    {% set status_classes = {
+        "running": "bg-info text-dark",
+        "success": "bg-success",
+        "warning": "bg-warning text-dark",
+        "error": "bg-danger",
+        "interrupted": "bg-secondary"
+    } %}
+    <p>
+        <span class="badge {{ status_classes[display_status] }}">{{ status_labels[display_status] }}</span>
+        Início: <time datetime="{{ run.started_at.isoformat() }}">{{ run.started_at.strftime("%d/%m/%Y %H:%M") }}</time>
+        {% if run.finished_at %}
+            — Fim: <time datetime="{{ run.finished_at.isoformat() }}">{{ run.finished_at.strftime("%d/%m/%Y %H:%M") }}</time>
+        {% endif %}
+    </p>
+    {% if run.error_message %}<div class="alert alert-danger">{{ run.error_message }}</div>{% endif %}
+    {% if run.pipeline_name == "import-json" %}
+        <h2>Sessões criadas ({{ screenings | length }})</h2>
+        {% if screenings %}
+            <ul>
+                {% for screening in screenings %}<li>{{ screening.movie.title }} — {{ screening.cinema.name }}</li>{% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhuma sessão criada neste run.</p>
+        {% endif %}
+    {% elif run.pipeline_name == "fetch-movie-metadata" %}
+        <h2>Filmes processados ({{ metadata_attempts | length }})</h2>
+        {% if metadata_attempts %}
+            <ul>
+                {% for attempt in metadata_attempts %}
+                    <li>
+                        {{ attempt.movie.title }} — {{ attempt.source }} —
+                        <span class="badge {% if attempt.status == "success" %}bg-success{% elif attempt.status == "not_found" %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                            {{ attempt.status }}
+                        </span>
+                        {% if attempt.error_message %}({{ attempt.error_message }}){% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhum filme processado neste run.</p>
+        {% endif %}
+    {% elif run.pipeline_name == "fetch-posters" %}
+        <h2>Sessões processadas ({{ poster_attempts | length }})</h2>
+        {% if poster_attempts %}
+            <ul>
+                {% for attempt in poster_attempts %}
+                    <li>
+                        {{ attempt.screening.movie.title }} — {{ attempt.source }} —
+                        <span class="badge {% if attempt.status == "success" %}bg-success{% elif attempt.status == "not_found" %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                            {{ attempt.status }}
+                        </span>
+                        {% if attempt.error_message %}({{ attempt.error_message }}){% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhuma sessão processada neste run.</p>
+        {% endif %}
+    {% elif run.pipeline_name == "generate-alerts" %}
+        <h2>Alertas gerados ({{ alerts | length }})</h2>
+        {% if alerts %}
+            <ul>
+                {% for alert in alerts %}<li>{{ alert.rule_name }} — {{ alert.movie.title }}</li>{% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhum alerta gerado neste run.</p>
+        {% endif %}
+    {% endif %}
+{% endblock content %}

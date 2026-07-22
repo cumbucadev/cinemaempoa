@@ -43,5 +43,7 @@ class TestRunnerImportScrappedResults:
         ) as mock_import:
             result = runner.import_scrapped_results(fake_app)
 
-        mock_import.assert_called_once_with(runner.scrapped_results, fake_app)
+        mock_import.assert_called_once_with(
+            runner.scrapped_results, fake_app, pipeline_run_id=None
+        )
         assert result == 5
