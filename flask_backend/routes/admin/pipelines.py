@@ -20,9 +20,8 @@ bp = Blueprint("admin_pipelines", __name__)
 
 # Each entry is one health row on /admin/pipelines. import-json shares one
 # CLI command across three cinema groups that run on very different
-# schedules (see docs/superpowers/specs/2026-07-21-admin-pipeline-dashboard-design.md),
-# so it needs three separate groups here rather than one. The `source`
-# value must stay in sync with flask_backend/commands.py::_run_import_json,
+# schedules, so it needs three separate groups here rather than one.
+# The `source` value must stay in sync with flask_backend/commands.py::_run_import_json,
 # which builds it as sorted(cinema_slugs) joined with ",".
 PIPELINE_GROUPS = [
     {
