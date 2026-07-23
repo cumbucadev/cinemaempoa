@@ -408,7 +408,7 @@ requires-dist = [
     { name = "icalendar", specifier = "==6.3.1" },
     { name = "identify", specifier = "==2.6.1" },
     { name = "idna", specifier = "==3.4" },
-    { name = "imap-tools", specifier = ">=1.13.0" },
+    { name = "imap-tools", specifier = "==1.13.0" },
     { name = "iniconfig", specifier = "==2.3.0" },
     { name = "itsdangerous", specifier = "==2.1.2" },
     { name = "jinja2", specifier = "==3.1.3" },
