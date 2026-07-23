@@ -17,3 +17,10 @@ GEMINI_API_KEY = config("GEMINI_API_KEY", None)
 TMDB_API_TOKEN = config(
     "TMDB_API_TOKEN", default=None
 )  # Read Access Token from https://www.themoviedb.org/settings/api
+PAULO_AMORIM_EMAIL_ADDRESS = config("PAULO_AMORIM_EMAIL_ADDRESS", default=None)
+PAULO_AMORIM_EMAIL_APP_PASSWORD = config(
+    "PAULO_AMORIM_EMAIL_APP_PASSWORD", default=None
+)
+PAULO_AMORIM_NEWSLETTER_SENDER_EMAIL = config(
+    "PAULO_AMORIM_NEWSLETTER_SENDER_EMAIL", default=None
+)  # sender address to filter for in the mailbox; fill in once the newsletter is subscribed to
