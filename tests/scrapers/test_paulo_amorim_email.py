@@ -212,3 +212,57 @@ class TestGetWeeklyFeaturesJson:
         assert mock_mailbox.flag.call_count == 2
         assert os.path.exists(os.path.join(scraper.dir, "201.json"))
         assert os.path.exists(os.path.join(scraper.dir, "202.json"))
+
+    def test_error_processing_one_message_does_not_abort_batch(self, tmp_path):
+        scraper = self._make_scraper(tmp_path)
+        msg_1 = _make_message(
+            uid="301",
+            html="<p>FRANZ</p>",
+            date=datetime(2026, 7, 22, 10, 15, tzinfo=timezone.utc),
+        )
+        msg_2 = _make_message(
+            uid="302",
+            html="<p>FANON</p>",
+            date=datetime(2026, 7, 15, 10, 15, tzinfo=timezone.utc),
+        )
+        mock_mailbox = MagicMock()
+        mock_mailbox.fetch.return_value = [msg_1, msg_2]
+
+        llm_output = json.dumps(
+            {
+                "movies": [
+                    {
+                        "title": "Franz",
+                        "image_url": "",
+                        "general_info": "",
+                        "director": "",
+                        "classification": "",
+                        "excerpt": "",
+                        "screening_dates": [],
+                    }
+                ]
+            }
+        )
+
+        def fake_extract(str_received_date, text):
+            if "FANON" in text:
+                raise TypeError("boom")
+            return llm_output
+
+        with (
+            patch("scrapers.paulo_amorim_email.MailBox") as mock_mailbox_cls,
+            patch(
+                "scrapers.paulo_amorim_email.PauloAmorimEmailExtractorLLM"
+            ) as mock_extractor_cls,
+        ):
+            mock_mailbox_cls.return_value.login.return_value.__enter__.return_value = (
+                mock_mailbox
+            )
+            mock_extractor_cls.return_value.extract_screenings_from_text.side_effect = (
+                fake_extract
+            )
+            result = scraper.get_weekly_features_json()
+
+        assert [movie["title"] for movie in result] == ["Franz"]
+        mock_mailbox.flag.assert_called_once()
+        assert mock_mailbox.flag.call_args[0][0] == "301"

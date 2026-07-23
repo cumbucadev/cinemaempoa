@@ -81,7 +81,11 @@ class PauloAmorimEmail:
                 )
             )
             for msg in messages:
-                movies = self._process_message(mailbox, msg)
+                try:
+                    movies = self._process_message(mailbox, msg)
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
                 if movies is not None:
                     features.extend(movies)
         return features
