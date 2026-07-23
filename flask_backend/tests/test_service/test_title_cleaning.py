@@ -84,6 +84,11 @@ class TestCleanTitlePrefixes:
         result = clean_title("18h – 15 MOSTRA DE DIREITOS HUMANOS")
         assert result.cleaned_title == "15 MOSTRA DE DIREITOS HUMANOS"
 
+    def test_sessao_strand_estreia(self):
+        result = clean_title("Sessão de Estreia: Futuro Futuro")
+        assert result.cleaned_title == "Futuro Futuro"
+        assert result.matched_rules == ["sessao_strand"]
+
 
 class TestCleanTitleSuffixes:
     def test_debate_suffix(self):
@@ -122,6 +127,18 @@ class TestCleanTitleSuffixes:
     def test_year_duration_suffix_with_seconds_and_quote(self):
         result = clean_title("Ainda Há Moradores Aqui (2025, 42'50\")")
         assert result.cleaned_title == "Ainda Há Moradores Aqui"
+
+    def test_sessao_musicada_suffix(self):
+        result = clean_title("Futuro Futuro – Sessão Musicada")
+        assert result.cleaned_title == "Futuro Futuro"
+        assert result.matched_rules == ["sessao_musicada_suffix"]
+
+    def test_sessao_musicada_suffix_with_guests(self):
+        result = clean_title(
+            "Futuro Futuro – Sessão Musicada com Rita Zart e Carlos Ferreira"
+        )
+        assert result.cleaned_title == "Futuro Futuro"
+        assert result.matched_rules == ["sessao_musicada_suffix"]
 
 
 class TestCleanTitleStackedAnnotations:
@@ -200,6 +217,9 @@ class TestCleanTitleIdempotency:
             "KICKFLIP (+ Conversa)",
             "Ilha das Flores + Saneamento Básico",
             "  Oldboy  ",
+            "Sessão de Estreia: Futuro Futuro",
+            "Futuro Futuro – Sessão Musicada",
+            "Futuro Futuro – Sessão Musicada com Rita Zart e Carlos Ferreira",
         ]
         for title in titles:
             once = clean_title(title).cleaned_title
