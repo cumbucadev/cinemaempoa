@@ -49,6 +49,7 @@ _STRAND_NAMES = [
     r"em homenagem a [^:–—-]+",
     r"de curtas",
     r"ABRACCINE",
+    r"de Estreia",
 ]
 _STRAND_ALTERNATION = "|".join(_STRAND_NAMES)
 
@@ -146,6 +147,11 @@ TITLE_CLEANING_RULES: List[TitleCleaningRule] = [
         "year_duration_suffix",
         "Sufixo: (ano, duração)",
         re.compile(r"\s*\(\d{4},\s*[^()]*\)\s*$"),
+    ),
+    TitleCleaningRule(
+        "sessao_musicada_suffix",
+        "Sufixo: – Sessão Musicada (com ...)",
+        re.compile(r"\s*(?:[–—-]\s*)?Sess[ãa]o Musicada\b.*$", re.IGNORECASE),
     ),
 ]
 
