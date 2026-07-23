@@ -75,6 +75,11 @@
         <div class="text-center py-1" style="background-color: #ffc107; color: #000;" data-goatcounter-skip>Ambiente de desenvolvimento</div>
         {# djlint:on #}
     {% endif %}
+    {% if g.user %}
+        {# djlint:off #}
+        <div style="display: none;" data-goatcounter-skip></div>
+        {# djlint:on #}
+    {% endif %}
     <header id="header">
         {# djlint:off #}
         <nav class="navbar" style="
