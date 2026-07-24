@@ -277,11 +277,18 @@ class TestAdminAlertsHistory:
     ):
         screening_id = _create_screening_with_future_date(app)
         with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
             alert_actions.create(screening_id=screening_id, action="dismissed")
 
         response = auth_headers.get("/admin/alerts?status=posted")
         assert response.status_code == 200
-        assert b"Descartado" not in response.data
+        # The nav bar always renders a "Descartados" tab label, so asserting
+        # b"Descartado" not in response.data is trivially false regardless of
+        # the history table's contents. Instead, check for the dismissed-action
+        # badge's distinguishing CSS class ("bg-secondary"), which is only used
+        # by the history table's badge markup for dismissed actions.
+        assert b"Postado" in response.data
+        assert b"bg-secondary" not in response.data
 
     def test_all_tab_shows_both(self, app, auth_headers, setup_cinemas):
         screening_id = _create_screening_with_future_date(app)
