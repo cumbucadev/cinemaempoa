@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 
 from flask_backend.db import db_session
 from flask_backend.models import AlertAction, Movie, Screening, ScreeningDate
+from flask_backend.repository import alert_actions
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 
 
@@ -249,3 +250,71 @@ class TestAdminAlertsDismiss:
                 db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
             )
             assert action.action == "dismissed"
+
+
+class TestAdminAlertsHistory:
+    def test_posted_tab_shows_action(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert b"Postado" in response.data
+        assert b"Duna" in response.data
+
+    def test_dismissed_tab_shows_action(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="dismissed")
+
+        response = auth_headers.get("/admin/alerts?status=dismissed")
+        assert response.status_code == 200
+        assert b"Descartado" in response.data
+
+    def test_posted_tab_does_not_show_dismissed_actions(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="dismissed")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert b"Descartado" not in response.data
+
+    def test_all_tab_shows_both(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+            alert_actions.create(screening_id=screening_id, action="dismissed")
+
+        response = auth_headers.get("/admin/alerts?status=all")
+        assert response.status_code == 200
+        assert b"Postado" in response.data
+        assert b"Descartado" in response.data
+
+    def test_history_shows_reminder_date_when_set(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+        remind_at = date.today() + timedelta(days=2)
+        with app.app_context():
+            alert_actions.create(
+                screening_id=screening_id, action="posted", remind_at=remind_at
+            )
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert remind_at.strftime("%d/%m/%Y").encode() in response.data
+
+    def test_history_shows_dash_without_reminder(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert "—".encode() in response.data

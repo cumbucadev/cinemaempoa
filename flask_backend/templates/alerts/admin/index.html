@@ -67,7 +67,7 @@
         </div>
     {% endmacro %}
     <ul class="nav nav-tabs mb-3">
-        {% for filter_status, label in [("pending", "Pendentes"), ("posted", "Postados"), ("dismissed", "Descartados"), ("all", "Todos")] %}
+        {% for filter_status, label in [("pending", "Pendentes"), ("posted", "Postados"), ("dismissed", "Rejeitados"), ("all", "Todos")] %}
             <li class="nav-item">
                 <a class="nav-link {% if status == filter_status %}active{% endif %}"
                    href="{{ url_for('admin_alerts.index', status=filter_status) }}">{{ label }}</a>
