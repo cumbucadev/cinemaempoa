@@ -3,11 +3,12 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie, Screening, ScreeningDate
+from flask_backend.models import Director, Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.service.screening_alerts import (
     RECORRENTE,
     UNICA,
+    build_drafted_text,
     classify,
     last_upcoming_date,
 )
@@ -103,3 +104,47 @@ class TestLastUpcomingDate:
             screening = _create_screening(movie, [date(2026, 1, 1)])
 
             assert last_upcoming_date(screening, today=date(2026, 7, 24)) is None
+
+
+class TestBuildDraftedText:
+    def test_unica_includes_emoji_year_director_next_date_and_cinema(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie(title="Duna", slug="duna")
+            movie.release_year = 2021
+            director = Director(tmdb_id=1, name="Denis Villeneuve")
+            db_session.add(director)
+            movie.directors.append(director)
+            db_session.commit()
+
+            screening = _create_screening(movie, [date(2026, 8, 1)])
+
+            text = build_drafted_text(screening, today=date(2026, 7, 24))
+
+            assert text == (
+                "⏳ Duna (2021) de Denis Villeneuve\n\n"
+                "01/08 20:00\nNa Cinemateca Capitólio"
+            )
+
+    def test_recorrente_uses_the_next_upcoming_date_not_the_last(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie(title="Duna", slug="duna")
+            screening = _create_screening(
+                movie, [date(2026, 8, 1), date(2026, 8, 5), date(2026, 8, 10)]
+            )
+
+            text = build_drafted_text(screening, today=date(2026, 7, 24))
+
+            assert text.startswith("🔁 Duna\n\n01/08 20:00")
+
+    def test_omits_year_and_director_when_absent(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie(title="Filme Sem Metadados", slug="filme-sem-meta")
+            screening = _create_screening(movie, [date(2026, 8, 1)])
+
+            text = build_drafted_text(screening, today=date(2026, 7, 24))
+
+            assert text.startswith("⏳ Filme Sem Metadados\n\n")

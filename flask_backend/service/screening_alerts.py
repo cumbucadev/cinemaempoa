@@ -45,3 +45,36 @@ def last_upcoming_date(
         if screening_date.date >= today
     ]
     return max(upcoming) if upcoming else None
+
+
+CATEGORY_EMOJIS = {UNICA: "⏳", RECORRENTE: "🔁"}
+
+
+def build_drafted_text(screening: Screening, today: Optional[date] = None) -> str:
+    """Copyable post text for a Screening row on the Pendentes tab - title,
+    release year, director(s), and this screening's own next upcoming date
+    at its own cinema (not the movie's next showing at any cinema, since a
+    row is scoped to one screening/cinema)."""
+    today = today or date.today()
+    movie = screening.movie
+    emoji = CATEGORY_EMOJIS[classify(screening, today)]
+
+    title_line = f"{emoji} {movie.title}".strip()
+    if movie.release_year:
+        title_line += f" ({movie.release_year})"
+    if movie.directors:
+        names = ", ".join(director.name for director in movie.directors)
+        title_line += f" de {names}"
+
+    upcoming = sorted(
+        (d for d in screening.dates if d.date >= today),
+        key=lambda d: (d.date, d.time or ""),
+    )
+    if not upcoming:
+        body = "Sem sessão futura agendada"
+    else:
+        next_date = upcoming[0]
+        when = f"{next_date.date.strftime('%d/%m')} {next_date.time}"
+        body = f"{when}\nNa {screening.cinema.name}"
+
+    return f"{title_line}\n\n{body}"
