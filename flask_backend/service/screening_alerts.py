@@ -27,15 +27,21 @@ def classify(screening: Screening, today: Optional[date] = None) -> str:
     future dates. Exactly 1 -> unica; more -> recorrente."""
     today = today or date.today()
     window_start = today - RECORRENTE_GRACE_PERIOD
-    count = sum(1 for screening_date in screening.dates if screening_date.date >= window_start)
+    count = sum(
+        1 for screening_date in screening.dates if screening_date.date >= window_start
+    )
     return UNICA if count == 1 else RECORRENTE
 
 
-def last_upcoming_date(screening: Screening, today: Optional[date] = None) -> Optional[date]:
+def last_upcoming_date(
+    screening: Screening, today: Optional[date] = None
+) -> Optional[date]:
     """The screening's last ScreeningDate that is still upcoming (>= today),
     or None if it has none. Unaffected by the grace period."""
     today = today or date.today()
     upcoming = [
-        screening_date.date for screening_date in screening.dates if screening_date.date >= today
+        screening_date.date
+        for screening_date in screening.dates
+        if screening_date.date >= today
     ]
     return max(upcoming) if upcoming else None

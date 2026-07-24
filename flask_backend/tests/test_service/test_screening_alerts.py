@@ -62,7 +62,7 @@ class TestClassify:
         with client.application.app_context():
             movie = _create_movie()
             past_dates = [date(2026, 6, day) for day in range(1, 21)]
-            screening = _create_screening(movie, past_dates + [date(2026, 7, 24)])
+            screening = _create_screening(movie, [*past_dates, date(2026, 7, 24)])
 
             assert classify(screening, today=date(2026, 7, 24)) == RECORRENTE
 
@@ -71,9 +71,7 @@ class TestClassify:
     ):
         with client.application.app_context():
             movie = _create_movie()
-            screening = _create_screening(
-                movie, [date(2025, 11, 20), date(2026, 8, 1)]
-            )
+            screening = _create_screening(movie, [date(2025, 11, 20), date(2026, 8, 1)])
 
             assert classify(screening, today=date(2026, 7, 24)) == UNICA
 
@@ -95,9 +93,9 @@ class TestLastUpcomingDate:
                 movie, [date(2026, 8, 1), date(2026, 8, 10), date(2026, 6, 1)]
             )
 
-            assert last_upcoming_date(
-                screening, today=date(2026, 7, 24)
-            ) == date(2026, 8, 10)
+            assert last_upcoming_date(screening, today=date(2026, 7, 24)) == date(
+                2026, 8, 10
+            )
 
     def test_returns_none_without_upcoming_dates(self, client, app, setup_cinemas):
         with client.application.app_context():
