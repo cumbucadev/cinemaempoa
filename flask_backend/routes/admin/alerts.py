@@ -1,3 +1,5 @@
+from math import ceil
+
 from flask import (
     Blueprint,
     abort,
@@ -9,14 +11,15 @@ from flask import (
     url_for,
 )
 
-from flask_backend.models import ALERT_STATUSES
-from flask_backend.repository import alerts
+from flask_backend.models import ALERT_ACTIONS
+from flask_backend.repository import alert_actions, alerts
+from flask_backend.repository.screenings import get_screenings_with_upcoming_dates
 from flask_backend.routes.auth import login_required
-from flask_backend.service import alert_text
+from flask_backend.service.screening_alerts import get_pending_rows
 
 bp = Blueprint("admin_alerts", __name__)
 
-STATUS_FILTERS = (*ALERT_STATUSES, "all")
+STATUS_FILTERS = ("pending", *ALERT_ACTIONS, "all")
 
 
 @bp.route("/admin/alerts")
@@ -36,32 +39,51 @@ def index():
     if status not in STATUS_FILTERS:
         abort(400)
 
-    pending_alerts, pages, qtt_alerts = alerts.get_all_paginated(
-        page, limit, status=None if status == "all" else status
-    )
-    alert_text.refresh_pending(pending_alerts)
-
     prev_page = page - 1 if page > 1 else None
-    next_page = page + 1 if page < pages else None
+
+    if status == "pending":
+        screenings = get_screenings_with_upcoming_dates()
+        latest_actions = alert_actions.get_latest_by_screening_ids(
+            [screening.id for screening in screenings]
+        )
+        rows = get_pending_rows(screenings, latest_actions)
+        qtt_alerts = len(rows)
+        pages = ceil(qtt_alerts / limit) if qtt_alerts else 0
+        offset = (page - 1) * limit
+        return render_template(
+            "alerts/admin/index.html",
+            status=status,
+            pending_rows=rows[offset : offset + limit],
+            curr_page=page,
+            prev_page=prev_page,
+            next_page=page + 1 if page < pages else None,
+            pages=pages,
+            limit=limit,
+            qtt_alerts=qtt_alerts,
+        )
+
+    actions, pages, qtt_alerts = alert_actions.get_paginated(
+        None if status == "all" else status, page, limit
+    )
 
     return render_template(
         "alerts/admin/index.html",
-        alerts=pending_alerts,
         status=status,
+        actions=actions,
         curr_page=page,
         prev_page=prev_page,
-        next_page=next_page,
+        next_page=page + 1 if page < pages else None,
         pages=pages,
         limit=limit,
         qtt_alerts=qtt_alerts,
     )
 
 
-@bp.route("/admin/alerts/<int:alert_id>/mark-posted", methods=("POST",))
+@bp.route("/admin/alerts/<int:screening_id>/mark-posted", methods=("POST",))
 @login_required
-def mark_posted(alert_id):
+def mark_posted(screening_id):
     """Mark alert as posted"""
-    if alerts.mark_posted(alert_id, user_id=g.user.id) is None:
+    if alerts.mark_posted(screening_id, user_id=g.user.id) is None:
         abort(404)
     flash("Alerta marcado como postado!", "success")
 
@@ -70,11 +92,11 @@ def mark_posted(alert_id):
     )
 
 
-@bp.route("/admin/alerts/<int:alert_id>/dismiss", methods=("POST",))
+@bp.route("/admin/alerts/<int:screening_id>/dismiss", methods=("POST",))
 @login_required
-def dismiss(alert_id):
+def dismiss(screening_id):
     """Dismiss alert"""
-    if alerts.dismiss(alert_id, user_id=g.user.id) is None:
+    if alerts.dismiss(screening_id, user_id=g.user.id) is None:
         abort(404)
     flash("Alerta descartado.", "success")
 
