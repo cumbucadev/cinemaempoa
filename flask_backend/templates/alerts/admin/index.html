@@ -32,37 +32,33 @@
     {% endmacro %}
     {% macro category_badge(row) %}
         {% if row.category == "unica" %}
-            <span class="badge bg-info text-dark">Sessão única — {{ row.screening.cinema.name }}</span>
+            <span class="badge bg-info text-dark">Sessão única</span>
         {% else %}
-            <span class="badge bg-primary">Recorrente — {{ row.screening.cinema.name }}</span>
+            <span class="badge bg-primary">Recorrente</span>
         {% endif %}
     {% endmacro %}
     {% macro pending_actions(row, status, stacked=false) %}
-        <div class="{% if stacked %}d-grid gap-2{% endif %}">
-            <form method="post"
-                  action="{{ url_for('admin_alerts.mark_posted', screening_id=row.screening.id) }}"
-                  class="d-flex gap-1 align-items-center mb-1">
-                <input type="hidden" name="status" value="{{ status }}">
-                <input type="date"
-                       name="remind_at"
-                       class="form-control form-control-sm"
-                       max="{{ row.last_upcoming_date.isoformat() }}"
-                       aria-label="Lembrar em">
-                <button type="submit"
-                        class="btn btn-outline-success {% if stacked %}w-100{% endif %}">Marcar como postado</button>
-            </form>
-            <form method="post"
-                  action="{{ url_for('admin_alerts.dismiss', screening_id=row.screening.id) }}"
-                  class="d-flex gap-1 align-items-center">
-                <input type="hidden" name="status" value="{{ status }}">
-                <input type="date"
-                       name="remind_at"
-                       class="form-control form-control-sm"
-                       max="{{ row.last_upcoming_date.isoformat() }}"
-                       aria-label="Lembrar em">
-                <button type="submit"
-                        class="btn btn-outline-danger {% if stacked %}w-100{% endif %}">Descartar</button>
-            </form>
+        <div class="{% if stacked %}d-grid gap-2{% else %}d-flex gap-1{% endif %}">
+            <button type="button"
+                    class="btn btn-outline-success {% if stacked %}w-100{% endif %}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#alertActionModal"
+                    data-action-url="{{ url_for('admin_alerts.mark_posted', screening_id=row.screening.id) }}"
+                    data-status="{{ status }}"
+                    data-max-date="{{ row.last_upcoming_date.isoformat() }}"
+                    data-modal-title="Marcar como postado"
+                    data-submit-label="Confirmar"
+                    data-submit-class="btn-success">Postar</button>
+            <button type="button"
+                    class="btn btn-outline-danger {% if stacked %}w-100{% endif %}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#alertActionModal"
+                    data-action-url="{{ url_for('admin_alerts.dismiss', screening_id=row.screening.id) }}"
+                    data-status="{{ status }}"
+                    data-max-date="{{ row.last_upcoming_date.isoformat() }}"
+                    data-modal-title="Descartar"
+                    data-submit-label="Confirmar"
+                    data-submit-class="btn-danger">Descartar</button>
         </div>
     {% endmacro %}
     <ul class="nav nav-tabs mb-3">
@@ -80,6 +76,7 @@
                     <thead>
                         <tr>
                             <th>Categoria</th>
+                            <th>Cinema</th>
                             <th>Filme</th>
                             <th>Imagem</th>
                             <th>Até quando</th>
@@ -91,6 +88,7 @@
                         {% for row in pending_rows %}
                             <tr>
                                 <td>{{ category_badge(row) }}</td>
+                                <td>{{ row.screening.cinema.name }}</td>
                                 <td>{{ movie_link(row.screening.movie) }}</td>
                                 <td>{{ row_image(row.screening) }}</td>
                                 <td>
@@ -122,7 +120,10 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                {{ category_badge(row) }}
+                                <div class="d-flex align-items-center gap-2">
+                                    {{ category_badge(row) }}
+                                    <span class="text-muted small">{{ row.screening.cinema.name }}</span>
+                                </div>
                                 {% if row.category == "recorrente" %}
                                     <span class="text-muted small">até {{ row.last_upcoming_date.strftime("%d/%m") }}</span>
                                 {% endif %}
@@ -153,6 +154,54 @@
                 <p class="text-muted">Não há sessões únicas ou recorrentes aguardando revisão no momento.</p>
             </div>
         {% endif %}
+        <div class="modal fade"
+             id="alertActionModal"
+             tabindex="-1"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" id="alertActionForm">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="alertActionModalTitle">Ação</h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="status" id="alertActionModalStatus">
+                            <label for="alertActionModalRemindAt" class="form-label">Lembrar em (opcional)</label>
+                            <input type="date"
+                                   name="remind_at"
+                                   id="alertActionModalRemindAt"
+                                   class="form-control">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn" id="alertActionModalSubmit">Confirmar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.getElementById("alertActionModal").addEventListener("show.bs.modal", function(event) {
+                var button = event.relatedTarget;
+                var form = document.getElementById("alertActionForm");
+                var submitBtn = document.getElementById("alertActionModalSubmit");
+                var remindAt = document.getElementById("alertActionModalRemindAt");
+
+                form.action = button.getAttribute("data-action-url");
+                document.getElementById("alertActionModalStatus").value = button.getAttribute("data-status");
+                document.getElementById("alertActionModalTitle").textContent = button.getAttribute("data-modal-title");
+
+                remindAt.value = "";
+                remindAt.max = button.getAttribute("data-max-date");
+
+                submitBtn.textContent = button.getAttribute("data-submit-label");
+                submitBtn.className = "btn " + button.getAttribute("data-submit-class");
+            });
+        </script>
     {% else %}
         {% if actions %}
             <div class="table-responsive">

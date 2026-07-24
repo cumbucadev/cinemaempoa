@@ -58,14 +58,15 @@ class TestAdminAlertsPendingView:
         response = auth_headers.get("/admin/alerts?page=0")
         assert response.status_code == 400
 
-    def test_shows_unica_screening_with_cinema_in_badge(
+    def test_shows_unica_screening_with_cinema_column(
         self, app, auth_headers, setup_cinemas
     ):
         _create_screening_with_future_date(app)
 
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
-        assert "Sessão única — Cinemateca Capitólio".encode() in response.data
+        assert "Sessão única".encode() in response.data
+        assert "Cinemateca Capitólio".encode() in response.data
 
     def test_shows_recorrente_screening_with_until_date(
         self, app, auth_headers, setup_cinemas
@@ -131,7 +132,7 @@ class TestAdminAlertsPendingView:
         assert response.status_code == 200
         assert b"Rascunho" not in response.data
 
-    def test_reminder_input_max_is_last_upcoming_date(
+    def test_reminder_modal_trigger_carries_last_upcoming_date(
         self, app, auth_headers, setup_cinemas
     ):
         screening_id = _create_screening_with_future_date(app, days=5)
@@ -139,7 +140,7 @@ class TestAdminAlertsPendingView:
 
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
-        assert f'max="{last_date.isoformat()}"'.encode() in response.data
+        assert f'data-max-date="{last_date.isoformat()}"'.encode() in response.data
         assert screening_id is not None
 
     def test_shows_warning_when_no_image(self, app, auth_headers, setup_cinemas):
