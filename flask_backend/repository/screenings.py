@@ -154,6 +154,21 @@ def get_screenings_due_for_core_alert_evaluation() -> List[Screening]:
     )
 
 
+def get_screenings_with_upcoming_dates() -> List[Screening]:
+    """Non-draft screenings with at least one ScreeningDate >= today -
+    candidates for the live-computed Pendentes view (issue #258, see
+    flask_backend/service/screening_alerts.py)."""
+    today = date.today()
+    return (
+        db_session.query(Screening)
+        .join(ScreeningDate)
+        .filter(Screening.draft == False)  # noqa: E712
+        .filter(func.date(ScreeningDate.date) >= today)
+        .distinct()
+        .all()
+    )
+
+
 def update_screening_dates(
     screening: Screening, screening_dates: List[ScreeningDate]
 ) -> Screening:
