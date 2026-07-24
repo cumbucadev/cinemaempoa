@@ -32,7 +32,6 @@ def register_commands(app):
     app.cli.add_command(title_cleaning_report_command)
     app.cli.add_command(title_cleaning_backfill_command)
     app.cli.add_command(delete_movie_command)
-    app.cli.add_command(generate_alerts)
 
 
 def _run_import_json(run, json_path):
@@ -317,69 +316,6 @@ def title_cleaning_backfill_command(apply_):
     forma irreversível. Faça backup do arquivo do banco antes de usar.
     """
     run_title_cleaning_backfill(apply=apply_)
-
-
-@click.command("generate-alerts")
-@click.option(
-    "--limit",
-    type=int,
-    default=None,
-    help="Número máximo de sessões/filmes a avaliar. Sem limite por padrão.",
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    default=False,
-    help="Apenas lista o que seria criado, sem gravar alertas.",
-)
-@click.option(
-    "--verbose", "-v", is_flag=True, default=False, help="Mostra logs detalhados."
-)
-def generate_alerts(limit, dry_run, verbose):
-    """Avalia as regras de alerta (filme novo, sessão única, sessão
-    comentada, mostra, estreia/retorno de diretor, nova combinação de
-    gênero, sequência/franquia) e grava os alertas pendentes.
-
-    Revise-os em /admin/alerts.
-    """
-    from flask_backend.repository import pipeline_runs
-    from flask_backend.service.alert_pipeline import run_pipeline
-
-    log_level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
-
-    if dry_run:
-        click.echo("=== Modo dry-run: nenhum alerta será gravado ===\n")
-
-    run = pipeline_runs.start("generate-alerts")
-    try:
-        result = run_pipeline(limit=limit, dry_run=dry_run, pipeline_run_id=run.id)
-    except Exception as exc:
-        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
-        raise
-
-    pipeline_runs.finish(
-        run.id,
-        status="success",
-        summary=json.dumps(
-            {
-                "screenings_evaluated": result.screenings_evaluated,
-                "movies_evaluated": result.movies_evaluated,
-                "alerts_created": result.alerts_created,
-            }
-        ),
-    )
-
-    click.echo(f"\n{'=' * 40}")
-    click.echo("Resultado da geração de alertas:")
-    click.echo(f"  Sessões avaliadas:    {result.screenings_evaluated}")
-    click.echo(f"  Filmes avaliados:     {result.movies_evaluated}")
-    click.echo(f"  Alertas gerados:      {result.alerts_created}")
-    if result.alerts_by_rule:
-        click.echo("  Por regra:")
-        for rule_name, count in sorted(result.alerts_by_rule.items()):
-            click.echo(f"    {rule_name}: {count}")
-    click.echo(f"{'=' * 40}")
 
 
 @click.command("delete-movie")

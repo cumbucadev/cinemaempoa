@@ -33,7 +33,6 @@ def clean_db(app):
     with app.app_context():
         # Clear all data from tables
         from flask_backend.models import (
-            Alert,
             AlertAction,
             BlogPost,
             Cinema,
@@ -53,7 +52,6 @@ def clean_db(app):
             movie_genres,
         )
 
-        db_session.query(Alert).delete()
         db_session.query(AlertAction).delete()
         db_session.query(BlogPost).delete()
         db_session.query(User).delete()

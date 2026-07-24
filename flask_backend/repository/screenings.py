@@ -5,7 +5,7 @@ from sqlalchemy import func
 
 from flask_backend.db import db_session
 from flask_backend.models import Cinema, Screening, ScreeningDate
-from flask_backend.repository import alerts
+from flask_backend.repository import alert_actions
 from flask_backend.service.shared import get_weekend_dates
 
 
@@ -143,17 +143,6 @@ def update_title_cleaning_info(
     return screening
 
 
-def get_screenings_due_for_core_alert_evaluation() -> List[Screening]:
-    """Non-draft screenings whose core alert rules (new movie, single
-    screening, sessão comentada, mostra) haven't been evaluated yet."""
-    return (
-        db_session.query(Screening)
-        .filter(Screening.core_alerts_evaluated_at.is_(None))
-        .filter(Screening.draft == False)  # noqa: E712
-        .all()
-    )
-
-
 def get_screenings_with_upcoming_dates() -> List[Screening]:
     """Non-draft screenings with at least one ScreeningDate >= today -
     candidates for the live-computed Pendentes view (issue #258, see
@@ -212,7 +201,7 @@ def delete(
     # delete all related dates to maintain integrity
     for _date in screening.dates:
         db_session.delete(_date)
-    alerts.delete_for_screening(screening.id)
+    alert_actions.delete_for_screening(screening.id)
     db_session.delete(screening)
     db_session.commit()
 
