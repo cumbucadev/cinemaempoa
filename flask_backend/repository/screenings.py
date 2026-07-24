@@ -143,19 +143,22 @@ def update_title_cleaning_info(
     return screening
 
 
-def get_screenings_with_upcoming_dates() -> List[Screening]:
+def get_screenings_with_upcoming_dates(
+    cinema_id: Optional[int] = None,
+) -> List[Screening]:
     """Non-draft screenings with at least one ScreeningDate >= today -
     candidates for the live-computed Pendentes view (issue #258, see
     flask_backend/service/screening_alerts.py)."""
     today = date.today()
-    return (
+    query = (
         db_session.query(Screening)
         .join(ScreeningDate)
         .filter(Screening.draft == False)  # noqa: E712
         .filter(func.date(ScreeningDate.date) >= today)
-        .distinct()
-        .all()
     )
+    if cinema_id is not None:
+        query = query.filter(Screening.cinema_id == cinema_id)
+    return query.distinct().all()
 
 
 def update_screening_dates(

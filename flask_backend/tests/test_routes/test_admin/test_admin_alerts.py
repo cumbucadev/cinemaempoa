@@ -10,12 +10,14 @@ from flask_backend.repository import alert_actions
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 
 
-def _create_screening_with_future_date(app, title="Duna", slug="duna", days=1):
+def _create_screening_with_future_date(
+    app, title="Duna", slug="duna", days=1, cinema_slug="capitolio"
+):
     with app.app_context():
         movie = Movie(title=title, slug=slug, created_at=datetime.now())
         db_session.add(movie)
         db_session.commit()
-        cinema = get_cinema_by_slug("capitolio")
+        cinema = get_cinema_by_slug(cinema_slug)
         screening = Screening(
             movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
         )
@@ -331,3 +333,88 @@ class TestAdminAlertsHistory:
         response = auth_headers.get("/admin/alerts?status=posted")
         assert response.status_code == 200
         assert "—".encode() in response.data
+
+
+class TestAdminAlertsFilters:
+    def test_cinema_filter_narrows_pending_tab(self, app, auth_headers, setup_cinemas):
+        _create_screening_with_future_date(
+            app, title="Duna", slug="duna", cinema_slug="capitolio"
+        )
+        _create_screening_with_future_date(
+            app, title="Coringa", slug="coringa", cinema_slug="sala-redencao"
+        )
+
+        response = auth_headers.get("/admin/alerts?cinema=capitolio")
+        assert response.status_code == 200
+        assert b"Duna" in response.data
+        assert b"Coringa" not in response.data
+
+    def test_cinema_filter_narrows_history_tab(self, app, auth_headers, setup_cinemas):
+        duna_id = _create_screening_with_future_date(
+            app, title="Duna", slug="duna", cinema_slug="capitolio"
+        )
+        coringa_id = _create_screening_with_future_date(
+            app, title="Coringa", slug="coringa", cinema_slug="sala-redencao"
+        )
+        with app.app_context():
+            alert_actions.create(screening_id=duna_id, action="posted")
+            alert_actions.create(screening_id=coringa_id, action="posted")
+
+        response = auth_headers.get("/admin/alerts?status=all&cinema=capitolio")
+        assert response.status_code == 200
+        assert b"Duna" in response.data
+        assert b"Coringa" not in response.data
+
+    def test_unknown_cinema_slug_returns_400(self, auth_headers):
+        response = auth_headers.get("/admin/alerts?cinema=nao-existe")
+        assert response.status_code == 400
+
+    def test_categoria_filter_narrows_pending_tab(
+        self, app, auth_headers, setup_cinemas
+    ):
+        _create_screening_with_future_date(app, title="Duna", slug="duna", days=1)
+        with app.app_context():
+            movie = Movie(title="Coringa", slug="coringa", created_at=datetime.now())
+            db_session.add(movie)
+            db_session.commit()
+            cinema = get_cinema_by_slug("capitolio")
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
+            )
+            db_session.add(screening)
+            db_session.commit()
+            for offset in (1, 2, 3):
+                db_session.add(
+                    ScreeningDate(
+                        screening_id=screening.id,
+                        date=date.today() + timedelta(days=offset),
+                        time="20:00",
+                    )
+                )
+            db_session.commit()
+
+        response = auth_headers.get("/admin/alerts?categoria=unica")
+        assert response.status_code == 200
+        assert b"Duna" in response.data
+        assert b"Coringa" not in response.data
+
+        response = auth_headers.get("/admin/alerts?categoria=recorrente")
+        assert response.status_code == 200
+        assert b"Coringa" in response.data
+        assert b"Duna" not in response.data
+
+    def test_invalid_categoria_returns_400(self, auth_headers):
+        response = auth_headers.get("/admin/alerts?categoria=bogus")
+        assert response.status_code == 400
+
+    def test_empty_cinema_and_categoria_are_treated_as_no_filter(
+        self, app, auth_headers, setup_cinemas
+    ):
+        # Covers the "Todos"/"Todas" reset options in the filter form, which
+        # submit cinema= / categoria= as empty strings rather than omitting
+        # the param entirely.
+        _create_screening_with_future_date(app)
+
+        response = auth_headers.get("/admin/alerts?cinema=&categoria=")
+        assert response.status_code == 200
+        assert b"Duna" in response.data

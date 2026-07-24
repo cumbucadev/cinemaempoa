@@ -13,17 +13,18 @@ from flask import (
 )
 
 from flask_backend.models import ALERT_ACTIONS
-from flask_backend.repository import alert_actions
+from flask_backend.repository import alert_actions, cinemas
 from flask_backend.repository.screenings import (
     get_screening_by_id,
     get_screenings_with_upcoming_dates,
 )
 from flask_backend.routes.auth import login_required
-from flask_backend.service.screening_alerts import get_pending_rows
+from flask_backend.service.screening_alerts import RECORRENTE, UNICA, get_pending_rows
 
 bp = Blueprint("admin_alerts", __name__)
 
 STATUS_FILTERS = ("pending", *ALERT_ACTIONS, "all")
+CATEGORIA_FILTERS = (UNICA, RECORRENTE)
 
 
 @bp.route("/admin/alerts")
@@ -43,14 +44,29 @@ def index():
     if status not in STATUS_FILTERS:
         abort(400)
 
+    cinema_slug = request.args.get("cinema") or None
+    cinema = None
+    if cinema_slug is not None:
+        cinema = cinemas.get_by_slug(cinema_slug)
+        if cinema is None:
+            abort(400)
+
+    categoria = request.args.get("categoria") or None
+    if categoria is not None and categoria not in CATEGORIA_FILTERS:
+        abort(400)
+
     prev_page = page - 1 if page > 1 else None
 
     if status == "pending":
-        screenings = get_screenings_with_upcoming_dates()
+        screenings = get_screenings_with_upcoming_dates(
+            cinema_id=cinema.id if cinema else None
+        )
         latest_actions = alert_actions.get_latest_by_screening_ids(
             [screening.id for screening in screenings]
         )
         rows = get_pending_rows(screenings, latest_actions)
+        if categoria is not None:
+            rows = [row for row in rows if row.category == categoria]
         qtt_alerts = len(rows)
         pages = ceil(qtt_alerts / limit) if qtt_alerts else 0
         offset = (page - 1) * limit
@@ -64,10 +80,16 @@ def index():
             pages=pages,
             limit=limit,
             qtt_alerts=qtt_alerts,
+            cinemas=cinemas.get_all(),
+            cinema=cinema_slug,
+            categoria=categoria,
         )
 
     actions, pages, qtt_alerts = alert_actions.get_paginated(
-        None if status == "all" else status, page, limit
+        None if status == "all" else status,
+        page,
+        limit,
+        cinema_id=cinema.id if cinema else None,
     )
 
     return render_template(
@@ -80,6 +102,9 @@ def index():
         pages=pages,
         limit=limit,
         qtt_alerts=qtt_alerts,
+        cinemas=cinemas.get_all(),
+        cinema=cinema_slug,
+        categoria=categoria,
     )
 
 

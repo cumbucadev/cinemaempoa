@@ -65,10 +65,39 @@
         {% for filter_status, label in [("pending", "Pendentes"), ("posted", "Postados"), ("dismissed", "Descartados"), ("all", "Todos")] %}
             <li class="nav-item">
                 <a class="nav-link {% if status == filter_status %}active{% endif %}"
-                   href="{{ url_for('admin_alerts.index', status=filter_status) }}">{{ label }}</a>
+                   href="{{ url_for('admin_alerts.index', status=filter_status, cinema=cinema, categoria=categoria if filter_status == 'pending' else None) }}">{{ label }}</a>
             </li>
         {% endfor %}
     </ul>
+    <form method="get"
+          action="{{ url_for("admin_alerts.index") }}"
+          class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input type="hidden" name="limit" value="{{ limit }}">
+        <div>
+            <label class="form-label" for="cinema-filter">Cinema</label>
+            <select class="form-select" id="cinema-filter" name="cinema">
+                <option value="">Todos os cinemas</option>
+                {% for c in cinemas %}
+                    <option value="{{ c.slug }}" {% if cinema == c.slug %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if status == "pending" %}
+            <div>
+                <label class="form-label" for="categoria-filter">Categoria</label>
+                <select class="form-select" id="categoria-filter" name="categoria">
+                    <option value="">Todas</option>
+                    <option value="unica" {% if categoria == "unica" %}selected{% endif %}>Sessão única</option>
+                    <option value="recorrente"
+                            {% if categoria == "recorrente" %}selected{% endif %}>Recorrente</option>
+                </select>
+            </div>
+        {% endif %}
+        <div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </form>
     {% if status == "pending" %}
         {% if pending_rows %}
             <div class="table-responsive d-none d-md-block">
@@ -256,19 +285,19 @@
                 {% if prev_page %}
                     <li class="page-item">
                         <a class="page-link"
-                           href="{{ url_for('admin_alerts.index', page=prev_page, limit=limit, status=status) }}">Anterior</a>
+                           href="{{ url_for('admin_alerts.index', page=prev_page, limit=limit, status=status, cinema=cinema, categoria=categoria) }}">Anterior</a>
                     </li>
                 {% endif %}
                 {% for page_num in range(1, pages + 1) %}
                     <li class="page-item {% if page_num == curr_page %}active{% endif %}">
                         <a class="page-link"
-                           href="{{ url_for('admin_alerts.index', page=page_num, limit=limit, status=status) }}">{{ page_num }}</a>
+                           href="{{ url_for('admin_alerts.index', page=page_num, limit=limit, status=status, cinema=cinema, categoria=categoria) }}">{{ page_num }}</a>
                     </li>
                 {% endfor %}
                 {% if next_page %}
                     <li class="page-item">
                         <a class="page-link"
-                           href="{{ url_for('admin_alerts.index', page=next_page, limit=limit, status=status) }}">Próximo</a>
+                           href="{{ url_for('admin_alerts.index', page=next_page, limit=limit, status=status, cinema=cinema, categoria=categoria) }}">Próximo</a>
                     </li>
                 {% endif %}
             </ul>

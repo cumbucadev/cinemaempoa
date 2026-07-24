@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import AlertAction
+from flask_backend.models import AlertAction, Screening
 
 
 def create(
@@ -60,13 +60,18 @@ def get_latest_by_screening_ids(screening_ids: List[int]) -> Dict[int, AlertActi
 
 
 def get_paginated(
-    action: Optional[str], current_page: int, per_page: int
+    action: Optional[str],
+    current_page: int,
+    per_page: int,
+    cinema_id: Optional[int] = None,
 ) -> Tuple[List[AlertAction], int, int]:
     offset_value = (current_page - 1) * per_page
 
     query = db_session.query(AlertAction)
     if action is not None:
         query = query.filter(AlertAction.action == action)
+    if cinema_id is not None:
+        query = query.join(Screening).filter(Screening.cinema_id == cinema_id)
 
     query = (
         query.order_by(AlertAction.created_at.desc())
@@ -78,6 +83,10 @@ def get_paginated(
     count_query = db_session.query(func.count(AlertAction.id))
     if action is not None:
         count_query = count_query.filter(AlertAction.action == action)
+    if cinema_id is not None:
+        count_query = count_query.join(Screening).filter(
+            Screening.cinema_id == cinema_id
+        )
     total_count = count_query.scalar()
     total_pages = ceil(total_count / per_page) if total_count else 0
 
