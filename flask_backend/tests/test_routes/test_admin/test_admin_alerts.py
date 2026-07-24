@@ -5,7 +5,7 @@ Tests the basic functionality of /admin/alerts/* endpoints.
 from datetime import date, datetime, timedelta
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie, Screening, ScreeningDate
+from flask_backend.models import AlertAction, Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 
 
@@ -154,3 +154,98 @@ class TestAdminAlertsPendingView:
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
         assert "⏳ Duna\n\n".encode() in response.data
+
+
+class TestAdminAlertsMarkPosted:
+    def test_requires_login(self, app, client, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = client.post(f"/admin/alerts/{screening_id}/mark-posted")
+        assert response.status_code == 302
+        assert b"/auth/login" in response.data
+
+    def test_nonexistent_screening_returns_404(self, auth_headers):
+        response = auth_headers.post("/admin/alerts/99999/mark-posted")
+        assert response.status_code == 404
+
+    def test_records_action_without_reminder(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/mark-posted", follow_redirects=True
+        )
+        assert response.status_code == 200
+
+        with app.app_context():
+            action = (
+                db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
+            )
+            assert action.action == "posted"
+            assert action.remind_at is None
+            assert action.created_by_user_id is not None
+
+    def test_records_action_with_reminder(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app, days=10)
+        remind_at = (date.today() + timedelta(days=5)).isoformat()
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/mark-posted",
+            data={"remind_at": remind_at},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        with app.app_context():
+            action = (
+                db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
+            )
+            assert action.remind_at == date.fromisoformat(remind_at)
+
+    def test_invalid_reminder_format_returns_400(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/mark-posted",
+            data={"remind_at": "not-a-date"},
+        )
+        assert response.status_code == 400
+
+    def test_posted_screening_disappears_from_pending(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+
+        auth_headers.post(f"/admin/alerts/{screening_id}/mark-posted")
+
+        response = auth_headers.get("/admin/alerts")
+        assert response.status_code == 200
+        assert b"Duna" not in response.data
+
+
+class TestAdminAlertsDismiss:
+    def test_requires_login(self, app, client, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = client.post(f"/admin/alerts/{screening_id}/dismiss")
+        assert response.status_code == 302
+        assert b"/auth/login" in response.data
+
+    def test_nonexistent_screening_returns_404(self, auth_headers):
+        response = auth_headers.post("/admin/alerts/99999/dismiss")
+        assert response.status_code == 404
+
+    def test_records_action(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/dismiss", follow_redirects=True
+        )
+        assert response.status_code == 200
+
+        with app.app_context():
+            action = (
+                db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
+            )
+            assert action.action == "dismissed"

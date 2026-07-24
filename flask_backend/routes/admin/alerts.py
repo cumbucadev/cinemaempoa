@@ -1,3 +1,4 @@
+from datetime import date
 from math import ceil
 
 from flask import (
@@ -12,8 +13,11 @@ from flask import (
 )
 
 from flask_backend.models import ALERT_ACTIONS
-from flask_backend.repository import alert_actions, alerts
-from flask_backend.repository.screenings import get_screenings_with_upcoming_dates
+from flask_backend.repository import alert_actions
+from flask_backend.repository.screenings import (
+    get_screening_by_id,
+    get_screenings_with_upcoming_dates,
+)
 from flask_backend.routes.auth import login_required
 from flask_backend.service.screening_alerts import get_pending_rows
 
@@ -79,13 +83,30 @@ def index():
     )
 
 
+def _parse_remind_at(raw):
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        abort(400)
+
+
 @bp.route("/admin/alerts/<int:screening_id>/mark-posted", methods=("POST",))
 @login_required
 def mark_posted(screening_id):
-    """Mark alert as posted"""
-    if alerts.mark_posted(screening_id, user_id=g.user.id) is None:
+    """Mark a screening as posted, optionally with a reminder date."""
+    remind_at = _parse_remind_at(request.form.get("remind_at"))
+    if get_screening_by_id(screening_id) is None:
         abort(404)
-    flash("Alerta marcado como postado!", "success")
+
+    alert_actions.create(
+        screening_id=screening_id,
+        action="posted",
+        remind_at=remind_at,
+        created_by_user_id=g.user.id,
+    )
+    flash("Marcado como postado!", "success")
 
     return redirect(
         url_for("admin_alerts.index", status=request.form.get("status", "pending"))
@@ -95,10 +116,18 @@ def mark_posted(screening_id):
 @bp.route("/admin/alerts/<int:screening_id>/dismiss", methods=("POST",))
 @login_required
 def dismiss(screening_id):
-    """Dismiss alert"""
-    if alerts.dismiss(screening_id, user_id=g.user.id) is None:
+    """Dismiss a screening, optionally with a reminder date."""
+    remind_at = _parse_remind_at(request.form.get("remind_at"))
+    if get_screening_by_id(screening_id) is None:
         abort(404)
-    flash("Alerta descartado.", "success")
+
+    alert_actions.create(
+        screening_id=screening_id,
+        action="dismissed",
+        remind_at=remind_at,
+        created_by_user_id=g.user.id,
+    )
+    flash("Descartado.", "success")
 
     return redirect(
         url_for("admin_alerts.index", status=request.form.get("status", "pending"))
