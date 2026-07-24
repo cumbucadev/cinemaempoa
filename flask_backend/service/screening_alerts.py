@@ -4,12 +4,13 @@ rule pipeline in service/alert_rules.py + service/alert_pipeline.py. Pure
 functions, no DB writes.
 """
 
+from dataclasses import dataclass
 from datetime import date
-from typing import Optional
+from typing import Dict, List, Optional
 
 from dateutil.relativedelta import relativedelta
 
-from flask_backend.models import Screening
+from flask_backend.models import AlertAction, Screening
 
 UNICA = "unica"
 RECORRENTE = "recorrente"
@@ -78,3 +79,43 @@ def build_drafted_text(screening: Screening, today: Optional[date] = None) -> st
         body = f"{when}\nNa {screening.cinema.name}"
 
     return f"{title_line}\n\n{body}"
+
+
+@dataclass(frozen=True)
+class PendingRow:
+    screening: Screening
+    category: str
+    last_upcoming_date: date
+    drafted_text: str
+
+
+def get_pending_rows(
+    screenings: List[Screening],
+    latest_actions: Dict[int, AlertAction],
+    today: Optional[date] = None,
+) -> List[PendingRow]:
+    """Builds and sorts the Pendentes rows from `screenings` (expected to
+    already be filtered to non-draft, has-an-upcoming-date, e.g. via
+    repository.screenings.get_screenings_with_upcoming_dates), excluding
+    any screening whose most recent action's remind_at hasn't arrived yet.
+    Sorted ascending by nearest upcoming ScreeningDate."""
+    today = today or date.today()
+    rows = []
+    for screening in screenings:
+        latest_action = latest_actions.get(screening.id)
+        if latest_action is not None and (
+            latest_action.remind_at is None or latest_action.remind_at > today
+        ):
+            continue
+        rows.append(
+            PendingRow(
+                screening=screening,
+                category=classify(screening, today),
+                last_upcoming_date=last_upcoming_date(screening, today),
+                drafted_text=build_drafted_text(screening, today),
+            )
+        )
+    rows.sort(
+        key=lambda row: min(d.date for d in row.screening.dates if d.date >= today)
+    )
+    return rows

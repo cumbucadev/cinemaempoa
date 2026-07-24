@@ -3,13 +3,14 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 
 from flask_backend.db import db_session
-from flask_backend.models import Director, Movie, Screening, ScreeningDate
+from flask_backend.models import AlertAction, Director, Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.service.screening_alerts import (
     RECORRENTE,
     UNICA,
     build_drafted_text,
     classify,
+    get_pending_rows,
     last_upcoming_date,
 )
 
@@ -148,3 +149,83 @@ class TestBuildDraftedText:
             text = build_drafted_text(screening, today=date(2026, 7, 24))
 
             assert text.startswith("⏳ Filme Sem Metadados\n\n")
+
+
+class TestGetPendingRows:
+    def test_includes_screening_with_no_action(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening(movie, [date(2026, 8, 1)])
+
+            rows = get_pending_rows([screening], {}, today=date(2026, 7, 24))
+
+            assert len(rows) == 1
+            assert rows[0].screening.id == screening.id
+            assert rows[0].category == UNICA
+            assert rows[0].last_upcoming_date == date(2026, 8, 1)
+
+    def test_excludes_screening_with_indefinite_action(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening(movie, [date(2026, 8, 1)])
+            action = AlertAction(
+                screening_id=screening.id, action="posted", created_at=datetime.now()
+            )
+
+            rows = get_pending_rows(
+                [screening], {screening.id: action}, today=date(2026, 7, 24)
+            )
+
+            assert rows == []
+
+    def test_excludes_screening_whose_reminder_has_not_arrived(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening(movie, [date(2026, 8, 1)])
+            action = AlertAction(
+                screening_id=screening.id,
+                action="dismissed",
+                created_at=datetime.now(),
+                remind_at=date(2026, 7, 30),
+            )
+
+            rows = get_pending_rows(
+                [screening], {screening.id: action}, today=date(2026, 7, 24)
+            )
+
+            assert rows == []
+
+    def test_includes_screening_whose_reminder_has_arrived(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening(movie, [date(2026, 8, 1)])
+            action = AlertAction(
+                screening_id=screening.id,
+                action="posted",
+                created_at=datetime.now(),
+                remind_at=date(2026, 7, 24),
+            )
+
+            rows = get_pending_rows(
+                [screening], {screening.id: action}, today=date(2026, 7, 24)
+            )
+
+            assert len(rows) == 1
+
+    def test_sorts_by_nearest_upcoming_date_ascending(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie()
+            later = _create_screening(movie, [date(2026, 9, 1)])
+            sooner = _create_screening(
+                _create_movie(title="Filme 2", slug="filme-2"), [date(2026, 8, 1)]
+            )
+
+            rows = get_pending_rows([later, sooner], {}, today=date(2026, 7, 24))
+
+            assert [row.screening.id for row in rows] == [sooner.id, later.id]
