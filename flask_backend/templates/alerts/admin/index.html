@@ -24,7 +24,8 @@
     {% endmacro %}
     {% macro movie_link(movie) %}
         {% if movie.slug %}
-            <a href="{{ url_for('movie.show', slug=movie.slug) }}" class="text-decoration-none">{{ movie.title }}</a>
+            <a href="{{ url_for('movie.show', slug=movie.slug) }}"
+               class="text-decoration-none">{{ movie.title }}</a>
         {% else %}
             {{ movie.title }}
         {% endif %}
@@ -47,9 +48,8 @@
                        class="form-control form-control-sm"
                        max="{{ row.last_upcoming_date.isoformat() }}"
                        aria-label="Lembrar em">
-                <button type="submit" class="btn btn-outline-success {% if stacked %}w-100{% endif %}">
-                    Marcar como postado
-                </button>
+                <button type="submit"
+                        class="btn btn-outline-success {% if stacked %}w-100{% endif %}">Marcar como postado</button>
             </form>
             <form method="post"
                   action="{{ url_for('admin_alerts.dismiss', screening_id=row.screening.id) }}"
@@ -60,9 +60,8 @@
                        class="form-control form-control-sm"
                        max="{{ row.last_upcoming_date.isoformat() }}"
                        aria-label="Lembrar em">
-                <button type="submit" class="btn btn-outline-danger {% if stacked %}w-100{% endif %}">
-                    Descartar
-                </button>
+                <button type="submit"
+                        class="btn btn-outline-danger {% if stacked %}w-100{% endif %}">Descartar</button>
             </form>
         </div>
     {% endmacro %}
@@ -95,11 +94,16 @@
                                 <td>{{ movie_link(row.screening.movie) }}</td>
                                 <td>{{ row_image(row.screening) }}</td>
                                 <td>
-                                    {% if row.category == "recorrente" %}até {{ row.last_upcoming_date.strftime("%d/%m") }}{% endif %}
+                                    {% if row.category == "recorrente" %}
+                                        até {{ row.last_upcoming_date.strftime("%d/%m") }}
+                                    {% endif %}
                                 </td>
                                 <td class="w-25">
                                     <div class="input-group input-group-sm">
-                                        <textarea class="form-control" rows="5" readonly id="alert-text-{{ row.screening.id }}">{{ row.drafted_text }}</textarea>
+                                        <textarea class="form-control"
+                                                  rows="5"
+                                                  readonly
+                                                  id="alert-text-{{ row.screening.id }}">{{ row.drafted_text }}</textarea>
                                         <button type="button"
                                                 class="btn btn-outline-secondary"
                                                 onclick="navigator.clipboard.writeText(document.getElementById('alert-text-{{ row.screening.id }}').value)">
@@ -128,7 +132,10 @@
                                 {{ row_image(row.screening) }}
                             </div>
                             <div class="input-group input-group-sm mb-3">
-                                <textarea class="form-control" rows="5" readonly id="alert-text-mobile-{{ row.screening.id }}">{{ row.drafted_text }}</textarea>
+                                <textarea class="form-control"
+                                          rows="5"
+                                          readonly
+                                          id="alert-text-mobile-{{ row.screening.id }}">{{ row.drafted_text }}</textarea>
                                 <button type="button"
                                         class="btn btn-outline-secondary"
                                         onclick="navigator.clipboard.writeText(document.getElementById('alert-text-mobile-{{ row.screening.id }}').value)">
@@ -164,7 +171,11 @@
                             <tr>
                                 <td>
                                     <span class="badge {% if action.action == "posted" %}bg-success{% else %}bg-secondary{% endif %}">
-                                        {% if action.action == "posted" %}Postado{% else %}Descartado{% endif %}
+                                        {% if action.action == "posted" %}
+                                            Postado
+                                        {% else %}
+                                            Descartado
+                                        {% endif %}
                                     </span>
                                 </td>
                                 <td>{{ movie_link(action.screening.movie) }}</td>
