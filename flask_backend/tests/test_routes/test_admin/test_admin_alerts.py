@@ -260,7 +260,7 @@ class TestAdminAlertsHistory:
 
         response = auth_headers.get("/admin/alerts?status=posted")
         assert response.status_code == 200
-        assert b"Postado" in response.data
+        assert b"bg-success" in response.data
         assert b"Duna" in response.data
 
     def test_dismissed_tab_shows_action(self, app, auth_headers, setup_cinemas):
@@ -270,7 +270,8 @@ class TestAdminAlertsHistory:
 
         response = auth_headers.get("/admin/alerts?status=dismissed")
         assert response.status_code == 200
-        assert b"Descartado" in response.data
+        assert b"bg-secondary" in response.data
+        assert b"Duna" in response.data
 
     def test_posted_tab_does_not_show_dismissed_actions(
         self, app, auth_headers, setup_cinemas
@@ -298,8 +299,12 @@ class TestAdminAlertsHistory:
 
         response = auth_headers.get("/admin/alerts?status=all")
         assert response.status_code == 200
-        assert b"Postado" in response.data
-        assert b"Descartado" in response.data
+        # The nav bar always renders both "Postados" and "Descartados" tab
+        # labels regardless of which tab is active, so asserting the raw
+        # substrings proves nothing about the history table's contents.
+        # Check the badge CSS classes, which only appear in the table body.
+        assert b"bg-success" in response.data
+        assert b"bg-secondary" in response.data
 
     def test_history_shows_reminder_date_when_set(
         self, app, auth_headers, setup_cinemas
