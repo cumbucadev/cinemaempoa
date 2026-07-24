@@ -27,6 +27,8 @@ ALERT_STATUSES = ["pending", "posted", "dismissed"]
 
 PIPELINE_RUN_STATUSES = ["running", "success", "warning", "error"]
 
+ALERT_ACTIONS = ["posted", "dismissed"]
+
 
 class User(Base):
     __tablename__ = "users"
@@ -298,6 +300,31 @@ class Alert(Base):
     movie: Mapped["Movie"] = relationship()
     screening: Mapped[Optional["Screening"]] = relationship()
     resolved_by: Mapped[Optional["User"]] = relationship()
+
+
+class AlertAction(Base):
+    """One posted/dismissed action taken on a Screening from /admin/alerts
+    (issue #258). Append-only log - a screening can accumulate several rows
+    over its run (e.g. posted once, resurfaces via `remind_at`, dismissed
+    later), which is what gives the admin a real posting history instead of
+    a single mutable status. Replaces the Alert model."""
+
+    __tablename__ = "alert_actions"
+
+    id = Column(Integer, primary_key=True)
+    screening_id = Column(
+        Integer, ForeignKey("screenings.id"), nullable=False, index=True
+    )
+    action = Column(String, nullable=False, index=True)
+    # If set, this screening is excluded from Pendentes until this date
+    # arrives (see flask_backend/service/screening_alerts.py). NULL means
+    # excluded indefinitely.
+    remind_at = Column(Date, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    screening: Mapped["Screening"] = relationship()
+    created_by: Mapped[Optional["User"]] = relationship()
 
 
 class BlogPost(Base):
