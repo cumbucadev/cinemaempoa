@@ -128,6 +128,16 @@ or immediately if it has no action rows at all. "Most recent" is by
 `created_at` — the log is append-only, so a screening can cycle through
 pending → posted (with reminder) → pending → dismissed, etc.
 
+The visibility filter and the action-resolution filter are independent and
+ANDed, so a `remind_at` set *after* the screening's last upcoming date is
+moot: the visibility filter alone will already exclude the row by the time
+that reminder date arrives. To prevent an admin from unknowingly setting a
+reminder that will never fire, the reminder `<input type="date">` gets a
+`max` attribute equal to the screening's last upcoming `ScreeningDate`,
+so the browser's own date picker simply won't offer out-of-range dates.
+This is front-end only — no server-side re-validation — consistent with
+this being a low-stakes internal admin tool.
+
 ## Pendentes view
 
 Columns:
