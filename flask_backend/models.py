@@ -183,7 +183,7 @@ class ScreeningDate(Base):
 
 class PipelineRun(Base):
     """One row per invocation of a tracked pipeline CLI command (import-json,
-    fetch-posters, fetch-movie-metadata, generate-alerts). Powers the
+    fetch-posters, fetch-movie-metadata). Powers the
     /admin/pipelines health dashboard and lets a specific run's output be
     looked up exactly via the pipeline_run_id columns on Screening,
     MovieMetadataFetchAttempt and PosterFetchAttempt, instead of guessing
@@ -192,8 +192,8 @@ class PipelineRun(Base):
     __tablename__ = "pipeline_runs"
 
     id = Column(Integer, primary_key=True)
-    # e.g. "import-json", "fetch-posters", "fetch-movie-metadata",
-    # "generate-alerts" - the flask CLI command name.
+    # e.g. "import-json", "fetch-posters", "fetch-movie-metadata"
+    # - the flask CLI command name.
     pipeline_name = Column(String, nullable=False, index=True)
     # For "import-json" only: the sorted, comma-joined cinema slugs targeted
     # by this invocation (e.g. "capitolio,paulo-amorim,sala-redencao"),
