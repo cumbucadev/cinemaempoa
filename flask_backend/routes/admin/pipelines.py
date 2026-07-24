@@ -4,7 +4,6 @@ from flask import Blueprint, abort, render_template, request, url_for
 from werkzeug.routing import BuildError
 
 from flask_backend.repository import pipeline_runs
-from flask_backend.repository.alerts import get_by_pipeline_run_id as get_alerts_by_run
 from flask_backend.repository.movie_metadata_fetch_attempts import (
     get_by_pipeline_run_id as get_metadata_attempts_by_run,
 )
@@ -48,11 +47,6 @@ PIPELINE_GROUPS = [
         "pipeline_name": "fetch-movie-metadata",
         "source": None,
         "label": "Busca de Metadados de Filmes",
-    },
-    {
-        "pipeline_name": "generate-alerts",
-        "source": None,
-        "label": "Geração de Alertas",
     },
 ]
 
@@ -166,15 +160,13 @@ def detail(pipeline_name, run_id):
     if run is None or run.pipeline_name != pipeline_name:
         abort(404)
 
-    screenings, metadata_attempts, poster_attempts, alerts = [], [], [], []
+    screenings, metadata_attempts, poster_attempts = [], [], []
     if pipeline_name == "import-json":
         screenings = get_screenings_by_run(run_id)
     elif pipeline_name == "fetch-movie-metadata":
         metadata_attempts = get_metadata_attempts_by_run(run_id)
     elif pipeline_name == "fetch-posters":
         poster_attempts = get_poster_attempts_by_run(run_id)
-    elif pipeline_name == "generate-alerts":
-        alerts = get_alerts_by_run(run_id)
 
     return render_template(
         "pipelines/admin/detail.html",
@@ -184,5 +176,4 @@ def detail(pipeline_name, run_id):
         screenings=screenings,
         metadata_attempts=metadata_attempts,
         poster_attempts=poster_attempts,
-        alerts=alerts,
     )
