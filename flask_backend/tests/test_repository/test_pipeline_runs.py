@@ -66,7 +66,7 @@ class TestGetById:
 
     def test_returns_run_when_present(self, app):
         with app.app_context():
-            run = pipeline_runs.start("generate-alerts")
+            run = pipeline_runs.start("import-json")
             found = pipeline_runs.get_by_id(run.id)
             assert found is not None
             assert found.id == run.id
