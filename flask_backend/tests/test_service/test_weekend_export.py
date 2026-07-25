@@ -78,6 +78,8 @@ class TestBuildWeekendExportImages:
 
         class FakeCinema:
             name = "Cinemateca Capitólio"
+            slug = "capitolio"
+            short_name = "Capitólio"
 
         class FakeScreening:
             movie = FakeMovie()

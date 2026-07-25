@@ -99,9 +99,7 @@ def _available_rows_height() -> int:
 def _build_row_data(screening_date: ScreeningDate) -> RowData:
     return RowData(
         movie_title=screening_date.screening.movie.title.strip(),
-        cinema_name=screening_date.screening.cinema.name.replace(
-            "Cinemateca", ""
-        ).strip(),
+        cinema_name=screening_date.screening.cinema.short_name,
         time_label=screening_date.time.replace(":", "h"),
     )
 

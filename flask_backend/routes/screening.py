@@ -46,15 +46,6 @@ from flask_backend.service.weekend_export import build_weekend_export_images
 
 bp = Blueprint("screening", __name__)
 
-# set cinema badge color
-# TODO: cinema colors could be stored in the database
-COLORS = {
-    "capitolio": "#911eb4",
-    "sala-redencao": "#000075",
-    "cinebancarios": "#9A6324",
-    "paulo-amorim": "#469990",
-}
-
 
 @bp.route("/")
 def index():
@@ -74,6 +65,8 @@ def index():
         cinema_obj = {
             "name": cinema.name,
             "slug": cinema.slug,
+            "short_name": cinema.short_name,
+            "color": cinema.color,
             "url": cinema.url,
             "screening_dates": [],
         }
@@ -124,7 +117,6 @@ def index():
         cinemas_with_screenings=cinemas_with_screenings,
         today=datetime.now().strftime("%d/%m/%Y"),
         alert_html=alert_html,
-        colors=COLORS,
     )
 
 
@@ -179,7 +171,6 @@ def programacao():
     return render_template(
         "screening/programacao.html",
         screening_dates=screening_dates_grouped,
-        colors=COLORS,
         cinemas=all_cinemas,
         checked_cinemas=checked_cinemas,
         today=date.today(),

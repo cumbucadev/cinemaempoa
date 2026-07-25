@@ -14,6 +14,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
+from flask_backend.constants import (
+    CINEMA_COLORS,
+    CINEMA_SHORT_NAMES,
+    DEFAULT_CINEMA_COLOR,
+)
 from flask_backend.db import Base
 
 # Ordered list of sources the poster pipeline will try.
@@ -130,6 +135,14 @@ class Cinema(Base):
     slug = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     url = Column(String, nullable=False)
+
+    @property
+    def short_name(self) -> str:
+        return CINEMA_SHORT_NAMES.get(self.slug, self.name)
+
+    @property
+    def color(self) -> str:
+        return CINEMA_COLORS.get(self.slug, DEFAULT_CINEMA_COLOR)
 
 
 class Screening(Base):

@@ -27,19 +27,12 @@ def index():
     movies, pages, qtt_movies = get_all_movies_paginated(
         movie, page, limit, user_logged_in
     )
-    colors = {
-        "capitolio": "#911eb4",
-        "sala-redencao": "#000075",
-        "cinebancarios": "#9A6324",
-        "paulo-amorim": "#469990",
-    }
     prev_page = page - 1 if page > 1 else None
     next_page = page + 1 if page < pages else None
     return render_template(
         "movie/index.html",
         movies=movies,
         show_drafts=user_logged_in,
-        colors=colors,
         curr_page=page,
         prev_page=prev_page,
         next_page=next_page,
