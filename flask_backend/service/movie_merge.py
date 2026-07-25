@@ -20,7 +20,7 @@ from flask_backend.models import (
     PosterFetchAttempt,
     Screening,
 )
-from flask_backend.repository import alerts
+from flask_backend.repository import alert_actions
 from flask_backend.repository.screenings import (
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
     merge_title_cleaning_rules,
@@ -115,7 +115,7 @@ def _merge_screenings(survivor: Movie, duplicate: Movie) -> None:
         db_session.query(PosterFetchAttempt).filter(
             PosterFetchAttempt.screening_id == screening.id
         ).delete(synchronize_session=False)
-        alerts.repoint_to_screening(screening.id, existing.id)
+        alert_actions.repoint_to_screening(screening.id, existing.id)
         db_session.delete(screening)
 
 
@@ -128,7 +128,6 @@ def merge_movies(survivor: Movie, duplicates: List[Movie]) -> None:
         _merge_associations(survivor, duplicate)
         _merge_screenings(survivor, duplicate)
         survivor.created_at = min(survivor.created_at, duplicate.created_at)
-        alerts.repoint_to_movie(duplicate.id, survivor.id)
         db_session.query(MovieMetadataFetchAttempt).filter(
             MovieMetadataFetchAttempt.movie_id == duplicate.id
         ).delete(synchronize_session=False)

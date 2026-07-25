@@ -2,359 +2,419 @@
 Tests the basic functionality of /admin/alerts/* endpoints.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from flask_backend.db import db_session
-from flask_backend.models import Alert, Director, Movie, Screening, ScreeningDate
+from flask_backend.models import AlertAction, Movie, Screening, ScreeningDate
+from flask_backend.repository import alert_actions
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 
 
-def _create_movie(app):
+def _create_screening_with_future_date(
+    app, title="Duna", slug="duna", days=1, cinema_slug="capitolio"
+):
     with app.app_context():
-        movie = Movie(title="Filme", slug="filme", created_at=datetime.now())
+        movie = Movie(title=title, slug=slug, created_at=datetime.now())
         db_session.add(movie)
         db_session.commit()
-        return movie.id
-
-
-def _create_alert(app, movie_id, status="pending", rule_name="new_movie"):
-    with app.app_context():
-        alert = Alert(
-            rule_name=rule_name,
-            movie_id=movie_id,
-            screening_id=None,
-            dedup_key=f"{rule_name}:{movie_id}:{status}",
-            drafted_text="Texto sugerido para postar",
-            status=status,
-            created_at=datetime.now(),
+        cinema = get_cinema_by_slug(cinema_slug)
+        screening = Screening(
+            movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
         )
-        db_session.add(alert)
+        db_session.add(screening)
         db_session.commit()
-        return alert.id
+        db_session.add(
+            ScreeningDate(
+                screening_id=screening.id,
+                date=date.today() + timedelta(days=days),
+                time="20:00",
+            )
+        )
+        db_session.commit()
+        return screening.id
 
 
-class TestAdminAlertsIndex:
-    def test_admin_alerts_index_requires_login(self, client):
+class TestAdminAlertsPendingView:
+    def test_requires_login(self, client):
         response = client.get("/admin/alerts")
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
-    def test_admin_alerts_index_with_auth_returns_200(self, auth_headers):
+    def test_returns_200(self, auth_headers):
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
 
-    def test_admin_alerts_index_invalid_pagination_returns_400(self, auth_headers):
+    def test_invalid_pagination_returns_400(self, auth_headers):
         response = auth_headers.get("/admin/alerts?page=invalid&limit=10")
         assert response.status_code == 400
 
-    def test_admin_alerts_index_invalid_status_returns_400(self, auth_headers):
+    def test_invalid_status_returns_400(self, auth_headers):
         response = auth_headers.get("/admin/alerts?status=bogus")
         assert response.status_code == 400
 
-    def test_admin_alerts_index_zero_limit_returns_400(
-        self, app, auth_headers, setup_cinemas
-    ):
-        movie_id = _create_movie(app)
-        _create_alert(app, movie_id, status="pending")
-
+    def test_zero_limit_returns_400(self, auth_headers):
         response = auth_headers.get("/admin/alerts?limit=0")
         assert response.status_code == 400
 
-    def test_admin_alerts_index_zero_page_returns_400(self, auth_headers):
+    def test_zero_page_returns_400(self, auth_headers):
         response = auth_headers.get("/admin/alerts?page=0")
         assert response.status_code == 400
 
-    def test_admin_alerts_index_negative_page_returns_400(self, auth_headers):
-        response = auth_headers.get("/admin/alerts?page=-1")
-        assert response.status_code == 400
-
-    def test_admin_alerts_index_defaults_to_pending(
+    def test_shows_unica_screening_with_cinema_column(
         self, app, auth_headers, setup_cinemas
     ):
-        movie_id = _create_movie(app)
-        _create_alert(app, movie_id, status="pending")
-        _create_alert(app, movie_id, status="posted")
+        _create_screening_with_future_date(app)
 
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
-        # Pending alerts get their drafted_text regenerated on page load
-        # (see flask_backend.service.alert_text) - "Filme" has no
-        # year/director/upcoming screening in this fixture.
-        assert "🎬 Filme".encode() in response.data
-        assert "Sem sessão futura agendada".encode() in response.data
+        assert "Sessão única".encode() in response.data
+        assert "Cinemateca Capitólio".encode() in response.data
 
-    def test_admin_alerts_index_status_all_shows_everything(
-        self, app, auth_headers, setup_cinemas
-    ):
-        movie_id = _create_movie(app)
-        _create_alert(app, movie_id, status="posted")
-
-        response = auth_headers.get("/admin/alerts?status=all")
-        assert response.status_code == 200
-        assert b"Texto sugerido para postar" in response.data
-
-    def test_admin_alerts_index_regenerates_and_persists_full_format(
-        self, app, auth_headers, setup_cinemas
-    ):
-        with app.app_context():
-            movie = Movie(
-                title="Duna",
-                slug="duna",
-                release_year=2021,
-                created_at=datetime.now(),
-            )
-            db_session.add(movie)
-            db_session.commit()
-
-            director = Director(tmdb_id=1, name="Denis Villeneuve")
-            db_session.add(director)
-            movie.directors.append(director)
-
-            cinema = get_cinema_by_slug("capitolio")
-            screening = Screening(
-                movie_id=movie.id,
-                cinema_id=cinema.id,
-                description="desc",
-                draft=False,
-                created_at=datetime.now(),
-            )
-            db_session.add(screening)
-            db_session.commit()
-
-            future_date = (datetime.now() + timedelta(days=1)).date()
-            db_session.add(
-                ScreeningDate(screening_id=screening.id, date=future_date, time="20:00")
-            )
-            db_session.commit()
-
-            alert = Alert(
-                rule_name="new_movie",
-                movie_id=movie.id,
-                screening_id=screening.id,
-                dedup_key=f"new_movie:{movie.id}",
-                drafted_text="texto desatualizado",
-                status="pending",
-                created_at=datetime.now(),
-            )
-            db_session.add(alert)
-            db_session.commit()
-            alert_id = alert.id
-
-            expected_text = (
-                f"🎬 Duna (2021) de Denis Villeneuve\n\n"
-                f"{future_date.strftime('%d/%m')} 20:00\n"
-                f"Na {cinema.name}"
-            )
-
-        response = auth_headers.get("/admin/alerts")
-        assert response.status_code == 200
-        assert expected_text.encode() in response.data
-
-        with app.app_context():
-            refreshed = db_session.query(Alert).filter_by(id=alert_id).one()
-            assert refreshed.drafted_text == expected_text
-
-    def test_admin_alerts_index_shows_image_from_first_screening_that_has_one(
+    def test_shows_recorrente_screening_with_until_date(
         self, app, auth_headers, setup_cinemas
     ):
         with app.app_context():
             movie = Movie(title="Duna", slug="duna", created_at=datetime.now())
             db_session.add(movie)
             db_session.commit()
-
             cinema = get_cinema_by_slug("capitolio")
-            no_image_screening = Screening(
-                movie_id=movie.id,
-                cinema_id=cinema.id,
-                description="desc",
-                draft=False,
-                image=None,
-                created_at=datetime.now(),
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
             )
-            with_image_screening = Screening(
-                movie_id=movie.id,
-                cinema_id=cinema.id,
-                description="desc",
-                draft=False,
-                image="https://example.com/duna.jpg",
-                image_alt="Cartaz de Duna",
-                created_at=datetime.now(),
-            )
-            db_session.add_all([no_image_screening, with_image_screening])
+            db_session.add(screening)
             db_session.commit()
+            for offset in (1, 2, 3):
+                db_session.add(
+                    ScreeningDate(
+                        screening_id=screening.id,
+                        date=date.today() + timedelta(days=offset),
+                        time="20:00",
+                    )
+                )
+            db_session.commit()
+        last_date = date.today() + timedelta(days=3)
 
-            alert = Alert(
-                rule_name="new_movie",
-                movie_id=movie.id,
-                screening_id=with_image_screening.id,
-                dedup_key=f"new_movie:{movie.id}",
-                drafted_text="texto",
-                status="pending",
-                created_at=datetime.now(),
+        response = auth_headers.get("/admin/alerts")
+        assert response.status_code == 200
+        assert b"Recorrente" in response.data
+        assert f"até {last_date.strftime('%d/%m')}".encode() in response.data
+
+    def test_excludes_screenings_with_only_past_dates(
+        self, app, auth_headers, setup_cinemas
+    ):
+        _create_screening_with_future_date(
+            app, title="Filme Antigo", slug="filme-antigo", days=-1
+        )
+
+        response = auth_headers.get("/admin/alerts")
+        assert response.status_code == 200
+        assert b"Filme Antigo" not in response.data
+
+    def test_excludes_draft_screenings(self, app, auth_headers, setup_cinemas):
+        with app.app_context():
+            movie = Movie(title="Rascunho", slug="rascunho", created_at=datetime.now())
+            db_session.add(movie)
+            db_session.commit()
+            cinema = get_cinema_by_slug("capitolio")
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=True
             )
-            db_session.add(alert)
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() + timedelta(days=1),
+                    time="20:00",
+                )
+            )
             db_session.commit()
 
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
-        assert b'src="https://example.com/duna.jpg"' in response.data
-        assert b'alt="Cartaz de Duna"' in response.data
+        assert b"Rascunho" not in response.data
 
-    def test_admin_alerts_index_shows_warning_when_no_screening_has_image(
+    def test_reminder_modal_trigger_carries_last_upcoming_date(
         self, app, auth_headers, setup_cinemas
     ):
-        movie_id = _create_movie(app)
-        _create_alert(app, movie_id, status="pending")
+        screening_id = _create_screening_with_future_date(app, days=5)
+        last_date = date.today() + timedelta(days=5)
+
+        response = auth_headers.get("/admin/alerts")
+        assert response.status_code == 200
+        assert f'data-max-date="{last_date.isoformat()}"'.encode() in response.data
+        assert screening_id is not None
+
+    def test_shows_warning_when_no_image(self, app, auth_headers, setup_cinemas):
+        _create_screening_with_future_date(app)
 
         response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
         assert "Sem imagem disponível".encode() in response.data
 
-    def test_image_column_shown_regardless_of_status_tab(
-        self, app, auth_headers, setup_cinemas
-    ):
-        for index, (status, query) in enumerate(
-            [
-                ("posted", "?status=posted"),
-                ("dismissed", "?status=dismissed"),
-                ("posted", "?status=all"),
-            ]
-        ):
-            image_url = f"https://example.com/duna-{index}.jpg"
-            with app.app_context():
-                movie = Movie(
-                    title="Duna",
-                    slug=f"duna-{index}",
-                    created_at=datetime.now(),
-                )
-                db_session.add(movie)
-                db_session.commit()
+    def test_shows_copyable_text(self, app, auth_headers, setup_cinemas):
+        _create_screening_with_future_date(app)
 
-                cinema = get_cinema_by_slug("capitolio")
-                screening = Screening(
-                    movie_id=movie.id,
-                    cinema_id=cinema.id,
-                    description="desc",
-                    draft=False,
-                    image=image_url,
-                    image_alt="Cartaz",
-                    created_at=datetime.now(),
-                )
-                db_session.add(screening)
-                db_session.commit()
-
-                alert = Alert(
-                    rule_name="new_movie",
-                    movie_id=movie.id,
-                    screening_id=screening.id,
-                    dedup_key=f"new_movie:{movie.id}",
-                    drafted_text="texto",
-                    status=status,
-                    created_at=datetime.now(),
-                )
-                db_session.add(alert)
-                db_session.commit()
-
-            response = auth_headers.get(f"/admin/alerts{query}")
-            assert response.status_code == 200
-            assert f'src="{image_url}"'.encode() in response.data
-
-
-class TestAdminAlertsPostedTab:
-    def test_posted_tab_shows_resolved_at_date(self, app, auth_headers, setup_cinemas):
-        movie_id = _create_movie(app)
-        alert_id = _create_alert(app, movie_id, status="posted")
-
-        with app.app_context():
-            alert = db_session.query(Alert).filter_by(id=alert_id).one()
-            alert.resolved_at = datetime(2026, 7, 15, 14, 30)
-            db_session.commit()
-
-        response = auth_headers.get("/admin/alerts?status=posted")
+        response = auth_headers.get("/admin/alerts")
         assert response.status_code == 200
-        assert b"Postado em" in response.data
-        assert b"15/07/2026 14:30" in response.data
-
-    def test_dismissed_tab_shows_resolved_at_date(
-        self, app, auth_headers, setup_cinemas
-    ):
-        movie_id = _create_movie(app)
-        alert_id = _create_alert(app, movie_id, status="dismissed")
-
-        with app.app_context():
-            alert = db_session.query(Alert).filter_by(id=alert_id).one()
-            alert.resolved_at = datetime(2026, 7, 16, 9, 0)
-            db_session.commit()
-
-        response = auth_headers.get("/admin/alerts?status=dismissed")
-        assert response.status_code == 200
-        assert b"Descartado em" in response.data
-        assert b"16/07/2026 09:00" in response.data
-
-    def test_posted_tab_without_resolved_at_omits_date(
-        self, app, auth_headers, setup_cinemas
-    ):
-        movie_id = _create_movie(app)
-        _create_alert(app, movie_id, status="posted")
-
-        response = auth_headers.get("/admin/alerts?status=posted")
-        assert response.status_code == 200
-        assert b"Postado em" not in response.data
+        assert "⏳ Duna\n\n".encode() in response.data
 
 
 class TestAdminAlertsMarkPosted:
-    def test_mark_posted_requires_login(self, app, client, setup_cinemas):
-        movie_id = _create_movie(app)
-        alert_id = _create_alert(app, movie_id)
+    def test_requires_login(self, app, client, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
 
-        response = client.post(f"/admin/alerts/{alert_id}/mark-posted")
+        response = client.post(f"/admin/alerts/{screening_id}/mark-posted")
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
-    def test_mark_posted_nonexistent_alert_returns_404(self, auth_headers):
+    def test_nonexistent_screening_returns_404(self, auth_headers):
         response = auth_headers.post("/admin/alerts/99999/mark-posted")
         assert response.status_code == 404
 
-    def test_mark_posted_with_auth_updates_status(
-        self, app, auth_headers, setup_cinemas
-    ):
-        movie_id = _create_movie(app)
-        alert_id = _create_alert(app, movie_id)
+    def test_records_action_without_reminder(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
 
         response = auth_headers.post(
-            f"/admin/alerts/{alert_id}/mark-posted", follow_redirects=True
+            f"/admin/alerts/{screening_id}/mark-posted", follow_redirects=True
         )
         assert response.status_code == 200
 
         with app.app_context():
-            alert = db_session.query(Alert).filter_by(id=alert_id).one()
-            assert alert.status == "posted"
-            assert alert.resolved_at is not None
-            assert alert.resolved_by_user_id is not None
+            action = (
+                db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
+            )
+            assert action.action == "posted"
+            assert action.remind_at is None
+            assert action.created_by_user_id is not None
+
+    def test_records_action_with_reminder(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app, days=10)
+        remind_at = (date.today() + timedelta(days=5)).isoformat()
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/mark-posted",
+            data={"remind_at": remind_at},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        with app.app_context():
+            action = (
+                db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
+            )
+            assert action.remind_at == date.fromisoformat(remind_at)
+
+    def test_invalid_reminder_format_returns_400(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/mark-posted",
+            data={"remind_at": "not-a-date"},
+        )
+        assert response.status_code == 400
+
+    def test_posted_screening_disappears_from_pending(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+
+        auth_headers.post(f"/admin/alerts/{screening_id}/mark-posted")
+
+        response = auth_headers.get("/admin/alerts")
+        assert response.status_code == 200
+        assert b"Duna" not in response.data
 
 
 class TestAdminAlertsDismiss:
-    def test_dismiss_requires_login(self, app, client, setup_cinemas):
-        movie_id = _create_movie(app)
-        alert_id = _create_alert(app, movie_id)
+    def test_requires_login(self, app, client, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
 
-        response = client.post(f"/admin/alerts/{alert_id}/dismiss")
+        response = client.post(f"/admin/alerts/{screening_id}/dismiss")
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
-    def test_dismiss_nonexistent_alert_returns_404(self, auth_headers):
+    def test_nonexistent_screening_returns_404(self, auth_headers):
         response = auth_headers.post("/admin/alerts/99999/dismiss")
         assert response.status_code == 404
 
-    def test_dismiss_with_auth_updates_status(self, app, auth_headers, setup_cinemas):
-        movie_id = _create_movie(app)
-        alert_id = _create_alert(app, movie_id)
+    def test_records_action(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
 
         response = auth_headers.post(
-            f"/admin/alerts/{alert_id}/dismiss", follow_redirects=True
+            f"/admin/alerts/{screening_id}/dismiss", follow_redirects=True
         )
         assert response.status_code == 200
 
         with app.app_context():
-            alert = db_session.query(Alert).filter_by(id=alert_id).one()
-            assert alert.status == "dismissed"
+            action = (
+                db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
+            )
+            assert action.action == "dismissed"
+
+
+class TestAdminAlertsHistory:
+    def test_posted_tab_shows_action(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert b"bg-success" in response.data
+        assert b"Duna" in response.data
+
+    def test_dismissed_tab_shows_action(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="dismissed")
+
+        response = auth_headers.get("/admin/alerts?status=dismissed")
+        assert response.status_code == 200
+        assert b"bg-secondary" in response.data
+        assert b"Duna" in response.data
+
+    def test_posted_tab_does_not_show_dismissed_actions(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+            alert_actions.create(screening_id=screening_id, action="dismissed")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        # The nav bar always renders a "Descartados" tab label, so asserting
+        # b"Descartado" not in response.data is trivially false regardless of
+        # the history table's contents. Instead, check for the dismissed-action
+        # badge's distinguishing CSS class ("bg-secondary"), which is only used
+        # by the history table's badge markup for dismissed actions.
+        assert b"Postado" in response.data
+        assert b"bg-secondary" not in response.data
+
+    def test_all_tab_shows_both(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+            alert_actions.create(screening_id=screening_id, action="dismissed")
+
+        response = auth_headers.get("/admin/alerts?status=all")
+        assert response.status_code == 200
+        # The nav bar always renders both "Postados" and "Descartados" tab
+        # labels regardless of which tab is active, so asserting the raw
+        # substrings proves nothing about the history table's contents.
+        # Check the badge CSS classes, which only appear in the table body.
+        assert b"bg-success" in response.data
+        assert b"bg-secondary" in response.data
+
+    def test_history_shows_reminder_date_when_set(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+        remind_at = date.today() + timedelta(days=2)
+        with app.app_context():
+            alert_actions.create(
+                screening_id=screening_id, action="posted", remind_at=remind_at
+            )
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert remind_at.strftime("%d/%m/%Y").encode() in response.data
+
+    def test_history_shows_dash_without_reminder(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+        with app.app_context():
+            alert_actions.create(screening_id=screening_id, action="posted")
+
+        response = auth_headers.get("/admin/alerts?status=posted")
+        assert response.status_code == 200
+        assert "—".encode() in response.data
+
+
+class TestAdminAlertsFilters:
+    def test_cinema_filter_narrows_pending_tab(self, app, auth_headers, setup_cinemas):
+        _create_screening_with_future_date(
+            app, title="Duna", slug="duna", cinema_slug="capitolio"
+        )
+        _create_screening_with_future_date(
+            app, title="Coringa", slug="coringa", cinema_slug="sala-redencao"
+        )
+
+        response = auth_headers.get("/admin/alerts?cinema=capitolio")
+        assert response.status_code == 200
+        assert b"Duna" in response.data
+        assert b"Coringa" not in response.data
+
+    def test_cinema_filter_narrows_history_tab(self, app, auth_headers, setup_cinemas):
+        duna_id = _create_screening_with_future_date(
+            app, title="Duna", slug="duna", cinema_slug="capitolio"
+        )
+        coringa_id = _create_screening_with_future_date(
+            app, title="Coringa", slug="coringa", cinema_slug="sala-redencao"
+        )
+        with app.app_context():
+            alert_actions.create(screening_id=duna_id, action="posted")
+            alert_actions.create(screening_id=coringa_id, action="posted")
+
+        response = auth_headers.get("/admin/alerts?status=all&cinema=capitolio")
+        assert response.status_code == 200
+        assert b"Duna" in response.data
+        assert b"Coringa" not in response.data
+
+    def test_unknown_cinema_slug_returns_400(self, auth_headers):
+        response = auth_headers.get("/admin/alerts?cinema=nao-existe")
+        assert response.status_code == 400
+
+    def test_categoria_filter_narrows_pending_tab(
+        self, app, auth_headers, setup_cinemas
+    ):
+        _create_screening_with_future_date(app, title="Duna", slug="duna", days=1)
+        with app.app_context():
+            movie = Movie(title="Coringa", slug="coringa", created_at=datetime.now())
+            db_session.add(movie)
+            db_session.commit()
+            cinema = get_cinema_by_slug("capitolio")
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
+            )
+            db_session.add(screening)
+            db_session.commit()
+            for offset in (1, 2, 3):
+                db_session.add(
+                    ScreeningDate(
+                        screening_id=screening.id,
+                        date=date.today() + timedelta(days=offset),
+                        time="20:00",
+                    )
+                )
+            db_session.commit()
+
+        response = auth_headers.get("/admin/alerts?categoria=unica")
+        assert response.status_code == 200
+        assert b"Duna" in response.data
+        assert b"Coringa" not in response.data
+
+        response = auth_headers.get("/admin/alerts?categoria=recorrente")
+        assert response.status_code == 200
+        assert b"Coringa" in response.data
+        assert b"Duna" not in response.data
+
+    def test_invalid_categoria_returns_400(self, auth_headers):
+        response = auth_headers.get("/admin/alerts?categoria=bogus")
+        assert response.status_code == 400
+
+    def test_empty_cinema_and_categoria_are_treated_as_no_filter(
+        self, app, auth_headers, setup_cinemas
+    ):
+        # Covers the "Todos"/"Todas" reset options in the filter form, which
+        # submit cinema= / categoria= as empty strings rather than omitting
+        # the param entirely.
+        _create_screening_with_future_date(app)
+
+        response = auth_headers.get("/admin/alerts?cinema=&categoria=")
+        assert response.status_code == 200
+        assert b"Duna" in response.data

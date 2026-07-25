@@ -76,14 +76,5 @@
         {% else %}
             <p>Nenhuma sessão processada neste run.</p>
         {% endif %}
-    {% elif run.pipeline_name == "generate-alerts" %}
-        <h2>Alertas gerados ({{ alerts | length }})</h2>
-        {% if alerts %}
-            <ul>
-                {% for alert in alerts %}<li>{{ alert.rule_name }} — {{ alert.movie.title }}</li>{% endfor %}
-            </ul>
-        {% else %}
-            <p>Nenhum alerta gerado neste run.</p>
-        {% endif %}
     {% endif %}
 {% endblock content %}

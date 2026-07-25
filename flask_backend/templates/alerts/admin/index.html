@@ -5,27 +5,16 @@
 {% block header %}
     <div>
         <h1>Alertas</h1>
-        <p>Filmes interessantes detectados na programação, prontos para postar nas redes sociais</p>
+        <p>Sessões únicas e recorrentes detectadas na programação, prontas para postar nas redes sociais</p>
     </div>
 {% endblock header %}
 {% block content %}
-    {% set rule_labels = {
-        "new_movie": "Filme novo",
-        "single_screening": "Sessão única",
-        "sessao_comentada": "Sessão comentada",
-        "mostra": "Mostra",
-        "director_debut": "Estreia de diretor(a)",
-        "returning_director": "Diretor(a) de volta",
-        "new_genre_combination": "Nova combinação de gênero",
-        "sequel_or_franchise": "Sequência/franquia"
-    } %}
-    {% macro alert_image(alert) %}
-        {% set screening_with_image = alert.movie.screenings | selectattr("image") | first %}
-        {% if screening_with_image %}
+    {% macro row_image(screening) %}
+        {% if screening.image %}
             {# djlint:off #}
             <img loading="lazy"
-                 src="{{ screening_with_image.image }}"
-                 alt="{{ screening_with_image.image_alt or alert.movie.title }}"
+                 src="{{ screening.image }}"
+                 alt="{{ screening.image_alt or screening.movie.title }}"
                  class="img-fluid rounded"
                  style="max-width: 80px; max-height: 80px;">
             {# djlint:on #}
@@ -33,173 +22,285 @@
             <span class="badge bg-warning text-dark">Sem imagem disponível</span>
         {% endif %}
     {% endmacro %}
-    {% macro alert_actions(alert, status, stacked=false) %}
-        {% if alert.status == "pending" %}
-            <div class="{% if stacked %}d-grid gap-2{% else %}btn-group btn-group-sm{% endif %}"
-                 {% if not stacked %}role="group"{% endif %}>
-                <form method="post"
-                      action="{{ url_for('admin_alerts.mark_posted', alert_id=alert.id) }}"
-                      class="d-inline">
-                    <input type="hidden" name="status" value="{{ status }}">
-                    <button type="submit"
-                            class="btn btn-outline-success {% if stacked %}w-100{% endif %}">
-                        Marcar como postado
-                    </button>
-                </form>
-                <form method="post"
-                      action="{{ url_for('admin_alerts.dismiss', alert_id=alert.id) }}"
-                      class="d-inline">
-                    <input type="hidden" name="status" value="{{ status }}">
-                    <button type="submit"
-                            class="btn btn-outline-danger {% if stacked %}w-100{% endif %}">Descartar</button>
-                </form>
-            </div>
+    {% macro movie_link(movie) %}
+        {% if movie.slug %}
+            <a href="{{ url_for('movie.show', slug=movie.slug) }}"
+               class="text-decoration-none">{{ movie.title }}</a>
         {% else %}
-            <span class="badge {% if alert.status == "posted" %}bg-success{% else %}bg-secondary{% endif %}">
-                {% if alert.status == "posted" %}
-                    Postado
-                {% else %}
-                    Descartado
-                {% endif %}
-            </span>
-            {% if alert.resolved_at %}
-                <div class="text-muted small mt-1">
-                    {% if alert.status == "posted" %}
-                        Postado em
-                    {% else %}
-                        Descartado em
-                    {% endif %}
-                    <time datetime="{{ alert.resolved_at.isoformat() }}">{{ alert.resolved_at.strftime("%d/%m/%Y %H:%M") }}</time>
-                </div>
-            {% endif %}
+            {{ movie.title }}
         {% endif %}
+    {% endmacro %}
+    {% macro category_badge(row) %}
+        {% if row.category == "unica" %}
+            <span class="badge bg-info text-dark">Sessão única</span>
+        {% else %}
+            <span class="badge bg-primary">Recorrente</span>
+        {% endif %}
+    {% endmacro %}
+    {% macro pending_actions(row, status, stacked=false) %}
+        <div class="{% if stacked %}d-grid gap-2{% else %}d-flex gap-1{% endif %}">
+            <button type="button"
+                    class="btn btn-outline-success {% if stacked %}w-100{% endif %}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#alertActionModal"
+                    data-action-url="{{ url_for('admin_alerts.mark_posted', screening_id=row.screening.id) }}"
+                    data-status="{{ status }}"
+                    data-max-date="{{ row.last_upcoming_date.isoformat() }}"
+                    data-modal-title="Marcar como postado"
+                    data-submit-label="Confirmar"
+                    data-submit-class="btn-success">Postar</button>
+            <button type="button"
+                    class="btn btn-outline-danger {% if stacked %}w-100{% endif %}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#alertActionModal"
+                    data-action-url="{{ url_for('admin_alerts.dismiss', screening_id=row.screening.id) }}"
+                    data-status="{{ status }}"
+                    data-max-date="{{ row.last_upcoming_date.isoformat() }}"
+                    data-modal-title="Descartar"
+                    data-submit-label="Confirmar"
+                    data-submit-class="btn-danger">Descartar</button>
+        </div>
     {% endmacro %}
     <ul class="nav nav-tabs mb-3">
         {% for filter_status, label in [("pending", "Pendentes"), ("posted", "Postados"), ("dismissed", "Descartados"), ("all", "Todos")] %}
             <li class="nav-item">
                 <a class="nav-link {% if status == filter_status %}active{% endif %}"
-                   href="{{ url_for('admin_alerts.index', status=filter_status) }}">{{ label }}</a>
+                   href="{{ url_for('admin_alerts.index', status=filter_status, cinema=cinema, categoria=categoria if filter_status == 'pending' else None) }}">{{ label }}</a>
             </li>
         {% endfor %}
     </ul>
-    {% if alerts %}
-        <!-- Desktop/tablet table -->
-        <div class="table-responsive d-none d-md-block">
-            <table class="table table-striped align-middle">
-                <thead>
-                    <tr>
-                        <th>Regra</th>
-                        <th>Filme</th>
-                        <th>Imagem</th>
-                        <th>Texto sugerido</th>
-                        <th>Criado</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for alert in alerts %}
-                        <tr>
-                            <td>
-                                <span class="badge bg-info text-dark">{{ rule_labels.get(alert.rule_name, alert.rule_name) }}</span>
-                            </td>
-                            <td>
-                                {% if alert.movie.slug %}
-                                    <a href="{{ url_for('movie.show', slug=alert.movie.slug) }}"
-                                       class="text-decoration-none">{{ alert.movie.title }}</a>
-                                {% else %}
-                                    {{ alert.movie.title }}
-                                {% endif %}
-                            </td>
-                            <td>{{ alert_image(alert) }}</td>
-                            <td class="w-25">
-                                <div class="input-group input-group-sm">
-                                    <textarea class="form-control" rows="5" readonly id="alert-text-{{ alert.id }}">{{ alert.drafted_text }}</textarea>
-                                    <button type="button"
-                                            class="btn btn-outline-secondary"
-                                            onclick="navigator.clipboard.writeText(document.getElementById('alert-text-{{ alert.id }}').value)">
-                                        Copiar
-                                    </button>
-                                </div>
-                            </td>
-                            <td>
-                                <time datetime="{{ alert.created_at.isoformat() }}">
-                                    {{ alert.created_at.strftime("%d/%m/%Y %H:%M") }}
-                                </time>
-                            </td>
-                            <td>{{ alert_actions(alert, status) }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <form method="get"
+          action="{{ url_for("admin_alerts.index") }}"
+          class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input type="hidden" name="limit" value="{{ limit }}">
+        <div>
+            <label class="form-label" for="cinema-filter">Cinema</label>
+            <select class="form-select" id="cinema-filter" name="cinema">
+                <option value="">Todos os cinemas</option>
+                {% for c in cinemas %}
+                    <option value="{{ c.slug }}" {% if cinema == c.slug %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
         </div>
-        <!-- Mobile cards -->
-        <div class="d-md-none">
-            {% for alert in alerts %}
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-info text-dark">{{ rule_labels.get(alert.rule_name, alert.rule_name) }}</span>
-                            <time class="text-muted small"
-                                  datetime="{{ alert.created_at.isoformat() }}">
-                                {{ alert.created_at.strftime("%d/%m/%Y %H:%M") }}
-                            </time>
-                        </div>
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <h6 class="card-title mb-0">
-                                {% if alert.movie.slug %}
-                                    <a href="{{ url_for('movie.show', slug=alert.movie.slug) }}"
-                                       class="text-decoration-none">{{ alert.movie.title }}</a>
-                                {% else %}
-                                    {{ alert.movie.title }}
-                                {% endif %}
-                            </h6>
-                            {{ alert_image(alert) }}
-                        </div>
-                        <div class="input-group input-group-sm mb-3">
-                            <textarea class="form-control"
-                                      rows="5"
-                                      readonly
-                                      id="alert-text-mobile-{{ alert.id }}">{{ alert.drafted_text }}</textarea>
-                            <button type="button"
-                                    class="btn btn-outline-secondary"
-                                    onclick="navigator.clipboard.writeText(document.getElementById('alert-text-mobile-{{ alert.id }}').value)">
-                                Copiar
-                            </button>
-                        </div>
-                        {{ alert_actions(alert, status, stacked=true) }}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-        <!-- Pagination -->
-        {% if pages > 1 %}
-            <nav aria-label="Navegação do admin">
-                <ul class="pagination justify-content-center">
-                    {% if prev_page %}
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="{{ url_for('admin_alerts.index', page=prev_page, limit=limit, status=status) }}">Anterior</a>
-                        </li>
-                    {% endif %}
-                    {% for page_num in range(1, pages + 1) %}
-                        <li class="page-item {% if page_num == curr_page %}active{% endif %}">
-                            <a class="page-link"
-                               href="{{ url_for('admin_alerts.index', page=page_num, limit=limit, status=status) }}">{{ page_num }}</a>
-                        </li>
-                    {% endfor %}
-                    {% if next_page %}
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="{{ url_for('admin_alerts.index', page=next_page, limit=limit, status=status) }}">Próximo</a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
+        {% if status == "pending" %}
+            <div>
+                <label class="form-label" for="categoria-filter">Categoria</label>
+                <select class="form-select" id="categoria-filter" name="categoria">
+                    <option value="">Todas</option>
+                    <option value="unica" {% if categoria == "unica" %}selected{% endif %}>Sessão única</option>
+                    <option value="recorrente"
+                            {% if categoria == "recorrente" %}selected{% endif %}>Recorrente</option>
+                </select>
+            </div>
         {% endif %}
-    {% else %}
-        <div class="text-center py-5">
-            <h3>Nenhum alerta encontrado</h3>
-            <p class="text-muted">Rode "flask generate-alerts" para avaliar a programação atual.</p>
+        <div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
         </div>
+    </form>
+    {% if status == "pending" %}
+        {% if pending_rows %}
+            <div class="table-responsive d-none d-md-block">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Categoria</th>
+                            <th>Cinema</th>
+                            <th>Filme</th>
+                            <th>Imagem</th>
+                            <th>Até quando</th>
+                            <th>Texto sugerido</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in pending_rows %}
+                            <tr>
+                                <td>{{ category_badge(row) }}</td>
+                                <td>{{ row.screening.cinema.name }}</td>
+                                <td>{{ movie_link(row.screening.movie) }}</td>
+                                <td>{{ row_image(row.screening) }}</td>
+                                <td>
+                                    {% if row.category == "recorrente" %}
+                                        até {{ row.last_upcoming_date.strftime("%d/%m") }}
+                                    {% endif %}
+                                </td>
+                                <td class="w-25">
+                                    <div class="input-group input-group-sm">
+                                        <textarea class="form-control"
+                                                  rows="5"
+                                                  readonly
+                                                  id="alert-text-{{ row.screening.id }}">{{ row.drafted_text }}</textarea>
+                                        <button type="button"
+                                                class="btn btn-outline-secondary"
+                                                onclick="navigator.clipboard.writeText(document.getElementById('alert-text-{{ row.screening.id }}').value)">
+                                            Copiar
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>{{ pending_actions(row, status) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-md-none">
+                {% for row in pending_rows %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    {{ category_badge(row) }}
+                                    <span class="text-muted small">{{ row.screening.cinema.name }}</span>
+                                </div>
+                                {% if row.category == "recorrente" %}
+                                    <span class="text-muted small">até {{ row.last_upcoming_date.strftime("%d/%m") }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <h6 class="card-title mb-0">{{ movie_link(row.screening.movie) }}</h6>
+                                {{ row_image(row.screening) }}
+                            </div>
+                            <div class="input-group input-group-sm mb-3">
+                                <textarea class="form-control"
+                                          rows="5"
+                                          readonly
+                                          id="alert-text-mobile-{{ row.screening.id }}">{{ row.drafted_text }}</textarea>
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        onclick="navigator.clipboard.writeText(document.getElementById('alert-text-mobile-{{ row.screening.id }}').value)">
+                                    Copiar
+                                </button>
+                            </div>
+                            {{ pending_actions(row, status, stacked=true) }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <h3>Nenhuma sessão pendente</h3>
+                <p class="text-muted">Não há sessões únicas ou recorrentes aguardando revisão no momento.</p>
+            </div>
+        {% endif %}
+        <div class="modal fade"
+             id="alertActionModal"
+             tabindex="-1"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" id="alertActionForm">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="alertActionModalTitle">Ação</h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="status" id="alertActionModalStatus">
+                            <label for="alertActionModalRemindAt" class="form-label">Lembrar em (opcional)</label>
+                            <input type="date"
+                                   name="remind_at"
+                                   id="alertActionModalRemindAt"
+                                   class="form-control">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn" id="alertActionModalSubmit">Confirmar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.getElementById("alertActionModal").addEventListener("show.bs.modal", function(event) {
+                var button = event.relatedTarget;
+                var form = document.getElementById("alertActionForm");
+                var submitBtn = document.getElementById("alertActionModalSubmit");
+                var remindAt = document.getElementById("alertActionModalRemindAt");
+
+                form.action = button.getAttribute("data-action-url");
+                document.getElementById("alertActionModalStatus").value = button.getAttribute("data-status");
+                document.getElementById("alertActionModalTitle").textContent = button.getAttribute("data-modal-title");
+
+                remindAt.value = "";
+                remindAt.max = button.getAttribute("data-max-date");
+
+                submitBtn.textContent = button.getAttribute("data-submit-label");
+                submitBtn.className = "btn " + button.getAttribute("data-submit-class");
+            });
+        </script>
+    {% else %}
+        {% if actions %}
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ação</th>
+                            <th>Filme</th>
+                            <th>Cinema</th>
+                            <th>Quando</th>
+                            <th>Lembrete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in actions %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if action.action == "posted" %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if action.action == "posted" %}
+                                            Postado
+                                        {% else %}
+                                            Descartado
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ movie_link(action.screening.movie) }}</td>
+                                <td>{{ action.screening.cinema.name }}</td>
+                                <td>
+                                    <time datetime="{{ action.created_at.isoformat() }}">{{ action.created_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                                </td>
+                                <td>
+                                    {% if action.remind_at %}
+                                        <time datetime="{{ action.remind_at.isoformat() }}">{{ action.remind_at.strftime("%d/%m/%Y") }}</time>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <h3>Nenhum registro encontrado</h3>
+            </div>
+        {% endif %}
+    {% endif %}
+    {% if pages > 1 %}
+        <nav aria-label="Navegação do admin">
+            <ul class="pagination justify-content-center">
+                {% if prev_page %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="{{ url_for('admin_alerts.index', page=prev_page, limit=limit, status=status, cinema=cinema, categoria=categoria) }}">Anterior</a>
+                    </li>
+                {% endif %}
+                {% for page_num in range(1, pages + 1) %}
+                    <li class="page-item {% if page_num == curr_page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('admin_alerts.index', page=page_num, limit=limit, status=status, cinema=cinema, categoria=categoria) }}">{{ page_num }}</a>
+                    </li>
+                {% endfor %}
+                {% if next_page %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="{{ url_for('admin_alerts.index', page=next_page, limit=limit, status=status, cinema=cinema, categoria=categoria) }}">Próximo</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
     {% endif %}
 {% endblock content %}
