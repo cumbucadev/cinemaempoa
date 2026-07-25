@@ -1,5 +1,5 @@
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
@@ -660,3 +660,20 @@ class TestScreeningIndexMobile:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert "Não há sessões" in html
+
+    def test_first_poster_loads_eagerly_and_later_posters_are_deferred(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            for i in range(3):
+                _create_screening(
+                    movie_title=f"Filme {i}",
+                    image=f"poster{i}.jpg",
+                    image_width=100,
+                    image_height=200,
+                    screening_date=date.today() + timedelta(days=i),
+                )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'src="poster0.jpg"' in html
+        assert 'data-src="poster2.jpg"' in html

@@ -126,9 +126,15 @@
                     <div class="reels-card-panels">
                         <div class="reels-panel reels-panel-poster">
                             {% if card.image %}
-                                <img class="reels-poster-img"
-                                     src="{{ card.image }}"
-                                     alt="{{ card.image_alt or card.movie_title }}" />
+                                {% if loop.index0 < 2 %}
+                                    <img class="reels-poster-img"
+                                         src="{{ card.image }}"
+                                         alt="{{ card.image_alt or card.movie_title }}" />
+                                {% else %}
+                                    <img class="reels-poster-img"
+                                         data-src="{{ card.image }}"
+                                         alt="{{ card.image_alt or card.movie_title }}" />
+                                {% endif %}
                             {% else %}
                                 <div class="reels-poster-placeholder"
                                      style="background-color: {{ card.cinema_color }}">
@@ -174,4 +180,22 @@
             </section>
         {% endif %}
     </div>
+
+    <script>
+        const lazyPosters = document.querySelectorAll(".reels-poster-img[data-src]");
+        const posterObserver = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.removeAttribute("data-src");
+                        posterObserver.unobserve(img);
+                    }
+                });
+            },
+            { rootMargin: "200% 0px 200% 0px" }
+        );
+        lazyPosters.forEach((img) => posterObserver.observe(img));
+    </script>
 {% endblock content %}
