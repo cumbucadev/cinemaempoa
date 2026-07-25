@@ -591,3 +591,63 @@ class TestScreeningDescribeImage:
             )
         assert response.status_code == 200
         assert response.get_json() == {"text": "Uma bela descrição."}
+
+
+MOBILE_UA = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1"
+)
+
+
+class TestScreeningIndexMobile:
+    def test_returns_200_for_mobile_user_agent(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        assert response.status_code == 200
+
+    def test_renders_reels_feed_for_mobile_user_agent(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Mobile")
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Filme Mobile" in html
+        assert 'class="reels-feed"' in html
+
+    def test_desktop_user_agent_still_gets_the_existing_layout(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Desktop")
+        response = client.get("/")
+        html = response.get_data(as_text=True)
+        assert "Filme Desktop" in html
+        assert 'class="reels-feed"' not in html
+
+    def test_hides_draft_screening_on_mobile_when_not_logged_in(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Rascunho Mobile", draft=True)
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        assert b"Filme Rascunho Mobile" not in response.data
+
+    def test_shows_draft_screening_on_mobile_when_logged_in(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            _create_screening(movie_title="Filme Rascunho Mobile Logado", draft=True)
+        response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
+        assert b"Filme Rascunho Mobile Logado" in response.data
+
+    def test_shows_placeholder_for_screening_without_poster(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Sem Poster", image=None)
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'class="reels-poster-placeholder"' in html
+
+    def test_shows_empty_state_when_no_screenings_in_range(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Não há sessões" in html

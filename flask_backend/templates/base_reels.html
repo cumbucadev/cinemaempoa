@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-bs-core="default">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+        {% block title %}
+        {% endblock title %}
+    - Cinema em POA</title>
+    {% block meta_tags %}
+    {% endblock meta_tags %}
+    <link rel="apple-touch-icon"
+          sizes="180x180"
+          href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest"
+          href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
+    {% block extra_head %}
+    {% endblock extra_head %}
+</head>
+<body>
+    {% block content %}
+    {% endblock content %}
+    <script>
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.querySelector("html").setAttribute("data-bs-theme", "dark");
+        } else {
+            document.querySelector("html").setAttribute("data-bs-theme", "light");
+        }
+    </script>
+    <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
+</body>
+</html>

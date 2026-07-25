@@ -1,0 +1,63 @@
+{% extends "base_reels.html" %}
+{% block title %}Programação do dia{% endblock title %}
+{% block meta_tags %}
+    <meta name="description"
+          content="Filmes em cartaz nos próximos dias nas salas de cinema alternativo em Porto Alegre.">
+{% endblock meta_tags %}
+{% block content %}
+    <div class="reels-feed">
+        {% if cards %}
+            {% for card in cards %}
+                <section class="reels-card">
+                    {% if card.day_label %}<p class="reels-day-label">{{ card.day_label }}</p>{% endif %}
+                    <div class="reels-card-panels">
+                        <div class="reels-panel reels-panel-poster">
+                            {% if card.image %}
+                                <img class="reels-poster-img"
+                                     src="{{ card.image }}"
+                                     alt="{{ card.image_alt or card.movie_title }}" />
+                            {% else %}
+                                <div class="reels-poster-placeholder"
+                                     style="background-color: {{ card.cinema_color }}">
+                                    <span>{{ card.movie_title }}</span>
+                                </div>
+                            {% endif %}
+                            <div class="reels-overlay">
+                                <span class="badge rounded-pill" style="background-color: {{ card.cinema_color }}">{{ card.cinema_name }}</span>
+                                <h2>{{ card.movie_title }}</h2>
+                                <p>
+                                    {% if card.soonest_time %}{{ card.soonest_time }}{% endif %}
+                                    {% if card.directors %} · {{ card.directors|join(', ') }}{% endif %}
+                                    {% if card.release_year %} · {{ card.release_year }}{% endif %}
+                                </p>
+                                {% if card.draft %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                            </div>
+                        </div>
+                        <div class="reels-panel reels-panel-info">
+                            <p>{{ card.description }}</p>
+                            {% if card.next_dates %}
+                                <ul class="list-unstyled">
+                                    {% for next_date in card.next_dates %}
+                                        <li>{{ next_date.date.strftime("%d/%m") }} · {{ next_date.cinema_name }}{% if next_date.time %} · {{ next_date.time }}{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if card.screening_url %}<p><a href="{{ card.screening_url }}">Veja a postagem original</a></p>{% endif %}
+                            <p>
+                                {% if g.user %}
+                                    <a href="{{ url_for('screening.update', id=card.screening_id) }}">Edite!</a>
+                                {% else %}
+                                    <a href="{{ url_for('screening.update', id=card.screening_id) }}">Achou um erro? Ajude a corrigir!</a>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            {% endfor %}
+        {% else %}
+            <section class="reels-card reels-empty">
+                <strong>Não há sessões nos próximos dias.</strong>
+            </section>
+        {% endif %}
+    </div>
+{% endblock content %}
