@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description"
+          content="Gere imagens prontas para compartilhar a programação do fim de semana dos cinemas alternativos de Porto Alegre no Instagram.">
+{% endblock meta_tags %}
+{% block header %}
+    <h1>
+        {% block title %}
+            Exportar Fim de Semana
+        {% endblock title %}
+    </h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for("screening.programacao") }}">Programação</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for("screening.weekend") }}">Fim de Semana</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Exportar</li>
+        </ol>
+    </nav>
+{% endblock header %}
+{% block content %}
+    <p>
+        Imagens prontas para compartilhar no Instagram. Toque e segure (ou clique com o botão direito) em cada imagem para salvar.
+    </p>
+    {% for day_export in day_exports %}
+        <div class="mb-5">
+            <h3 class="mb-3">{{ day_export.day_label }} {{ day_export.day_date.strftime("%d/%m") }}</h3>
+            {% if day_export.images_base64 %}
+                <div class="d-flex flex-wrap gap-3">
+                    {% set total_images = day_export.images_base64|length %}
+                    {% set is_multipart = total_images > 1 %}
+                    {% for image_b64 in day_export.images_base64 %}
+                        <figure class="mb-0">
+                            {# djlint:off #}
+                            <img src="data:image/png;base64,{{ image_b64 }}"
+                                 alt="Sessões de {{ day_export.day_label }}{%- if is_multipart -%}, parte {{ loop.index }} de {{ total_images }}{%- endif -%}"
+                                 width="1080"
+                                 height="1350"
+                                 class="img-fluid border rounded"
+                                 style="max-width: 360px;">
+                            {# djlint:on #}
+                            {% if is_multipart %}
+                                <figcaption class="text-muted small text-center">Parte {{ loop.index }}/{{ total_images }}</figcaption>
+                            {% endif %}
+                        </figure>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">Nenhuma sessão programada para {{ day_export.day_label|lower }}.</p>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endblock content %}

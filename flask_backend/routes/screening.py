@@ -42,6 +42,7 @@ from flask_backend.service.screening import (
     save_image,
     validate_image,
 )
+from flask_backend.service.weekend_export import build_weekend_export_images
 
 bp = Blueprint("screening", __name__)
 
@@ -138,6 +139,20 @@ def weekend():
         friday_date=friday_date,
         saturday_date=saturday_date,
         sunday_date=sunday_date,
+    )
+
+
+@bp.route("/weekend/export")
+def weekend_export():
+    screening_dates, friday_date, saturday_date, sunday_date = (
+        get_weekend_screening_dates()
+    )
+    day_exports = build_weekend_export_images(
+        screening_dates, friday_date, saturday_date, sunday_date
+    )
+    return render_template(
+        "screening/weekend_export.html",
+        day_exports=day_exports,
     )
 
 
