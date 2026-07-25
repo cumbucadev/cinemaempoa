@@ -3,7 +3,10 @@ from datetime import date, datetime, timedelta
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
-from flask_backend.repository.screenings import get_screenings_with_upcoming_dates
+from flask_backend.repository.screenings import (
+    get_screenings_in_date_range,
+    get_screenings_with_upcoming_dates,
+)
 
 
 def _create_screening(app, title, slug, dates, draft=False):
@@ -74,4 +77,97 @@ class TestGetScreeningsWithUpcomingDates:
 
         with app.app_context():
             ids = [s.id for s in get_screenings_with_upcoming_dates()]
+            assert ids.count(screening_id) == 1
+
+
+class TestGetScreeningsInDateRange:
+    def test_includes_screening_with_a_date_inside_the_range(self, app, setup_cinemas):
+        screening_id = _create_screening(
+            app, "Filme", "filme", [date.today() + timedelta(days=3)]
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_in_date_range(
+                    date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert screening_id in ids
+
+    def test_excludes_screening_with_a_date_before_the_range(self, app, setup_cinemas):
+        screening_id = _create_screening(
+            app, "Filme Passado", "filme-passado", [date.today() - timedelta(days=1)]
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_in_date_range(
+                    date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert screening_id not in ids
+
+    def test_excludes_screening_with_a_date_after_the_range(self, app, setup_cinemas):
+        screening_id = _create_screening(
+            app, "Filme Futuro", "filme-futuro", [date.today() + timedelta(days=7)]
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_in_date_range(
+                    date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert screening_id not in ids
+
+    def test_includes_screening_with_a_date_on_the_last_day_of_the_range(
+        self, app, setup_cinemas
+    ):
+        screening_id = _create_screening(
+            app, "Filme Limite", "filme-limite", [date.today() + timedelta(days=6)]
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_in_date_range(
+                    date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert screening_id in ids
+
+    def test_includes_draft_screenings(self, app, setup_cinemas):
+        screening_id = _create_screening(
+            app, "Rascunho", "rascunho", [date.today()], draft=True
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_in_date_range(
+                    date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert screening_id in ids
+
+    def test_does_not_duplicate_screenings_with_multiple_dates_in_range(
+        self, app, setup_cinemas
+    ):
+        screening_id = _create_screening(
+            app,
+            "Recorrente",
+            "recorrente",
+            [date.today(), date.today() + timedelta(days=1)],
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_in_date_range(
+                    date.today(), date.today() + timedelta(days=6)
+                )
+            ]
             assert ids.count(screening_id) == 1

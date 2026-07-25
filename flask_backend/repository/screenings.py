@@ -53,6 +53,19 @@ def get_month_screening_dates(
     return screening_dates
 
 
+def get_screenings_in_date_range(start_date: date, end_date: date) -> List[Screening]:
+    """Screenings (draft included) with at least one ScreeningDate between
+    start_date and end_date, inclusive. Powers the mobile reels feed - the
+    caller decides whether to keep drafts based on login state."""
+    return (
+        db_session.query(Screening)
+        .join(ScreeningDate)
+        .filter(func.date(ScreeningDate.date).between(start_date, end_date))
+        .distinct()
+        .all()
+    )
+
+
 def get_by_movie_id_and_cinema_id(movie_id: int, cinema_id: int) -> Optional[Screening]:
     screening = (
         db_session.query(Screening)
