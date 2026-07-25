@@ -804,3 +804,108 @@ class TestBuildReelsFeed:
         )
 
         assert all(card["day_label"] is not None for card in cards)
+
+    def test_skips_screenings_with_only_past_dates(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        past = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="10:00")],
+            screening_id=1,
+        )
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [past],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert cards == []
+
+    def test_keeps_screenings_with_future_dates(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        future = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="14:00")],
+            screening_id=1,
+        )
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [future],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert len(cards) == 1
+        assert cards[0]["soonest_time"] == "14:00"
+
+    def test_filters_next_dates_to_future_only(self):
+        today = date.today()
+        movie = _movie()
+        capitolio = _cinema()
+        redencao = _cinema(slug="sala-redencao")
+        screening = _screening(
+            movie, capitolio, [ScreeningDate(date=today, time="14:00")], screening_id=1
+        )
+        past_other = ScreeningDate(date=today, time="10:00")
+        past_other.screening = _screening(movie, redencao, [], screening_id=2)
+        future_other = ScreeningDate(date=today, time="16:00")
+        future_other.screening = _screening(movie, redencao, [], screening_id=3)
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [screening],
+            [past_other, future_other],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert len(cards[0]["next_dates"]) == 1
+        assert cards[0]["next_dates"][0]["time"] == "16:00"
+
+    def test_uses_soonest_future_date_for_ordering(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        earlier_future = _screening(
+            movie,
+            cinema,
+            [
+                ScreeningDate(date=today, time="10:00"),
+                ScreeningDate(date=today, time="16:00"),
+            ],
+            screening_id=1,
+        )
+        later_future = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="14:00")],
+            screening_id=2,
+        )
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [earlier_future, later_future],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert [card["screening_id"] for card in cards] == [2, 1]

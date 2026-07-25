@@ -52,7 +52,8 @@ bp = Blueprint("screening", __name__)
 
 
 def _mobile_index():
-    today = date.today()
+    now = datetime.now()
+    today = now.date()
     window_end = today + timedelta(days=6)
     user_logged_in = g.user is not None
 
@@ -61,7 +62,14 @@ def _mobile_index():
     movie_dates = get_screening_dates_for_movies(
         movie_ids, today, window_end, include_drafts=user_logged_in
     )
-    cards = build_reels_feed(screenings, movie_dates, today, window_end, user_logged_in)
+    cards = build_reels_feed(
+        screenings,
+        movie_dates,
+        today,
+        window_end,
+        user_logged_in,
+        earliest_datetime=now,
+    )
 
     return render_template("screening/index_mobile.html", cards=cards)
 

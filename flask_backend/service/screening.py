@@ -2,7 +2,7 @@ import hashlib
 import logging
 import os
 from collections import OrderedDict, defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple
 
@@ -143,28 +143,59 @@ def get_soonest_date_in_range(
     return min(in_range, key=lambda d: (d.date, d.time or ""))
 
 
+def _is_in_future(screening_date: ScreeningDate, earliest_datetime: datetime) -> bool:
+    """True when a ScreeningDate is at or after earliest_datetime.
+
+    Missing or unparseable times are treated as the start of the day so
+    same-day entries without a listed time are still surfaced to users."""
+    if screening_date.date > earliest_datetime.date():
+        return True
+    if screening_date.date < earliest_datetime.date():
+        return False
+    if not screening_date.time:
+        return True
+    try:
+        hour, minute = map(int, screening_date.time.split(":")[:2])
+        parsed_time = time(hour, minute)
+    except (ValueError, TypeError):
+        return True
+    return parsed_time >= earliest_datetime.time()
+
+
 def build_reels_feed(
     screenings: List[Screening],
     movie_dates: List[ScreeningDate],
     today: date,
     window_end: date,
     user_logged_in: bool,
+    earliest_datetime: Optional[datetime] = None,
 ) -> List[dict]:
     """Builds the mobile reels feed: one card per non-draft screening (all
     screenings if user_logged_in), sorted by each screening's soonest
-    ScreeningDate within [today, window_end]. `movie_dates` is the flat,
-    cross-cinema list of ScreeningDate rows for every movie present in
+    future ScreeningDate within [today, window_end]. `movie_dates` is the
+    flat, cross-cinema list of ScreeningDate rows for every movie present in
     `screenings` within the same window - grouped here per movie for each
     card's "next dates" list."""
+    if earliest_datetime is None:
+        earliest_datetime = datetime.combine(today, time.min)
+
     dates_by_movie: Dict[int, List[ScreeningDate]] = defaultdict(list)
     for screening_date in movie_dates:
-        dates_by_movie[screening_date.screening.movie_id].append(screening_date)
+        if _is_in_future(screening_date, earliest_datetime):
+            dates_by_movie[screening_date.screening.movie_id].append(screening_date)
 
     cards = []
     for screening in screenings:
         if screening.draft and not user_logged_in:
             continue
-        soonest = get_soonest_date_in_range(screening.dates, today, window_end)
+        future_dates = [
+            d
+            for d in screening.dates
+            if today <= d.date <= window_end and _is_in_future(d, earliest_datetime)
+        ]
+        if not future_dates:
+            continue
+        soonest = min(future_dates, key=lambda d: (d.date, d.time or ""))
         next_dates = sorted(
             dates_by_movie.get(screening.movie_id, []),
             key=lambda d: (d.date, d.time or ""),
