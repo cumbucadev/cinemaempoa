@@ -33,7 +33,6 @@ def sitemap():
     # pages from routes.movie
     urls.append(absolute_url("movie.index"))
     urls.append(absolute_url("movie.posters"))
-    urls.append(absolute_url("movie.posters_cubism"))
 
     # include urls for all movies with at least one screening
     movies = get_all(include_drafts=False)

@@ -207,14 +207,6 @@ class TestMoviesPosters:
         response = client.get("/movies/posters")
         assert response.status_code == 200
 
-    def test_posters_cubism_returns_200(self, client):
-        response = client.get("/movies/posters/cubism")
-        assert response.status_code == 200
-
-    def test_posters_cubism_accepts_crop_position(self, client):
-        response = client.get("/movies/posters/cubism?crop_position=cover")
-        assert response.status_code == 200
-
 
 class TestMoviesPosterImages:
     def test_requires_lazy_load_header(self, client):

@@ -35,20 +35,7 @@
             Posters
         {% endblock title %}
     </h1>
-    <p>Diferentes formas de visualizar os posters de filmes que já passaram pelo cinemaempoa.</p>
-    <!-- Pills -->
-    <nav class="navbar mb-3">
-        <ul class="nav nav-pills">
-            <li class="nav-item">
-                <a class="nav-link active"
-                   aria-current="true"
-                   href="{{ url_for("movie.posters") }}">Mosaico</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ url_for("movie.posters_cubism") }}">Cubismo</a>
-            </li>
-        </ul>
-    </nav>
+    <p>Clique nos posters para ver mais informações sobre os filmes.</p>
 {% endblock header %}
 {% block content %}
     <section class="grid">
