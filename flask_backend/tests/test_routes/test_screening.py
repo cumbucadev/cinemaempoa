@@ -1,12 +1,12 @@
 import io
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
 from google.genai.errors import ClientError, ServerError
 
 from flask_backend.db import db_session
-from flask_backend.models import Alert, Cinema, Movie, Screening, ScreeningDate
+from flask_backend.models import AlertAction, Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.shared import get_weekend_dates
 
 
@@ -489,19 +489,16 @@ class TestScreeningDelete:
         with auth_headers.application.app_context():
             assert db_session.get(Screening, screening_id) is None
 
-    def test_delete_removes_alerts_scoped_to_the_screening(
+    def test_delete_removes_alert_actions_scoped_to_the_screening(
         self, auth_headers, setup_cinemas
     ):
         with auth_headers.application.app_context():
             screening_id = _create_screening()
-            screening = db_session.get(Screening, screening_id)
             db_session.add(
-                Alert(
-                    rule_name="new_movie",
-                    movie_id=screening.movie_id,
+                AlertAction(
                     screening_id=screening_id,
-                    dedup_key=f"new_movie:{screening_id}",
-                    drafted_text="text",
+                    action="posted",
+                    created_at=datetime.now(),
                 )
             )
             db_session.commit()
@@ -510,7 +507,9 @@ class TestScreeningDelete:
 
         with auth_headers.application.app_context():
             assert (
-                db_session.query(Alert).filter_by(screening_id=screening_id).count()
+                db_session.query(AlertAction)
+                .filter_by(screening_id=screening_id)
+                .count()
                 == 0
             )
 

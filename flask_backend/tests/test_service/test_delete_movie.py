@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from flask_backend.db import db_session
 from flask_backend.models import (
-    Alert,
+    AlertAction,
     Director,
     Genre,
     Movie,
@@ -108,37 +108,32 @@ class TestDeleteMovieWithRelatedRows:
                 == 0
             )
 
-    def test_deletes_related_alerts(self, client, app, setup_cinemas):
+    def test_deletes_related_alert_actions(self, client, app, setup_cinemas):
         with client.application.app_context():
             movie = _create_movie("Filme", "filme")
             screening = _create_screening(
                 movie, "capitolio", dates=[(date(2026, 1, 1), "20:00")]
             )
             db_session.add(
-                Alert(
-                    rule_name="new_movie",
-                    movie_id=movie.id,
+                AlertAction(
                     screening_id=screening.id,
-                    dedup_key=f"new_movie:{screening.id}",
-                    drafted_text="text",
-                )
-            )
-            db_session.add(
-                Alert(
-                    rule_name="director_debut",
-                    movie_id=movie.id,
-                    screening_id=None,
-                    dedup_key=f"director_debut:{movie.id}",
-                    drafted_text="text",
+                    action="posted",
+                    created_at=datetime.now(),
                 )
             )
             db_session.commit()
             movie_id = movie.id
+            screening_id = screening.id
 
             deleted = delete_movie(movie_id, skip_confirmation=True)
 
             assert deleted is True
-            assert db_session.query(Alert).filter_by(movie_id=movie_id).count() == 0
+            assert (
+                db_session.query(AlertAction)
+                .filter_by(screening_id=screening_id)
+                .count()
+                == 0
+            )
 
     def test_removes_associations_without_deleting_shared_rows(
         self, client, app, setup_cinemas

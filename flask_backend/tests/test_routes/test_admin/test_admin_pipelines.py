@@ -107,7 +107,7 @@ class TestAdminPipelinesDetail:
             db_session.commit()
             run_id = run.id
 
-        response = auth_headers.get(f"/admin/pipelines/generate-alerts/{run_id}")
+        response = auth_headers.get(f"/admin/pipelines/fetch-movie-metadata/{run_id}")
         assert response.status_code == 404
 
     def test_shows_screenings_created_for_import_json_run(
@@ -139,29 +139,3 @@ class TestAdminPipelinesDetail:
         response = auth_headers.get(f"/admin/pipelines/import-json/{run_id}")
         assert response.status_code == 200
         assert b"Filme do Run" in response.data
-
-    def test_shows_alerts_created_for_generate_alerts_run(self, app, auth_headers):
-        from flask_backend.models import Alert, Movie
-
-        with app.app_context():
-            run = pipeline_runs.start("generate-alerts")
-            pipeline_runs.finish(run.id, status="success")
-            movie = Movie(title="Filme Alertado", slug="filme-alertado")
-            db_session.add(movie)
-            db_session.commit()
-            alert = Alert(
-                rule_name="new_movie",
-                movie_id=movie.id,
-                screening_id=None,
-                dedup_key=f"new_movie:{movie.id}",
-                drafted_text="texto",
-                status="pending",
-                pipeline_run_id=run.id,
-            )
-            db_session.add(alert)
-            db_session.commit()
-            run_id = run.id
-
-        response = auth_headers.get(f"/admin/pipelines/generate-alerts/{run_id}")
-        assert response.status_code == 200
-        assert b"Filme Alertado" in response.data
