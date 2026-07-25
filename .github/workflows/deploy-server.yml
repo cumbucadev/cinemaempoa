@@ -35,12 +35,16 @@ jobs:
             echo "🚀 Starting application..."
             docker compose -f docker-compose.shared.yml up -d flask
 
-            echo "🗑️  Removing all stopped containers..."
-            docker container prune -f
-            echo "✅ Stopped containers removed."
+            echo "📊 Disk usage before cleanup:"
+            docker system df
+            df -h /
 
-            echo "🧹 Cleaning up old Docker images (older than 12h)..."
-            docker image prune -a -f --filter "until=12h"
-            echo "✅ Old unused images cleaned up."
+            echo "🧹 Reclaiming disk space (containers, networks, images, build cache)..."
+            docker system prune -af
+            echo "✅ Cleanup complete."
+
+            echo "📊 Disk usage after cleanup:"
+            docker system df
+            df -h /
 
             echo "🎉 Docker cleanup complete!"
