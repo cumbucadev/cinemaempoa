@@ -1,11 +1,13 @@
 import io
 from datetime import date
+from typing import Optional
 from unittest.mock import MagicMock, patch
 
 from google.genai.errors import ClientError, ServerError
 
 from flask_backend.db import db_session
 from flask_backend.models import Alert, Cinema, Movie, Screening, ScreeningDate
+from flask_backend.service.shared import get_weekend_dates
 
 
 def _get_cinema(slug="capitolio"):
@@ -20,6 +22,7 @@ def _create_screening(
     image_width=None,
     image_height=None,
     image_alt=None,
+    screening_date: Optional[date] = None,
 ):
     cinema = _get_cinema(cinema_slug)
     movie = Movie(title=movie_title, slug=movie_title.lower().replace(" ", "-"))
@@ -35,7 +38,7 @@ def _create_screening(
         image_width=image_width,
         image_height=image_height,
         image_alt=image_alt,
-        dates=[ScreeningDate(date=date.today(), time="20:00")],
+        dates=[ScreeningDate(date=screening_date or date.today(), time="20:00")],
     )
     db_session.add(screening)
     db_session.commit()
@@ -119,6 +122,46 @@ class TestScreeningWeekend:
     def test_weekend_returns_200(self, client, setup_cinemas):
         response = client.get("/weekend")
         assert response.status_code == 200
+
+    def test_weekend_links_to_export_page(self, client, setup_cinemas):
+        response = client.get("/weekend")
+        assert b"/weekend/export" in response.data
+
+
+class TestScreeningWeekendExport:
+    def test_weekend_export_returns_200(self, client, setup_cinemas):
+        response = client.get("/weekend/export")
+        assert response.status_code == 200
+
+    def test_weekend_export_shows_no_images_when_no_screenings(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/weekend/export")
+        html = response.get_data(as_text=True)
+        assert html.count("data:image/png;base64,") == 0
+        assert "Nenhuma sessão programada" in html
+
+    def test_weekend_export_renders_one_image_for_a_day_with_few_screenings(
+        self, client, setup_cinemas
+    ):
+        friday_date, _, _ = get_weekend_dates(date.today())
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Sexta", screening_date=friday_date)
+        response = client.get("/weekend/export")
+        assert response.get_data(as_text=True).count("data:image/png;base64,") == 1
+
+    def test_weekend_export_splits_into_multiple_parts_for_many_screenings(
+        self, client, setup_cinemas
+    ):
+        friday_date, _, _ = get_weekend_dates(date.today())
+        with client.application.app_context():
+            for i in range(40):
+                _create_screening(
+                    movie_title=f"Filme Longo Numero {i} Com Título Bem Grande",
+                    screening_date=friday_date,
+                )
+        response = client.get("/weekend/export")
+        assert response.get_data(as_text=True).count("data:image/png;base64,") >= 2
 
 
 class TestScreeningProgramacao:

@@ -1,7 +1,8 @@
 import hashlib
 import logging
 import os
-from datetime import datetime
+from collections import OrderedDict
+from datetime import date, datetime
 from io import BytesIO
 from typing import List, Optional, Tuple
 
@@ -95,6 +96,21 @@ def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
             )
         )
     return screening_date_objects
+
+
+def group_screening_dates_by_day(
+    screening_dates: List[ScreeningDate], days: List[date]
+) -> "OrderedDict[date, List[ScreeningDate]]":
+    """Buckets an already date/time-ordered flat list of ScreeningDate by
+    their .date field. Every date in `days` gets a (possibly empty) entry,
+    in the given order."""
+    buckets: "OrderedDict[date, List[ScreeningDate]]" = OrderedDict(
+        (day, []) for day in days
+    )
+    for screening_date in screening_dates:
+        if screening_date.date in buckets:
+            buckets[screening_date.date].append(screening_date)
+    return buckets
 
 
 def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]]:
