@@ -113,6 +113,15 @@ def group_screening_dates_by_day(
     return buckets
 
 
+def get_soonest_date_in_range(
+    screening_dates: List[ScreeningDate], start_date: date, end_date: date
+) -> ScreeningDate:
+    """Earliest ScreeningDate within [start_date, end_date]. Assumes at
+    least one date in screening_dates falls in that range."""
+    in_range = [d for d in screening_dates if start_date <= d.date <= end_date]
+    return min(in_range, key=lambda d: (d.date, d.time or ""))
+
+
 def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]]:
     if image_url is None:
         return None, None

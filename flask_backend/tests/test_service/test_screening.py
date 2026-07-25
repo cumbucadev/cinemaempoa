@@ -616,3 +616,47 @@ class TestImportScrappedResultsWithoutScrapedTime:
             movie = db_session.query(Movie).filter_by(title="Filme Sem Horario").one()
             screening = movie.screenings[0]
             assert len(screening.dates) == 1
+
+
+class TestGetSoonestDateInRange:
+    def test_returns_the_earliest_date_in_range(self):
+        from datetime import date, timedelta
+        from flask_backend.service.screening import get_soonest_date_in_range
+
+        today = date.today()
+        later = ScreeningDate(date=today + timedelta(days=3), time="20:00")
+        sooner = ScreeningDate(date=today + timedelta(days=1), time="18:00")
+
+        result = get_soonest_date_in_range(
+            [later, sooner], today, today + timedelta(days=6)
+        )
+
+        assert result is sooner
+
+    def test_ignores_dates_outside_the_range(self):
+        from datetime import date, timedelta
+        from flask_backend.service.screening import get_soonest_date_in_range
+
+        today = date.today()
+        in_range = ScreeningDate(date=today + timedelta(days=1), time="18:00")
+        out_of_range = ScreeningDate(date=today - timedelta(days=1), time="10:00")
+
+        result = get_soonest_date_in_range(
+            [out_of_range, in_range], today, today + timedelta(days=6)
+        )
+
+        assert result is in_range
+
+    def test_breaks_ties_on_the_same_date_by_time(self):
+        from datetime import date, timedelta
+        from flask_backend.service.screening import get_soonest_date_in_range
+
+        today = date.today()
+        earlier_time = ScreeningDate(date=today, time="14:00")
+        later_time = ScreeningDate(date=today, time="20:00")
+
+        result = get_soonest_date_in_range(
+            [later_time, earlier_time], today, today + timedelta(days=6)
+        )
+
+        assert result is earlier_time
