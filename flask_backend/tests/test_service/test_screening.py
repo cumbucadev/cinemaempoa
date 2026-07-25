@@ -1,5 +1,5 @@
 import io
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from unittest.mock import MagicMock, patch
 
 from PIL import Image
@@ -660,3 +660,27 @@ class TestGetSoonestDateInRange:
         )
 
         assert result is earlier_time
+
+
+class TestFormatDayLabel:
+    def test_labels_today(self):
+        from flask_backend.service.screening import format_day_label
+
+        today = date(2026, 7, 25)
+        assert format_day_label(today, today) == "Hoje, 25/07"
+
+    def test_labels_tomorrow(self):
+        from flask_backend.service.screening import format_day_label
+
+        today = date(2026, 7, 25)
+        assert format_day_label(today + timedelta(days=1), today) == "Amanhã, 26/07"
+
+    def test_labels_later_days_with_weekday_name(self):
+        from flask_backend.service.screening import format_day_label
+
+        today = date(2026, 7, 25)  # a Saturday
+        # today + 4 days = 2026-07-29, a Wednesday
+        assert (
+            format_day_label(today + timedelta(days=4), today)
+            == "Quarta-feira, 29/07"
+        )

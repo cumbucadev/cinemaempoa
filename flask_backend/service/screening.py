@@ -2,7 +2,7 @@ import hashlib
 import logging
 import os
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from typing import List, Optional, Tuple
 
@@ -33,6 +33,27 @@ from flask_backend.utils.enums.environment import EnvironmentEnum
 logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+
+_WEEKDAY_NAMES_PT = [
+    "Segunda-feira",
+    "Terça-feira",
+    "Quarta-feira",
+    "Quinta-feira",
+    "Sexta-feira",
+    "Sábado",
+    "Domingo",
+]
+
+
+def format_day_label(day: date, today: date) -> str:
+    """Portuguese label for a reels-feed day-boundary card: "Hoje, DD/MM",
+    "Amanhã, DD/MM", or "<Weekday>, DD/MM" for later days."""
+    formatted_date = day.strftime("%d/%m")
+    if day == today:
+        return f"Hoje, {formatted_date}"
+    if day == today + timedelta(days=1):
+        return f"Amanhã, {formatted_date}"
+    return f"{_WEEKDAY_NAMES_PT[day.weekday()]}, {formatted_date}"
 
 
 def _check_if_actually_image(file):
