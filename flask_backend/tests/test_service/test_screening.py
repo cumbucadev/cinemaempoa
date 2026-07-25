@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from PIL import Image
@@ -622,6 +622,7 @@ class TestImportScrappedResultsWithoutScrapedTime:
 class TestGetSoonestDateInRange:
     def test_returns_the_earliest_date_in_range(self):
         from datetime import date, timedelta
+
         from flask_backend.service.screening import get_soonest_date_in_range
 
         today = date.today()
@@ -636,6 +637,7 @@ class TestGetSoonestDateInRange:
 
     def test_ignores_dates_outside_the_range(self):
         from datetime import date, timedelta
+
         from flask_backend.service.screening import get_soonest_date_in_range
 
         today = date.today()
@@ -650,6 +652,7 @@ class TestGetSoonestDateInRange:
 
     def test_breaks_ties_on_the_same_date_by_time(self):
         from datetime import date, timedelta
+
         from flask_backend.service.screening import get_soonest_date_in_range
 
         today = date.today()
@@ -682,8 +685,7 @@ class TestFormatDayLabel:
         today = date(2026, 7, 25)  # a Saturday
         # today + 4 days = 2026-07-29, a Wednesday
         assert (
-            format_day_label(today + timedelta(days=4), today)
-            == "Quarta-feira, 29/07"
+            format_day_label(today + timedelta(days=4), today) == "Quarta-feira, 29/07"
         )
 
 
@@ -748,9 +750,7 @@ class TestBuildReelsFeed:
             screening_id=1,
         )
 
-        cards = build_reels_feed(
-            [draft], [], today, today + timedelta(days=6), False
-        )
+        cards = build_reels_feed([draft], [], today, today + timedelta(days=6), False)
 
         assert cards == []
 
@@ -766,9 +766,7 @@ class TestBuildReelsFeed:
             screening_id=1,
         )
 
-        cards = build_reels_feed(
-            [draft], [], today, today + timedelta(days=6), True
-        )
+        cards = build_reels_feed([draft], [], today, today + timedelta(days=6), True)
 
         assert len(cards) == 1
         assert cards[0]["draft"] is True
@@ -780,9 +778,7 @@ class TestBuildReelsFeed:
         screening = _screening(
             movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
         )
-        other_cinema_date = ScreeningDate(
-            date=today + timedelta(days=1), time="19:00"
-        )
+        other_cinema_date = ScreeningDate(date=today + timedelta(days=1), time="19:00")
         other_cinema_date.screening = _screening(
             movie, _cinema(slug="sala-redencao"), [], screening_id=2
         )
