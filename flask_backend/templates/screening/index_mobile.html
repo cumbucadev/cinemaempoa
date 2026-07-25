@@ -106,7 +106,12 @@
 
         .reels-panel-info {
             overflow-y: auto;
-            overscroll-behavior: contain;
+            /* disable overscroll-behavier contain as it prevents
+               the user from scrolling back left to the poster */
+            /* overscroll-behavior: contain; */
+            /* contain vertical overscroll, forcing user to
+               go back to poster in order to go to the next screening */
+            overscroll-behavior-y: contain;
             padding: 1.5rem;
             background: var(--bs-content-bg, #fff);
         }
