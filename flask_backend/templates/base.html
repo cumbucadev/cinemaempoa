@@ -128,11 +128,11 @@
                            href="#"
                            role="button"
                            data-bs-toggle="dropdown"
-                           aria-expanded="false">Filmes</a>
+                           aria-expanded="false">Acervo</a>
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
-                                   href="{{ url_for("movie.index") }}">Títulos</a>
+                                   href="{{ url_for("movie.index") }}">Filmes</a>
                             </li>
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
@@ -197,11 +197,11 @@
                        class="nav-link dropdown-toggle"
                        role="button"
                        data-bs-toggle="dropdown"
-                       aria-expanded="false">Filmes</a>
+                       aria-expanded="false">Acervo</a>
                     <ul class="dropdown-menu">
                         <li>
                             <a class="dropdown-item {% if request.path == url_for('movie.index') %}active{% endif %}"
-                               href="{{ url_for("movie.index") }}">Títulos</a>
+                               href="{{ url_for("movie.index") }}">Filmes</a>
                         </li>
                         <li>
                             <a class="dropdown-item {% if request.path == url_for('movie.posters') %}active{% endif %}"
