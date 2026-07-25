@@ -197,13 +197,8 @@ def build_reels_feed(
 
     cards.sort(key=lambda card: (card["soonest_date"], card["soonest_time"] or ""))
 
-    seen_dates = set()
     for card in cards:
-        if card["soonest_date"] not in seen_dates:
-            card["day_label"] = format_day_label(card["soonest_date"], today)
-            seen_dates.add(card["soonest_date"])
-        else:
-            card["day_label"] = None
+        card["day_label"] = format_day_label(card["soonest_date"], today)
 
     return cards
 

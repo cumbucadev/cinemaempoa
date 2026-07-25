@@ -133,7 +133,7 @@
         {% if cards %}
             {% for card in cards %}
                 <section class="reels-card">
-                    {% if card.day_label %}<p class="reels-day-label">{{ card.day_label }}</p>{% endif %}
+                    <p class="reels-day-label">{{ card.day_label }}</p>
                     <div class="reels-card-panels">
                         <div class="reels-panel reels-panel-poster">
                             {% if card.image %}

@@ -778,7 +778,7 @@ class TestBuildReelsFeed:
         assert len(cards[0]["next_dates"]) == 1
         assert cards[0]["next_dates"][0]["cinema_name"] == "Sala Redenção"
 
-    def test_marks_day_label_only_on_the_first_card_of_each_day(self):
+    def test_marks_day_label_on_every_card(self):
         today = date.today()
         movie = _movie()
         cinema = _cinema()
@@ -803,6 +803,4 @@ class TestBuildReelsFeed:
             False,
         )
 
-        assert cards[0]["day_label"] is not None
-        assert cards[1]["day_label"] is None
-        assert cards[2]["day_label"] is not None
+        assert all(card["day_label"] is not None for card in cards)
