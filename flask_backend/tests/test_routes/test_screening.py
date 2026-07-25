@@ -9,6 +9,8 @@ from flask_backend.db import db_session
 from flask_backend.models import AlertAction, Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.shared import get_weekend_dates
 
+MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X)"
+
 
 def _get_cinema(slug="capitolio"):
     return db_session.query(Cinema).filter_by(slug=slug).first()
@@ -88,6 +90,13 @@ class TestScreeningIndex:
             _create_screening(movie_title="Filme Rascunho Logado", draft=True)
         response = auth_headers.get("/")
         assert b"Filme Rascunho Logado" in response.data
+
+    def test_poster_panel_has_a_swipe_hint(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Com Dica")
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'class="reels-swipe-hint"' in html
 
 
 class TestScreeningIndexAltBadge:
