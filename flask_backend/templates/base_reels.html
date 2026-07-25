@@ -28,6 +28,34 @@
     {% endblock extra_head %}
 </head>
 <body>
+    <button id="reels-menu-toggle"
+            type="button"
+            class="btn btn-dark"
+            style="position: fixed; top: 0.75rem; left: 0.75rem; z-index: 10; border-radius: 999px;"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#reels-menu"
+            aria-controls="reels-menu">
+        ☰
+    </button>
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="reels-menu">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Cinema em POA</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('page.about') }}">Sobre o projeto</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('screening.programacao') }}">Programação</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('movie.index') }}">Filmes</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('blog.index') }}">Blog</a></li>
+                {% if g.user %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Sair</a></li>
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Acessar</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
     {% block content %}
     {% endblock content %}
     <script>

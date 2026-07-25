@@ -170,6 +170,20 @@
                                     <a href="{{ url_for('screening.update', id=card.screening_id) }}">Achou um erro? Ajude a corrigir!</a>
                                 {% endif %}
                             </p>
+                            {% if card.draft %}
+                                <p>
+                                    <button class="badge text-bg-warning"
+                                            data-function="publish"
+                                            data-screening-id="{{ card.screening_id }}">
+                                        Publicar
+                                    </button>
+                                    <button class="badge text-bg-danger"
+                                            data-function="delete"
+                                            data-screening-id="{{ card.screening_id }}">
+                                        Descartar
+                                    </button>
+                                </p>
+                            {% endif %}
                         </div>
                     </div>
                 </section>
@@ -197,5 +211,20 @@
             { rootMargin: "200% 0px 200% 0px" }
         );
         lazyPosters.forEach((img) => posterObserver.observe(img));
+    </script>
+
+    <script>
+        document.querySelectorAll('[data-function="publish"]').forEach((btn) => {
+            btn.addEventListener("click", () => {
+                fetch(`/screening/${btn.dataset.screeningId}/publish`, { method: "POST" })
+                    .then((response) => { if (response.ok) window.location.reload(); });
+            });
+        });
+        document.querySelectorAll('[data-function="delete"]').forEach((btn) => {
+            btn.addEventListener("click", () => {
+                fetch(`/screening/${btn.dataset.screeningId}/delete`, { method: "POST" })
+                    .then((response) => { if (response.ok) window.location.reload(); });
+            });
+        });
     </script>
 {% endblock content %}

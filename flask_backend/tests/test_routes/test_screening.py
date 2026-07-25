@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
+from flask import url_for
 from google.genai.errors import ClientError, ServerError
 
 from flask_backend.db import db_session
@@ -97,6 +98,24 @@ class TestScreeningIndex:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert 'class="reels-swipe-hint"' in html
+
+    def test_draft_admin_actions_appear_in_the_info_panel_when_logged_in(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            _create_screening(movie_title="Filme Rascunho Ações", draft=True)
+        response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-function="publish"' in html
+        assert 'data-function="delete"' in html
+
+    def test_menu_button_is_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'id="reels-menu-toggle"' in html
+        with client.application.test_request_context():
+            about_url = url_for("page.about")
+        assert about_url in html
 
 
 class TestScreeningIndexAltBadge:
