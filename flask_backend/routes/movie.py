@@ -59,12 +59,6 @@ def posters():
     )
 
 
-@bp.route("/movies/posters/cubism")
-def posters_cubism():
-    crop_position = request.args.get("crop_position", "maintain")
-    return render_template("movie/cubism.html", crop_position=crop_position)
-
-
 @bp.route("/movies/posters/images")
 def poster_images():
     lazy_loading = request.headers.get("X-LAZY-LOAD", "0")
