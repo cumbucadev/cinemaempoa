@@ -6,8 +6,9 @@ from PIL import Image
 
 from flask_backend.db import db_session
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
-from flask_backend.models import Movie, Screening, ScreeningDate
+from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.screening import (
+    build_reels_feed,
     download_image_from_url,
     get_image_metadata,
     get_img_filename_from_url,
@@ -684,3 +685,144 @@ class TestFormatDayLabel:
             format_day_label(today + timedelta(days=4), today)
             == "Quarta-feira, 29/07"
         )
+
+
+def _movie(title="Filme", release_year=2024):
+    return Movie(title=title, release_year=release_year, directors=[])
+
+
+def _cinema(slug="capitolio"):
+    # short_name and color are computed properties looked up by slug from
+    # CINEMA_SHORT_NAMES/CINEMA_COLORS (flask_backend/constants.py) - the
+    # slug is what actually drives them, `name` here is just the fallback.
+    return Cinema(slug=slug, name=slug, url="https://example.com")
+
+
+def _screening(movie, cinema, dates, draft=False, screening_id=1, image=None):
+    screening = Screening(
+        id=screening_id,
+        movie=movie,
+        movie_id=1,
+        cinema=cinema,
+        description="Uma descrição",
+        draft=draft,
+        image=image,
+        dates=dates,
+    )
+    return screening
+
+
+class TestBuildReelsFeed:
+    def test_orders_cards_by_each_screenings_soonest_date(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        later = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today + timedelta(days=2), time="20:00")],
+            screening_id=1,
+        )
+        sooner = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="18:00")],
+            screening_id=2,
+        )
+
+        cards = build_reels_feed(
+            [later, sooner], [], today, today + timedelta(days=6), False
+        )
+
+        assert [card["screening_id"] for card in cards] == [2, 1]
+
+    def test_excludes_draft_screenings_when_not_logged_in(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        draft = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="20:00")],
+            draft=True,
+            screening_id=1,
+        )
+
+        cards = build_reels_feed(
+            [draft], [], today, today + timedelta(days=6), False
+        )
+
+        assert cards == []
+
+    def test_includes_draft_screenings_when_logged_in(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        draft = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="20:00")],
+            draft=True,
+            screening_id=1,
+        )
+
+        cards = build_reels_feed(
+            [draft], [], today, today + timedelta(days=6), True
+        )
+
+        assert len(cards) == 1
+        assert cards[0]["draft"] is True
+
+    def test_attaches_next_dates_for_the_cards_movie(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+        other_cinema_date = ScreeningDate(
+            date=today + timedelta(days=1), time="19:00"
+        )
+        other_cinema_date.screening = _screening(
+            movie, _cinema(slug="sala-redencao"), [], screening_id=2
+        )
+
+        cards = build_reels_feed(
+            [screening],
+            [other_cinema_date],
+            today,
+            today + timedelta(days=6),
+            False,
+        )
+
+        assert len(cards[0]["next_dates"]) == 1
+        assert cards[0]["next_dates"][0]["cinema_name"] == "Sala Redenção"
+
+    def test_marks_day_label_only_on_the_first_card_of_each_day(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        first = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="18:00")], screening_id=1
+        )
+        second_same_day = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=2
+        )
+        next_day = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today + timedelta(days=1), time="18:00")],
+            screening_id=3,
+        )
+
+        cards = build_reels_feed(
+            [second_same_day, next_day, first],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+        )
+
+        assert cards[0]["day_label"] is not None
+        assert cards[1]["day_label"] is None
+        assert cards[2]["day_label"] is not None
