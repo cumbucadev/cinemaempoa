@@ -75,10 +75,7 @@
                                             </ul>
                                         </div>
                                         <span class="mb-3 badge rounded-pill"
-                                              style="background-color: {{ colors[cinema.slug] }}"
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="top"
-                                              title="{{ cinema.name }}">{{ cinema.slug }}</span>
+                                              style="background-color: {{ cinema.color }}">{{ cinema.short_name }}</span>
                                     {% endif %}
                                     {# djlint:off #}
                                         <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>

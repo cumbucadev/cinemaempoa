@@ -66,10 +66,7 @@
                                 <p class="card-text">
                                     {% for screening in movie.screenings %}
                                         <span class="badge rounded-pill"
-                                              style="background-color: {{ colors[screening.cinema.slug] }}"
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="top"
-                                              title="{{ screening.cinema.name }}">{{ screening.cinema.slug }}</span>
+                                              style="background-color: {{ screening.cinema.color }}">{{ screening.cinema.short_name }}</span>
                                     {% endfor %}
                                 </p>
                             </div>
