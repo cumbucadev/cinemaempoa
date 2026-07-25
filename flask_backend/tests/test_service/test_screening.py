@@ -10,9 +10,11 @@ from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.screening import (
     build_reels_feed,
     download_image_from_url,
+    format_day_label,
     get_image_metadata,
     get_img_filename_from_url,
     get_img_path_from_filename,
+    get_soonest_date_in_range,
     import_scrapped_results,
     save_image,
     validate_image,
@@ -621,10 +623,6 @@ class TestImportScrappedResultsWithoutScrapedTime:
 
 class TestGetSoonestDateInRange:
     def test_returns_the_earliest_date_in_range(self):
-        from datetime import date, timedelta
-
-        from flask_backend.service.screening import get_soonest_date_in_range
-
         today = date.today()
         later = ScreeningDate(date=today + timedelta(days=3), time="20:00")
         sooner = ScreeningDate(date=today + timedelta(days=1), time="18:00")
@@ -636,10 +634,6 @@ class TestGetSoonestDateInRange:
         assert result is sooner
 
     def test_ignores_dates_outside_the_range(self):
-        from datetime import date, timedelta
-
-        from flask_backend.service.screening import get_soonest_date_in_range
-
         today = date.today()
         in_range = ScreeningDate(date=today + timedelta(days=1), time="18:00")
         out_of_range = ScreeningDate(date=today - timedelta(days=1), time="10:00")
@@ -651,10 +645,6 @@ class TestGetSoonestDateInRange:
         assert result is in_range
 
     def test_breaks_ties_on_the_same_date_by_time(self):
-        from datetime import date, timedelta
-
-        from flask_backend.service.screening import get_soonest_date_in_range
-
         today = date.today()
         earlier_time = ScreeningDate(date=today, time="14:00")
         later_time = ScreeningDate(date=today, time="20:00")
@@ -668,20 +658,14 @@ class TestGetSoonestDateInRange:
 
 class TestFormatDayLabel:
     def test_labels_today(self):
-        from flask_backend.service.screening import format_day_label
-
         today = date(2026, 7, 25)
         assert format_day_label(today, today) == "Hoje, 25/07"
 
     def test_labels_tomorrow(self):
-        from flask_backend.service.screening import format_day_label
-
         today = date(2026, 7, 25)
         assert format_day_label(today + timedelta(days=1), today) == "Amanhã, 26/07"
 
     def test_labels_later_days_with_weekday_name(self):
-        from flask_backend.service.screening import format_day_label
-
         today = date(2026, 7, 25)  # a Saturday
         # today + 4 days = 2026-07-29, a Wednesday
         assert (

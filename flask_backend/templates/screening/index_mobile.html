@@ -106,8 +106,16 @@
 
         .reels-panel-info {
             overflow-y: auto;
+            overscroll-behavior: contain;
             padding: 1.5rem;
             background: var(--bs-content-bg, #fff);
+        }
+
+        /* keeps line breaks of scraper-sourced descriptions, mirroring the
+           `white-space: break-spaces` the desktop layout uses. scoped to the
+           description so the panel's markup indentation isn't rendered too. */
+        .reels-panel-info .reels-description {
+            white-space: pre-wrap;
         }
 
         .reels-empty {
@@ -160,8 +168,9 @@
                             <span class="reels-swipe-hint" aria-hidden="true">›</span>
                         </div>
                         <div class="reels-panel reels-panel-info">
-                            <p>{{ card.description }}</p>
+                            <p class="reels-description">{{ card.description }}</p>
                             {% if card.next_dates %}
+                                <h3 class="h6">Próximas sessões</h3>
                                 <ul class="list-unstyled">
                                     {% for next_date in card.next_dates %}
                                         <li>
@@ -229,6 +238,9 @@
                     })
                     .then((response) => {
                         if (response.ok) window.location.reload();
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
                     });
             });
         });
@@ -239,6 +251,9 @@
                     })
                     .then((response) => {
                         if (response.ok) window.location.reload();
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
                     });
             });
         });

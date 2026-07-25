@@ -10,8 +10,6 @@ from flask_backend.db import db_session
 from flask_backend.models import AlertAction, Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.shared import get_weekend_dates
 
-MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X)"
-
 
 def _get_cinema(slug="capitolio"):
     return db_session.query(Cinema).filter_by(slug=slug).first()
@@ -26,14 +24,17 @@ def _create_screening(
     image_height=None,
     image_alt=None,
     screening_date: Optional[date] = None,
+    movie_id: Optional[int] = None,
 ):
     cinema = _get_cinema(cinema_slug)
-    movie = Movie(title=movie_title, slug=movie_title.lower().replace(" ", "-"))
-    db_session.add(movie)
-    db_session.commit()
+    if movie_id is None:
+        movie = Movie(title=movie_title, slug=movie_title.lower().replace(" ", "-"))
+        db_session.add(movie)
+        db_session.commit()
+        movie_id = movie.id
 
     screening = Screening(
-        movie_id=movie.id,
+        movie_id=movie_id,
         cinema_id=cinema.id,
         description="A description",
         draft=draft,
@@ -91,31 +92,6 @@ class TestScreeningIndex:
             _create_screening(movie_title="Filme Rascunho Logado", draft=True)
         response = auth_headers.get("/")
         assert b"Filme Rascunho Logado" in response.data
-
-    def test_poster_panel_has_a_swipe_hint(self, client, setup_cinemas):
-        with client.application.app_context():
-            _create_screening(movie_title="Filme Com Dica")
-        response = client.get("/", headers={"User-Agent": MOBILE_UA})
-        html = response.get_data(as_text=True)
-        assert 'class="reels-swipe-hint"' in html
-
-    def test_draft_admin_actions_appear_in_the_info_panel_when_logged_in(
-        self, auth_headers, setup_cinemas
-    ):
-        with auth_headers.application.app_context():
-            _create_screening(movie_title="Filme Rascunho Ações", draft=True)
-        response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
-        html = response.get_data(as_text=True)
-        assert 'data-function="publish"' in html
-        assert 'data-function="delete"' in html
-
-    def test_menu_button_is_present(self, client, setup_cinemas):
-        response = client.get("/", headers={"User-Agent": MOBILE_UA})
-        html = response.get_data(as_text=True)
-        assert 'id="reels-menu-toggle"' in html
-        with client.application.test_request_context():
-            about_url = url_for("page.about")
-        assert about_url in html
 
 
 class TestScreeningIndexAltBadge:
@@ -666,6 +642,47 @@ class TestScreeningIndexMobile:
         response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
         assert b"Filme Rascunho Mobile Logado" in response.data
 
+    def test_draft_admin_actions_appear_in_the_info_panel_when_logged_in(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            _create_screening(movie_title="Filme Rascunho Ações", draft=True)
+        response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-function="publish"' in html
+        assert 'data-function="delete"' in html
+
+    def test_next_dates_hide_a_drafts_dates_from_anonymous_visitors(
+        self, client, setup_cinemas
+    ):
+        # same movie showing at two cinemas: published at Capitólio, still a
+        # draft at Sala Redenção. the published card's "next dates" must not
+        # expose the draft's cinema or date to a logged out visitor.
+        today = date.today()
+        draft_date = today + timedelta(days=3)
+        with client.application.app_context():
+            published_id = _create_screening(
+                movie_title="Filme Compartilhado",
+                cinema_slug="capitolio",
+                screening_date=today,
+            )
+            movie_id = db_session.get(Screening, published_id).movie_id
+            _create_screening(
+                movie_title="Filme Compartilhado",
+                cinema_slug="sala-redencao",
+                draft=True,
+                screening_date=draft_date,
+                movie_id=movie_id,
+            )
+
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        assert "Filme Compartilhado" in html
+        assert f"{today.strftime('%d/%m')} · Capitólio" in html
+        assert "Sala Redenção" not in html
+        assert draft_date.strftime("%d/%m") not in html
+
     def test_shows_placeholder_for_screening_without_poster(
         self, client, setup_cinemas
     ):
@@ -674,6 +691,35 @@ class TestScreeningIndexMobile:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert 'class="reels-poster-placeholder"' in html
+
+    def test_poster_panel_has_a_swipe_hint(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Com Dica")
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'class="reels-swipe-hint"' in html
+
+    def test_loads_analytics_for_anonymous_visitors(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-goatcounter="https://cinemaempoa.goatcounter.com/count"' in html
+
+    def test_renders_the_analytics_opt_out_marker_outside_production(
+        self, client, setup_cinemas
+    ):
+        # base.html carries the skip marker on its dev banner / logged in
+        # marker; the reels shell renders it hidden, same effect.
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert '<div style="display: none;" data-goatcounter-skip></div>' in html
+
+    def test_menu_button_is_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'id="reels-menu-toggle"' in html
+        with client.application.test_request_context():
+            about_url = url_for("page.about")
+        assert about_url in html
 
     def test_shows_empty_state_when_no_screenings_in_range(self, client, setup_cinemas):
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
@@ -695,4 +741,7 @@ class TestScreeningIndexMobile:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert 'src="poster0.jpg"' in html
+        # index 1 is the other side of the `loop.index0 < 2` boundary: still eager
+        assert 'src="poster1.jpg"' in html
+        assert 'data-src="poster1.jpg"' not in html
         assert 'data-src="poster2.jpg"' in html

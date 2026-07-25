@@ -30,6 +30,13 @@
     {% endblock extra_head %}
 </head>
 <body>
+    {# the reels layout has no room for the dev banner, so the goatcounter #}
+    {# opt-out markers used by base.html are rendered hidden here #}
+    {% if not is_production or g.user %}
+        {# djlint:off #}
+        <div style="display: none;" data-goatcounter-skip></div>
+        {# djlint:on #}
+    {% endif %}
     {# djlint:off #}
     <button id="reels-menu-toggle"
             type="button"
@@ -37,7 +44,8 @@
             style="position: fixed; top: 0.75rem; left: 0.75rem; z-index: 10; border-radius: 999px;"
             data-bs-toggle="offcanvas"
             data-bs-target="#reels-menu"
-            aria-controls="reels-menu">
+            aria-controls="reels-menu"
+            aria-label="Abrir menu">
         ☰
     </button>
     {# djlint:on #}
@@ -82,5 +90,15 @@
         }
     </script>
     <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
+    <script>
+        // reference: https://www.goatcounter.com/help/skip-path
+        // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
+        window.goatcounter = {
+            no_onload: document.querySelector("[data-goatcounter-skip]") !== null,
+        }
+    </script>
+    <script data-goatcounter="https://cinemaempoa.goatcounter.com/count"
+            async
+            src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
