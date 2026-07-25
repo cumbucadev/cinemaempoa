@@ -53,6 +53,43 @@ def get_month_screening_dates(
     return screening_dates
 
 
+def get_screenings_in_date_range(start_date: date, end_date: date) -> List[Screening]:
+    """Screenings (draft included) with at least one ScreeningDate between
+    start_date and end_date, inclusive. Powers the mobile reels feed - the
+    caller decides whether to keep drafts based on login state."""
+    return (
+        db_session.query(Screening)
+        .join(ScreeningDate)
+        .filter(func.date(ScreeningDate.date).between(start_date, end_date))
+        .distinct()
+        .all()
+    )
+
+
+def get_screening_dates_for_movies(
+    movie_ids: List[int],
+    start_date: date,
+    end_date: date,
+    include_drafts: bool = False,
+) -> List[ScreeningDate]:
+    """Every ScreeningDate between start_date and end_date (inclusive) for
+    the given movie IDs, across all cinemas. Drafts are excluded unless
+    include_drafts is True - callers must pass True only for logged-in
+    requests, otherwise a movie with an unpublished screening at one cinema
+    would leak that draft's dates via another cinema's published card."""
+    if not movie_ids:
+        return []
+    query = (
+        db_session.query(ScreeningDate)
+        .join(Screening)
+        .filter(Screening.movie_id.in_(movie_ids))
+        .filter(func.date(ScreeningDate.date).between(start_date, end_date))
+    )
+    if not include_drafts:
+        query = query.filter(Screening.draft == False)  # noqa: E712
+    return query.all()
+
+
 def get_by_movie_id_and_cinema_id(movie_id: int, cinema_id: int) -> Optional[Screening]:
     screening = (
         db_session.query(Screening)

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+{# djlint:off #}
+<html lang="pt-br" data-bs-core="default">
+{# djlint:on #}
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+        {% block title %}
+        {% endblock title %}
+    - Cinema em POA</title>
+    {% block meta_tags %}
+    {% endblock meta_tags %}
+    <link rel="apple-touch-icon"
+          sizes="180x180"
+          href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest"
+          href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
+    {% block extra_head %}
+    {% endblock extra_head %}
+</head>
+<body>
+    {# the reels layout has no room for the dev banner, so the goatcounter #}
+    {# opt-out markers used by base.html are rendered hidden here #}
+    {% if not is_production or g.user %}
+        {# djlint:off #}
+        <div style="display: none;" data-goatcounter-skip></div>
+        {# djlint:on #}
+    {% endif %}
+    {# djlint:off #}
+    <button id="reels-menu-toggle"
+            type="button"
+            class="btn btn-dark"
+            style="position: fixed; top: 0.75rem; left: 0.75rem; z-index: 10; border-radius: 999px;"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#reels-menu"
+            aria-controls="reels-menu"
+            aria-label="Abrir menu">
+        ☰
+    </button>
+    {# djlint:on #}
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="reels-menu">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Cinema em POA</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("page.about") }}">Sobre o projeto</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("blog.index") }}">Blog</a>
+                </li>
+                {% if g.user %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for("auth.login") }}">Acessar</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+    {% block content %}
+    {% endblock content %}
+    <script>
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.querySelector("html").setAttribute("data-bs-theme", "dark");
+        } else {
+            document.querySelector("html").setAttribute("data-bs-theme", "light");
+        }
+    </script>
+    <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
+    <script>
+        // reference: https://www.goatcounter.com/help/skip-path
+        // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
+        window.goatcounter = {
+            no_onload: document.querySelector("[data-goatcounter-skip]") !== null,
+        }
+    </script>
+    <script data-goatcounter="https://cinemaempoa.goatcounter.com/count"
+            async
+            src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

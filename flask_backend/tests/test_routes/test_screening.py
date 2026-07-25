@@ -1,8 +1,9 @@
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
+from flask import url_for
 from google.genai.errors import ClientError, ServerError
 
 from flask_backend.db import db_session
@@ -23,14 +24,18 @@ def _create_screening(
     image_height=None,
     image_alt=None,
     screening_date: Optional[date] = None,
+    screening_time="20:00",
+    movie_id: Optional[int] = None,
 ):
     cinema = _get_cinema(cinema_slug)
-    movie = Movie(title=movie_title, slug=movie_title.lower().replace(" ", "-"))
-    db_session.add(movie)
-    db_session.commit()
+    if movie_id is None:
+        movie = Movie(title=movie_title, slug=movie_title.lower().replace(" ", "-"))
+        db_session.add(movie)
+        db_session.commit()
+        movie_id = movie.id
 
     screening = Screening(
-        movie_id=movie.id,
+        movie_id=movie_id,
         cinema_id=cinema.id,
         description="A description",
         draft=draft,
@@ -38,7 +43,7 @@ def _create_screening(
         image_width=image_width,
         image_height=image_height,
         image_alt=image_alt,
-        dates=[ScreeningDate(date=screening_date or date.today(), time="20:00")],
+        dates=[ScreeningDate(date=screening_date or date.today(), time=screening_time)],
     )
     db_session.add(screening)
     db_session.commit()
@@ -591,3 +596,187 @@ class TestScreeningDescribeImage:
             )
         assert response.status_code == 200
         assert response.get_json() == {"text": "Uma bela descrição."}
+
+
+MOBILE_UA = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1"
+)
+
+
+class TestScreeningIndexMobile:
+    def test_returns_200_for_mobile_user_agent(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        assert response.status_code == 200
+
+    def test_renders_reels_feed_for_mobile_user_agent(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Mobile",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Filme Mobile" in html
+        assert 'class="reels-feed"' in html
+
+    def test_desktop_user_agent_still_gets_the_existing_layout(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(movie_title="Filme Desktop")
+        response = client.get("/")
+        html = response.get_data(as_text=True)
+        assert "Filme Desktop" in html
+        assert 'class="reels-feed"' not in html
+
+    def test_hides_draft_screening_on_mobile_when_not_logged_in(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Rascunho Mobile",
+                draft=True,
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        assert b"Filme Rascunho Mobile" not in response.data
+
+    def test_shows_draft_screening_on_mobile_when_logged_in(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            _create_screening(
+                movie_title="Filme Rascunho Mobile Logado",
+                draft=True,
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
+        assert b"Filme Rascunho Mobile Logado" in response.data
+
+    def test_draft_admin_actions_appear_in_the_info_panel_when_logged_in(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            _create_screening(
+                movie_title="Filme Rascunho Ações",
+                draft=True,
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = auth_headers.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-function="publish"' in html
+        assert 'data-function="delete"' in html
+
+    def test_next_dates_hide_a_drafts_dates_from_anonymous_visitors(
+        self, client, setup_cinemas
+    ):
+        # same movie showing at two cinemas: published at Capitólio, still a
+        # draft at Sala Redenção. the published card's "next dates" must not
+        # expose the draft's cinema or date to a logged out visitor.
+        today = date.today()
+        published_date = today + timedelta(days=1)
+        draft_date = today + timedelta(days=3)
+        with client.application.app_context():
+            published_id = _create_screening(
+                movie_title="Filme Compartilhado",
+                cinema_slug="capitolio",
+                screening_date=published_date,
+            )
+            movie_id = db_session.get(Screening, published_id).movie_id
+            _create_screening(
+                movie_title="Filme Compartilhado",
+                cinema_slug="sala-redencao",
+                draft=True,
+                screening_date=draft_date,
+                movie_id=movie_id,
+            )
+
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        assert "Filme Compartilhado" in html
+        assert f"{published_date.strftime('%d/%m')} · Capitólio" in html
+        assert "Sala Redenção" not in html
+        assert draft_date.strftime("%d/%m") not in html
+
+    def test_shows_placeholder_for_screening_without_poster(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Sem Poster",
+                image=None,
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'class="reels-poster-placeholder"' in html
+
+    def test_poster_panel_has_a_swipe_hint(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Com Dica",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'class="reels-swipe-hint"' in html
+
+    def test_loads_analytics_for_anonymous_visitors(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-goatcounter="https://cinemaempoa.goatcounter.com/count"' in html
+
+    def test_renders_the_analytics_opt_out_marker_outside_production(
+        self, client, setup_cinemas
+    ):
+        # base.html carries the skip marker on its dev banner / logged in
+        # marker; the reels shell renders it hidden, same effect.
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert '<div style="display: none;" data-goatcounter-skip></div>' in html
+
+    def test_menu_button_is_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'id="reels-menu-toggle"' in html
+        with client.application.test_request_context():
+            about_url = url_for("page.about")
+        assert about_url in html
+
+    def test_shows_empty_state_when_no_screenings_in_range(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Não há sessões" in html
+
+    def test_first_poster_loads_eagerly_and_later_posters_are_deferred(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            for i in range(3):
+                _create_screening(
+                    movie_title=f"Filme {i}",
+                    image=f"poster{i}.jpg",
+                    image_width=100,
+                    image_height=200,
+                    screening_date=date.today() + timedelta(days=i + 1),
+                )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'src="poster0.jpg"' in html
+        # index 1 is the other side of the `loop.index0 < 2` boundary: still eager
+        assert 'src="poster1.jpg"' in html
+        assert 'data-src="poster1.jpg"' not in html
+        assert 'data-src="poster2.jpg"' in html
+
+    def test_hides_screenings_that_have_already_started(self, client, setup_cinemas):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Já Começou",
+                screening_date=date.today(),
+                screening_time="00:00",
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Filme Já Começou" not in html

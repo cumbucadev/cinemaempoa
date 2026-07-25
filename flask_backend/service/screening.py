@@ -1,10 +1,10 @@
 import hashlib
 import logging
 import os
-from collections import OrderedDict
-from datetime import date, datetime
+from collections import OrderedDict, defaultdict
+from datetime import date, datetime, time, timedelta
 from io import BytesIO
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import filetype
 import requests
@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 
 from flask_backend.env_config import APP_ENVIRONMENT
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
-from flask_backend.models import ScreeningDate
+from flask_backend.models import Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.movies import (
     get_by_title_or_create as get_movie_by_title_or_create,
@@ -33,6 +33,27 @@ from flask_backend.utils.enums.environment import EnvironmentEnum
 logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+
+_WEEKDAY_NAMES_PT = [
+    "Segunda-feira",
+    "Terça-feira",
+    "Quarta-feira",
+    "Quinta-feira",
+    "Sexta-feira",
+    "Sábado",
+    "Domingo",
+]
+
+
+def format_day_label(day: date, today: date) -> str:
+    """Portuguese label for a reels-feed day-boundary card: "Hoje, DD/MM",
+    "Amanhã, DD/MM", or "<Weekday>, DD/MM" for later days."""
+    formatted_date = day.strftime("%d/%m")
+    if day == today:
+        return f"Hoje, {formatted_date}"
+    if day == today + timedelta(days=1):
+        return f"Amanhã, {formatted_date}"
+    return f"{_WEEKDAY_NAMES_PT[day.weekday()]}, {formatted_date}"
 
 
 def _check_if_actually_image(file):
@@ -111,6 +132,106 @@ def group_screening_dates_by_day(
         if screening_date.date in buckets:
             buckets[screening_date.date].append(screening_date)
     return buckets
+
+
+def get_soonest_date_in_range(
+    screening_dates: List[ScreeningDate], start_date: date, end_date: date
+) -> ScreeningDate:
+    """Earliest ScreeningDate within [start_date, end_date]. Assumes at
+    least one date in screening_dates falls in that range."""
+    in_range = [d for d in screening_dates if start_date <= d.date <= end_date]
+    return min(in_range, key=lambda d: (d.date, d.time or ""))
+
+
+def _is_in_future(screening_date: ScreeningDate, earliest_datetime: datetime) -> bool:
+    """True when a ScreeningDate is at or after earliest_datetime.
+
+    Missing or unparseable times are treated as the start of the day so
+    same-day entries without a listed time are still surfaced to users."""
+    if screening_date.date > earliest_datetime.date():
+        return True
+    if screening_date.date < earliest_datetime.date():
+        return False
+    if not screening_date.time:
+        return True
+    try:
+        hour, minute = map(int, screening_date.time.split(":")[:2])
+        parsed_time = time(hour, minute)
+    except (ValueError, TypeError):
+        return True
+    return parsed_time >= earliest_datetime.time()
+
+
+def build_reels_feed(
+    screenings: List[Screening],
+    movie_dates: List[ScreeningDate],
+    today: date,
+    window_end: date,
+    user_logged_in: bool,
+    earliest_datetime: Optional[datetime] = None,
+) -> List[dict]:
+    """Builds the mobile reels feed: one card per non-draft screening (all
+    screenings if user_logged_in), sorted by each screening's soonest
+    future ScreeningDate within [today, window_end]. `movie_dates` is the
+    flat, cross-cinema list of ScreeningDate rows for every movie present in
+    `screenings` within the same window - grouped here per movie for each
+    card's "next dates" list."""
+    if earliest_datetime is None:
+        earliest_datetime = datetime.combine(today, time.min)
+
+    dates_by_movie: Dict[int, List[ScreeningDate]] = defaultdict(list)
+    for screening_date in movie_dates:
+        if _is_in_future(screening_date, earliest_datetime):
+            dates_by_movie[screening_date.screening.movie_id].append(screening_date)
+
+    cards = []
+    for screening in screenings:
+        if screening.draft and not user_logged_in:
+            continue
+        future_dates = [
+            d
+            for d in screening.dates
+            if today <= d.date <= window_end and _is_in_future(d, earliest_datetime)
+        ]
+        if not future_dates:
+            continue
+        soonest = min(future_dates, key=lambda d: (d.date, d.time or ""))
+        next_dates = sorted(
+            dates_by_movie.get(screening.movie_id, []),
+            key=lambda d: (d.date, d.time or ""),
+        )
+        cards.append(
+            {
+                "screening_id": screening.id,
+                "movie_title": screening.movie.title,
+                "directors": [director.name for director in screening.movie.directors],
+                "release_year": screening.movie.release_year,
+                "description": screening.description,
+                "image": screening.image,
+                "image_alt": screening.image_alt,
+                "cinema_name": screening.cinema.short_name,
+                "cinema_color": screening.cinema.color,
+                "soonest_date": soonest.date,
+                "soonest_time": soonest.time,
+                "next_dates": [
+                    {
+                        "date": screening_date.date,
+                        "time": screening_date.time,
+                        "cinema_name": screening_date.screening.cinema.short_name,
+                    }
+                    for screening_date in next_dates
+                ],
+                "draft": screening.draft,
+                "screening_url": screening.url,
+            }
+        )
+
+    cards.sort(key=lambda card: (card["soonest_date"], card["soonest_time"] or ""))
+
+    for card in cards:
+        card["day_label"] = format_day_label(card["soonest_date"], today)
+
+    return cards
 
 
 def download_image_from_url(image_url) -> Tuple[Optional[BytesIO], Optional[str]]:

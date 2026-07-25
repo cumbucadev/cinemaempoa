@@ -1,5 +1,5 @@
 import math
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List
 
 from flask import (
@@ -31,6 +31,8 @@ from flask_backend.repository.screenings import (
     get_days_screenings_by_cinema_id,
     get_month_screening_dates,
     get_screening_by_id,
+    get_screening_dates_for_movies,
+    get_screenings_in_date_range,
     get_weekend_screening_dates,
     update as update_screening,
     update_screening_dates,
@@ -39,16 +41,44 @@ from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
     build_dates,
+    build_reels_feed,
     save_image,
     validate_image,
 )
 from flask_backend.service.weekend_export import build_weekend_export_images
+from flask_backend.utils.mobile import is_mobile_user_agent
 
 bp = Blueprint("screening", __name__)
 
 
+def _mobile_index():
+    now = datetime.now()
+    today = now.date()
+    window_end = today + timedelta(days=6)
+    user_logged_in = g.user is not None
+
+    screenings = get_screenings_in_date_range(today, window_end)
+    movie_ids = list({screening.movie_id for screening in screenings})
+    movie_dates = get_screening_dates_for_movies(
+        movie_ids, today, window_end, include_drafts=user_logged_in
+    )
+    cards = build_reels_feed(
+        screenings,
+        movie_dates,
+        today,
+        window_end,
+        user_logged_in,
+        earliest_datetime=now,
+    )
+
+    return render_template("screening/index_mobile.html", cards=cards)
+
+
 @bp.route("/")
 def index():
+    if is_mobile_user_agent(request.headers.get("User-Agent", "")):
+        return _mobile_index()
+
     cinemas = get_all_cinemas()
     today = date.today()
     # limits how wide a movie image can be on the listing

@@ -1,17 +1,20 @@
 import io
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from PIL import Image
 
 from flask_backend.db import db_session
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
-from flask_backend.models import Movie, Screening, ScreeningDate
+from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.screening import (
+    build_reels_feed,
     download_image_from_url,
+    format_day_label,
     get_image_metadata,
     get_img_filename_from_url,
     get_img_path_from_filename,
+    get_soonest_date_in_range,
     import_scrapped_results,
     save_image,
     validate_image,
@@ -616,3 +619,293 @@ class TestImportScrappedResultsWithoutScrapedTime:
             movie = db_session.query(Movie).filter_by(title="Filme Sem Horario").one()
             screening = movie.screenings[0]
             assert len(screening.dates) == 1
+
+
+class TestGetSoonestDateInRange:
+    def test_returns_the_earliest_date_in_range(self):
+        today = date.today()
+        later = ScreeningDate(date=today + timedelta(days=3), time="20:00")
+        sooner = ScreeningDate(date=today + timedelta(days=1), time="18:00")
+
+        result = get_soonest_date_in_range(
+            [later, sooner], today, today + timedelta(days=6)
+        )
+
+        assert result is sooner
+
+    def test_ignores_dates_outside_the_range(self):
+        today = date.today()
+        in_range = ScreeningDate(date=today + timedelta(days=1), time="18:00")
+        out_of_range = ScreeningDate(date=today - timedelta(days=1), time="10:00")
+
+        result = get_soonest_date_in_range(
+            [out_of_range, in_range], today, today + timedelta(days=6)
+        )
+
+        assert result is in_range
+
+    def test_breaks_ties_on_the_same_date_by_time(self):
+        today = date.today()
+        earlier_time = ScreeningDate(date=today, time="14:00")
+        later_time = ScreeningDate(date=today, time="20:00")
+
+        result = get_soonest_date_in_range(
+            [later_time, earlier_time], today, today + timedelta(days=6)
+        )
+
+        assert result is earlier_time
+
+
+class TestFormatDayLabel:
+    def test_labels_today(self):
+        today = date(2026, 7, 25)
+        assert format_day_label(today, today) == "Hoje, 25/07"
+
+    def test_labels_tomorrow(self):
+        today = date(2026, 7, 25)
+        assert format_day_label(today + timedelta(days=1), today) == "Amanhã, 26/07"
+
+    def test_labels_later_days_with_weekday_name(self):
+        today = date(2026, 7, 25)  # a Saturday
+        # today + 4 days = 2026-07-29, a Wednesday
+        assert (
+            format_day_label(today + timedelta(days=4), today) == "Quarta-feira, 29/07"
+        )
+
+
+def _movie(title="Filme", release_year=2024):
+    return Movie(title=title, release_year=release_year, directors=[])
+
+
+def _cinema(slug="capitolio"):
+    # short_name and color are computed properties looked up by slug from
+    # CINEMA_SHORT_NAMES/CINEMA_COLORS (flask_backend/constants.py) - the
+    # slug is what actually drives them, `name` here is just the fallback.
+    return Cinema(slug=slug, name=slug, url="https://example.com")
+
+
+def _screening(movie, cinema, dates, draft=False, screening_id=1, image=None):
+    screening = Screening(
+        id=screening_id,
+        movie=movie,
+        movie_id=1,
+        cinema=cinema,
+        description="Uma descrição",
+        draft=draft,
+        image=image,
+        dates=dates,
+    )
+    return screening
+
+
+class TestBuildReelsFeed:
+    def test_orders_cards_by_each_screenings_soonest_date(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        later = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today + timedelta(days=2), time="20:00")],
+            screening_id=1,
+        )
+        sooner = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="18:00")],
+            screening_id=2,
+        )
+
+        cards = build_reels_feed(
+            [later, sooner], [], today, today + timedelta(days=6), False
+        )
+
+        assert [card["screening_id"] for card in cards] == [2, 1]
+
+    def test_excludes_draft_screenings_when_not_logged_in(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        draft = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="20:00")],
+            draft=True,
+            screening_id=1,
+        )
+
+        cards = build_reels_feed([draft], [], today, today + timedelta(days=6), False)
+
+        assert cards == []
+
+    def test_includes_draft_screenings_when_logged_in(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        draft = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="20:00")],
+            draft=True,
+            screening_id=1,
+        )
+
+        cards = build_reels_feed([draft], [], today, today + timedelta(days=6), True)
+
+        assert len(cards) == 1
+        assert cards[0]["draft"] is True
+
+    def test_attaches_next_dates_for_the_cards_movie(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+        other_cinema_date = ScreeningDate(date=today + timedelta(days=1), time="19:00")
+        other_cinema_date.screening = _screening(
+            movie, _cinema(slug="sala-redencao"), [], screening_id=2
+        )
+
+        cards = build_reels_feed(
+            [screening],
+            [other_cinema_date],
+            today,
+            today + timedelta(days=6),
+            False,
+        )
+
+        assert len(cards[0]["next_dates"]) == 1
+        assert cards[0]["next_dates"][0]["cinema_name"] == "Sala Redenção"
+
+    def test_marks_day_label_on_every_card(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        first = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="18:00")], screening_id=1
+        )
+        second_same_day = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=2
+        )
+        next_day = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today + timedelta(days=1), time="18:00")],
+            screening_id=3,
+        )
+
+        cards = build_reels_feed(
+            [second_same_day, next_day, first],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+        )
+
+        assert all(card["day_label"] is not None for card in cards)
+
+    def test_skips_screenings_with_only_past_dates(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        past = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="10:00")],
+            screening_id=1,
+        )
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [past],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert cards == []
+
+    def test_keeps_screenings_with_future_dates(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        future = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="14:00")],
+            screening_id=1,
+        )
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [future],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert len(cards) == 1
+        assert cards[0]["soonest_time"] == "14:00"
+
+    def test_filters_next_dates_to_future_only(self):
+        today = date.today()
+        movie = _movie()
+        capitolio = _cinema()
+        redencao = _cinema(slug="sala-redencao")
+        screening = _screening(
+            movie, capitolio, [ScreeningDate(date=today, time="14:00")], screening_id=1
+        )
+        past_other = ScreeningDate(date=today, time="10:00")
+        past_other.screening = _screening(movie, redencao, [], screening_id=2)
+        future_other = ScreeningDate(date=today, time="16:00")
+        future_other.screening = _screening(movie, redencao, [], screening_id=3)
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [screening],
+            [past_other, future_other],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert len(cards[0]["next_dates"]) == 1
+        assert cards[0]["next_dates"][0]["time"] == "16:00"
+
+    def test_uses_soonest_future_date_for_ordering(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        earlier_future = _screening(
+            movie,
+            cinema,
+            [
+                ScreeningDate(date=today, time="10:00"),
+                ScreeningDate(date=today, time="16:00"),
+            ],
+            screening_id=1,
+        )
+        later_future = _screening(
+            movie,
+            cinema,
+            [ScreeningDate(date=today, time="14:00")],
+            screening_id=2,
+        )
+        earliest = datetime(today.year, today.month, today.day, 12, 0)
+
+        cards = build_reels_feed(
+            [earlier_future, later_future],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            earliest_datetime=earliest,
+        )
+
+        assert [card["screening_id"] for card in cards] == [2, 1]
