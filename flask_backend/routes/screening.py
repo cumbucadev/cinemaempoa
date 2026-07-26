@@ -17,12 +17,14 @@ from flask import (
 from google.genai.errors import APIError
 from werkzeug.exceptions import abort
 
+from flask_backend.env_config import SESSION_LIFETIME_DAYS
 from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
     get_all as get_all_cinemas,
     get_by_id as get_cinema_by_id,
 )
 from flask_backend.repository.movies import (
+    get_by_id as get_movie_by_id,
     get_by_title_or_create as get_movie_by_title_or_create,
 )
 from flask_backend.repository.screenings import (
@@ -37,6 +39,7 @@ from flask_backend.repository.screenings import (
     update as update_screening,
     update_screening_dates,
 )
+from flask_backend.repository.want_to_watch import toggle as toggle_want_to_watch
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
@@ -47,6 +50,11 @@ from flask_backend.service.screening import (
 )
 from flask_backend.service.weekend_export import build_weekend_export_images
 from flask_backend.utils.mobile import is_mobile_user_agent
+from flask_backend.utils.visitor import (
+    VISITOR_COOKIE_NAME,
+    get_visitor_id,
+    new_visitor_id,
+)
 
 bp = Blueprint("screening", __name__)
 
@@ -439,3 +447,26 @@ def describe_image():
             {"details": "Não foi possível gerar uma descrição para a imagem."}
         )
     return jsonify(text=image_description.strip())
+
+
+@bp.route("/movie/<int:movie_id>/want-to-watch", methods=("POST",))
+def want_to_watch(movie_id):
+    if request.method != "POST":
+        abort(405)
+
+    movie = get_movie_by_id(movie_id)
+    if not movie:
+        abort(404)
+
+    visitor_id = get_visitor_id(request) or new_visitor_id()
+    wanted = toggle_want_to_watch(movie_id, visitor_id)
+
+    response = jsonify({"wanted": wanted})
+    response.set_cookie(
+        VISITOR_COOKIE_NAME,
+        visitor_id,
+        max_age=SESSION_LIFETIME_DAYS * 24 * 60 * 60,
+        httponly=True,
+        samesite="Lax",
+    )
+    return response

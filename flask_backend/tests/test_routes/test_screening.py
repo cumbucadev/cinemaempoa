@@ -780,3 +780,43 @@ class TestScreeningIndexMobile:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert "Filme Já Começou" not in html
+
+
+def _create_movie(title="Filme"):
+    movie = Movie(title=title, slug=title.lower().replace(" ", "-"))
+    db_session.add(movie)
+    db_session.commit()
+    return movie.id
+
+
+class TestWantToWatchToggle:
+    def test_first_toggle_marks_the_movie_and_sets_visitor_cookie(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie_id = _create_movie()
+
+        response = client.post(f"/movie/{movie_id}/want-to-watch")
+
+        assert response.status_code == 200
+        assert response.get_json() == {"wanted": True}
+        set_cookie_headers = response.headers.get_all("Set-Cookie")
+        visitor_cookie = next(
+            header for header in set_cookie_headers if header.startswith("visitor_id=")
+        )
+        assert "HttpOnly" in visitor_cookie
+
+    def test_second_toggle_unmarks_using_the_same_visitor(self, client, setup_cinemas):
+        with client.application.app_context():
+            movie_id = _create_movie()
+
+        first = client.post(f"/movie/{movie_id}/want-to-watch")
+        second = client.post(f"/movie/{movie_id}/want-to-watch")
+
+        assert first.get_json() == {"wanted": True}
+        assert second.get_json() == {"wanted": False}
+
+    def test_returns_404_for_unknown_movie(self, client, setup_cinemas):
+        response = client.post("/movie/99999/want-to-watch")
+
+        assert response.status_code == 404
