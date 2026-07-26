@@ -47,6 +47,7 @@ def clean_db(app):
             Screening,
             ScreeningDate,
             User,
+            WantToWatch,
             movie_countries,
             movie_directors,
             movie_genres,
@@ -66,6 +67,7 @@ def clean_db(app):
         db_session.query(Country).delete()
         db_session.query(ScreeningDate).delete()
         db_session.query(Screening).delete()
+        db_session.query(WantToWatch).delete()
         db_session.query(Movie).delete()
         db_session.query(Collection).delete()
         db_session.query(Cinema).delete()
