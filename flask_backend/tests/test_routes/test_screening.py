@@ -1,4 +1,5 @@
 import io
+import re
 from datetime import date, datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch
@@ -842,8 +843,7 @@ class TestReelsWantToWatchState:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
 
-        assert f'data-movie-id="{movie_id}"' in html
-        assert 'data-wanted="true"' in html
+        assert re.search(rf'data-movie-id="{movie_id}"\s+data-wanted="true"', html)
 
     def test_homepage_card_not_wanted_without_a_visitor_cookie(
         self, client, setup_cinemas
@@ -910,3 +910,61 @@ class TestFavoritos:
 
         assert "Filme Antigo" in html
         assert "Não há sessões previstas no momento" in html
+
+    def test_third_card_onward_defers_poster_loading_via_shared_scripts(
+        self, client, setup_cinemas
+    ):
+        # /favoritos shares _reels_card.html with the homepage, which only
+        # ever loads because base_reels.html carries the lazy-poster
+        # IntersectionObserver script both pages extend from - this guards
+        # against that script silently going missing again on either page.
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            client.set_cookie("visitor_id", "visitor-a")
+            for i in range(3):
+                screening_id = _create_screening(
+                    movie_title=f"Filme Favorito {i}",
+                    image=f"poster{i}.jpg",
+                    image_width=100,
+                    image_height=200,
+                    screening_date=date.today() + timedelta(days=i + 1),
+                )
+                movie_id = db_session.query(Screening).get(screening_id).movie_id
+                toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert 'data-src="poster2.jpg"' in html
+        assert "posterObserver" in html
+        assert "IntersectionObserver" in html
+
+    def test_toggle_then_favoritos_then_untoggle_round_trip(
+        self, client, setup_cinemas
+    ):
+        # exercises the real user flow end to end through the HTTP layer,
+        # instead of seeding state by calling the want_to_watch repository
+        # directly - every other /favoritos test does the latter.
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Round Trip",
+                screening_date=date.today() + timedelta(days=1),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        toggle_on = client.post(f"/movie/{movie_id}/want-to-watch")
+        assert toggle_on.get_json() == {"wanted": True}
+        set_cookie_headers = toggle_on.headers.get_all("Set-Cookie")
+        assert any(header.startswith("visitor_id=") for header in set_cookie_headers)
+
+        marked_response = client.get("/favoritos")
+        assert "Filme Round Trip" in marked_response.get_data(as_text=True)
+
+        toggle_off = client.post(f"/movie/{movie_id}/want-to-watch")
+        assert toggle_off.get_json() == {"wanted": False}
+
+        unmarked_response = client.get("/favoritos")
+        unmarked_html = unmarked_response.get_data(as_text=True)
+        assert "ainda não marcou" in unmarked_html
+        assert "Filme Round Trip" not in unmarked_html
