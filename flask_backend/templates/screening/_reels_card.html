@@ -1,11 +1,10 @@
-<section class="reels-card"
-         data-movie-id="{{ card.movie_id }}"
-         data-wanted="{{ 'true' if card.wanted else 'false' }}">
+<section class="reels-card">
     <p class="reels-day-label">{{ card.day_label }}</p>
     <div class="reels-card-panels">
         <div class="reels-panel reels-panel-poster">
             {% if card.image %}
                 {# djlint:off H006 #}
+                {# current_loop (not loop) because Jinja's `loop` doesn't cross an {% include %} boundary #}
                 {% if current_loop.index0 < 2 %}
                     <img class="reels-poster-img"
                          src="{{ card.image }}"
