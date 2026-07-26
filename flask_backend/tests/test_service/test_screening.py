@@ -1055,3 +1055,57 @@ class TestBuildFavoritesFeed:
             cards = build_favorites_feed([movie.id], date.today(), False)
 
             assert cards == []
+
+    def test_falls_back_to_newest_non_draft_screening_when_newest_is_a_draft(
+        self, app, setup_cinemas
+    ):
+        # an older non-draft screening plus a newer draft screening (e.g.
+        # a re-scrape that hasn't been published yet) must not make the
+        # movie disappear from an anonymous visitor's /favoritos - the
+        # stale-pick fallback should skip the draft and use the older
+        # published screening instead.
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Rascunho Mais Novo", slug="filme-rascunho-novo")
+            db_session.add(movie)
+            db_session.commit()
+            older_non_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="publicado antigo",
+                draft=False,
+                image="antigo.jpg",
+                created_at=datetime.now() - timedelta(days=10),
+            )
+            newer_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="rascunho recente",
+                draft=True,
+                image="rascunho.jpg",
+                created_at=datetime.now(),
+            )
+            db_session.add_all([older_non_draft, newer_draft])
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=older_non_draft.id,
+                    date=date.today() - timedelta(days=5),
+                    time="20:00",
+                )
+            )
+            db_session.add(
+                ScreeningDate(
+                    screening_id=newer_draft.id,
+                    date=date.today() - timedelta(days=1),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert len(cards) == 1
+            assert cards[0]["no_sessions"] is True
+            assert cards[0]["image"] == "antigo.jpg"
+            assert cards[0]["draft"] is False

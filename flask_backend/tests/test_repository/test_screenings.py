@@ -349,3 +349,63 @@ class TestGetLatestScreeningForMovie:
             db_session.commit()
 
             assert get_latest_screening_for_movie(movie.id) is None
+
+    def test_skips_a_newer_draft_and_returns_the_newest_non_draft_by_default(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            movie = Movie(title="Filme Rascunho Novo", slug="filme-rascunho-novo-repo")
+            db_session.add(movie)
+            db_session.commit()
+            cinema = get_cinema_by_slug("capitolio")
+            older_non_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="antiga publicada",
+                draft=False,
+                created_at=datetime.now() - timedelta(days=10),
+            )
+            newer_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="recente rascunho",
+                draft=True,
+                created_at=datetime.now(),
+            )
+            db_session.add_all([older_non_draft, newer_draft])
+            db_session.commit()
+
+            latest = get_latest_screening_for_movie(movie.id)
+
+            assert latest.id == older_non_draft.id
+
+    def test_include_drafts_true_returns_the_newest_regardless_of_draft_status(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            movie = Movie(
+                title="Filme Rascunho Novo Logado", slug="filme-rascunho-novo-logado"
+            )
+            db_session.add(movie)
+            db_session.commit()
+            cinema = get_cinema_by_slug("capitolio")
+            older_non_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="antiga publicada",
+                draft=False,
+                created_at=datetime.now() - timedelta(days=10),
+            )
+            newer_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="recente rascunho",
+                draft=True,
+                created_at=datetime.now(),
+            )
+            db_session.add_all([older_non_draft, newer_draft])
+            db_session.commit()
+
+            latest = get_latest_screening_for_movie(movie.id, include_drafts=True)
+
+            assert latest.id == newer_draft.id

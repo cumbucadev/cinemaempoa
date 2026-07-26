@@ -217,16 +217,19 @@ def get_screenings_with_upcoming_dates(
     return query.distinct().all()
 
 
-def get_latest_screening_for_movie(movie_id: int) -> Optional[Screening]:
+def get_latest_screening_for_movie(
+    movie_id: int, include_drafts: bool = False
+) -> Optional[Screening]:
     """Most recently created Screening row for a movie, regardless of its
     dates. Used as a fallback source of poster/description/cinema data on
-    /favoritos for a marked movie with no upcoming session."""
-    return (
-        db_session.query(Screening)
-        .filter(Screening.movie_id == movie_id)
-        .order_by(Screening.created_at.desc())
-        .first()
-    )
+    /favoritos for a marked movie with no upcoming session. Excludes drafts
+    by default so an anonymous visitor's stale-pick fallback never resolves
+    to a newer unpublished draft while an older published screening exists -
+    callers must pass include_drafts=True only for logged-in requests."""
+    query = db_session.query(Screening).filter(Screening.movie_id == movie_id)
+    if not include_drafts:
+        query = query.filter(Screening.draft == False)  # noqa: E712
+    return query.order_by(Screening.created_at.desc()).first()
 
 
 def update_screening_dates(

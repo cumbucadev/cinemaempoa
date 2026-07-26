@@ -240,11 +240,14 @@ def build_favorites_feed(
     as the reels feed. A marked movie with an upcoming ScreeningDate gets a
     normal reels card (any future date, unlike the homepage's 7-day
     window - this is a personal list, not a "what's on this week" feed). A
-    marked movie with none falls back to its most recent past Screening
-    (there's always at least one, since a Movie row only exists because
-    some Screening created it), with no_sessions=True and no dates. A
-    fallback whose screening is a draft is skipped entirely when not
-    logged in, same as everywhere else drafts are visitor-hidden."""
+    marked movie with none falls back to its most recent past Screening,
+    with no_sessions=True and no dates. For anonymous visitors that fallback
+    is the most recent *non-draft* Screening, so a movie never silently
+    drops off the list just because its newest Screening row happens to be
+    an unpublished draft; a movie with no non-draft Screening at all is
+    skipped entirely when not logged in, same as everywhere else drafts are
+    visitor-hidden. Logged-in users see the true latest regardless of draft
+    status."""
     if not movie_ids:
         return []
     if now is None:
@@ -272,9 +275,13 @@ def build_favorites_feed(
     for movie_id in movie_ids:
         if movie_id in covered_movie_ids:
             continue
-        stale_screening = get_latest_screening_for_movie(movie_id)
+        stale_screening = get_latest_screening_for_movie(
+            movie_id, include_drafts=user_logged_in
+        )
         if stale_screening is None:
             continue
+        # defensive: get_latest_screening_for_movie already excludes drafts
+        # when include_drafts is False, so this should be unreachable here.
         if stale_screening.draft and not user_logged_in:
             continue
         cards.append(
