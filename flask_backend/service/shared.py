@@ -1,8 +1,11 @@
 """Functions not bound to any specific database model"""
 
 import re
-from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple
+from datetime import date, datetime, time, timedelta
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from flask_backend.models import ScreeningDate
 
 
 def parse_to_datetime_string(time_str: List[str] | str) -> Optional[List[str]]:
@@ -80,3 +83,24 @@ def get_weekend_dates(current_date: date) -> Tuple[date, date, date]:
     saturday_date = friday_date + timedelta(days=1)
     sunday_date = friday_date + timedelta(days=2)
     return friday_date, saturday_date, sunday_date
+
+
+def is_screening_date_upcoming(
+    screening_date: "ScreeningDate", earliest_datetime: datetime
+) -> bool:
+    """True when a ScreeningDate is at or after earliest_datetime.
+
+    Missing or unparseable times are treated as the start of the day so
+    same-day entries without a listed time are still surfaced to users."""
+    if screening_date.date > earliest_datetime.date():
+        return True
+    if screening_date.date < earliest_datetime.date():
+        return False
+    if not screening_date.time:
+        return True
+    try:
+        hour, minute = map(int, screening_date.time.split(":")[:2])
+        parsed_time = time(hour, minute)
+    except (ValueError, TypeError):
+        return True
+    return parsed_time >= earliest_datetime.time()
