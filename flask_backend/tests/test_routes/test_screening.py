@@ -858,3 +858,55 @@ class TestReelsWantToWatchState:
         html = response.get_data(as_text=True)
 
         assert 'data-wanted="true"' not in html
+
+
+class TestFavoritos:
+    def test_returns_200(self, client, setup_cinemas):
+        response = client.get("/favoritos")
+
+        assert response.status_code == 200
+
+    def test_shows_empty_state_without_a_visitor_cookie(self, client, setup_cinemas):
+        response = client.get("/favoritos")
+
+        assert "ainda não marcou" in response.get_data(as_text=True)
+
+    def test_shows_marked_movie_with_upcoming_screening(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Futuro",
+                screening_date=date.today() + timedelta(days=2),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+
+        assert b"Filme Futuro" in response.data
+
+    def test_shows_marked_movie_with_no_upcoming_screening_as_stale(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Antigo",
+                screening_date=date.today() - timedelta(days=30),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert "Filme Antigo" in html
+        assert "Não há sessões previstas no momento" in html

@@ -47,6 +47,7 @@ from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
     build_dates,
+    build_favorites_feed,
     build_reels_feed,
     save_image,
     validate_image,
@@ -476,3 +477,12 @@ def want_to_watch(movie_id):
         samesite="Lax",
     )
     return response
+
+
+@bp.route("/favoritos")
+def favoritos():
+    visitor_id = get_visitor_id(request)
+    movie_ids = list(get_movie_ids_for_visitor(visitor_id)) if visitor_id else []
+    user_logged_in = g.user is not None
+    cards = build_favorites_feed(movie_ids, date.today(), user_logged_in)
+    return render_template("screening/favoritos.html", cards=cards)
