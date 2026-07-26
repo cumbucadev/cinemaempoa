@@ -97,6 +97,52 @@
     <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
     <script src="{{ url_for('static', filename='reels-want-to-watch.js') }}"></script>
     <script>
+        const lazyPosters = document.querySelectorAll(".reels-poster-img[data-src]");
+        const posterObserver = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.removeAttribute("data-src");
+                        posterObserver.unobserve(img);
+                    }
+                });
+            }, {
+                rootMargin: "200% 0px 200% 0px"
+            }
+        );
+        lazyPosters.forEach((img) => posterObserver.observe(img));
+    </script>
+    <script>
+        document.querySelectorAll('[data-function="publish"]').forEach((btn) => {
+            btn.addEventListener("click", () => {
+                fetch(`/screening/${btn.dataset.screeningId}/publish`, {
+                        method: "POST"
+                    })
+                    .then((response) => {
+                        if (response.ok) window.location.reload();
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
+            });
+        });
+        document.querySelectorAll('[data-function="delete"]').forEach((btn) => {
+            btn.addEventListener("click", () => {
+                fetch(`/screening/${btn.dataset.screeningId}/delete`, {
+                        method: "POST"
+                    })
+                    .then((response) => {
+                        if (response.ok) window.location.reload();
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
+            });
+        });
+    </script>
+    <script>
         // reference: https://www.goatcounter.com/help/skip-path
         // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
         window.goatcounter = {
