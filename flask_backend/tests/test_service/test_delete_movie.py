@@ -162,10 +162,48 @@ class TestDeleteMovieWithRelatedRows:
             )
 
 
+class TestDeleteMovieByIdentifierType:
+    def test_deletes_movie_by_numeric_id(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie("Filme", "filme")
+            movie_id = movie.id
+
+            deleted = delete_movie(movie_id, skip_confirmation=True)
+
+            assert deleted is True
+            assert db_session.query(Movie).filter_by(id=movie_id).first() is None
+
+    def test_deletes_movie_by_numeric_id_as_string(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie("Filme", "filme")
+            movie_id = movie.id
+
+            deleted = delete_movie(str(movie_id), skip_confirmation=True)
+
+            assert deleted is True
+            assert db_session.query(Movie).filter_by(id=movie_id).first() is None
+
+    def test_deletes_movie_by_slug(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            movie = _create_movie("Filme", "filme-slug")
+            movie_id = movie.id
+
+            deleted = delete_movie("filme-slug", skip_confirmation=True)
+
+            assert deleted is True
+            assert db_session.query(Movie).filter_by(id=movie_id).first() is None
+
+
 class TestDeleteMovieNotFound:
-    def test_returns_false_without_changing_the_database(self, client, app):
+    def test_returns_false_without_changing_the_database_by_id(self, client, app):
         with client.application.app_context():
             deleted = delete_movie(999999, skip_confirmation=True)
+
+            assert deleted is False
+
+    def test_returns_false_without_changing_the_database_by_slug(self, client, app):
+        with client.application.app_context():
+            deleted = delete_movie("nao-existe", skip_confirmation=True)
 
             assert deleted is False
 

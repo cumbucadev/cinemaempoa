@@ -5,14 +5,18 @@ deleted - the Genre/Director/Country rows themselves are never touched, since
 they're shared across movies.
 
 Usage (via CLI):
-    flask delete-movie <id>          # prints the movie, asks for confirmation
-    flask delete-movie <id> --yes    # skips the confirmation prompt
+    flask delete-movie <id-or-slug>          # prints the movie, asks for confirmation
+    flask delete-movie <id-or-slug> --yes    # skips the confirmation prompt
 """
 
 import click
 
 from flask_backend.models import Movie
-from flask_backend.repository.movies import delete as delete_movie_row, get_by_id
+from flask_backend.repository.movies import (
+    delete as delete_movie_row,
+    get_by_id,
+    get_by_slug,
+)
 
 
 def _print_movie(movie: Movie) -> None:
@@ -48,10 +52,13 @@ def _print_movie(movie: Movie) -> None:
         )
 
 
-def delete_movie(movie_id: int, skip_confirmation: bool = False) -> bool:
-    movie = get_by_id(movie_id)
+def delete_movie(identifier: int | str, skip_confirmation: bool = False) -> bool:
+    is_id = isinstance(identifier, int) or (
+        isinstance(identifier, str) and identifier.isdigit()
+    )
+    movie = get_by_id(int(identifier)) if is_id else get_by_slug(identifier)
     if movie is None:
-        click.echo(f"Filme #{movie_id} não encontrado.", err=True)
+        click.echo(f"Filme '{identifier}' não encontrado.", err=True)
         return False
 
     _print_movie(movie)
@@ -67,5 +74,5 @@ def delete_movie(movie_id: int, skip_confirmation: bool = False) -> bool:
             return False
 
     delete_movie_row(movie)
-    click.echo(f"\nFilme #{movie_id} apagado com sucesso.")
+    click.echo(f"\nFilme #{movie.id} apagado com sucesso.")
     return True
