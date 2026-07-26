@@ -319,7 +319,7 @@ def title_cleaning_backfill_command(apply_):
 
 
 @click.command("delete-movie")
-@click.argument("movie_id", type=int)
+@click.argument("identifier")
 @click.option(
     "--yes",
     "-y",
@@ -327,8 +327,10 @@ def title_cleaning_backfill_command(apply_):
     default=False,
     help="Pula a confirmação e apaga direto.",
 )
-def delete_movie_command(movie_id, yes):
+def delete_movie_command(identifier, yes):
     """Apaga um filme e todos os registros relacionados (sessões, datas,
     tentativas de busca de poster/metadados, associações de gênero/diretor/país).
+
+    IDENTIFIER pode ser o id numérico ou o slug do filme.
     """
-    run_delete_movie(movie_id, skip_confirmation=yes)
+    run_delete_movie(identifier, skip_confirmation=yes)

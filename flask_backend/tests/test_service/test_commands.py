@@ -210,12 +210,17 @@ class TestThinWrapperCommands:
     def test_delete_movie_forwards_id_and_yes_flag(self, runner):
         with patch("flask_backend.commands.run_delete_movie") as mock_fn:
             runner.invoke(args=["delete-movie", "42", "--yes"])
-        mock_fn.assert_called_once_with(42, skip_confirmation=True)
+        mock_fn.assert_called_once_with("42", skip_confirmation=True)
 
     def test_delete_movie_without_yes_flag(self, runner):
         with patch("flask_backend.commands.run_delete_movie") as mock_fn:
             runner.invoke(args=["delete-movie", "42"])
-        mock_fn.assert_called_once_with(42, skip_confirmation=False)
+        mock_fn.assert_called_once_with("42", skip_confirmation=False)
+
+    def test_delete_movie_forwards_slug(self, runner):
+        with patch("flask_backend.commands.run_delete_movie") as mock_fn:
+            runner.invoke(args=["delete-movie", "filme-slug", "--yes"])
+        mock_fn.assert_called_once_with("filme-slug", skip_confirmation=True)
 
 
 class TestFetchPostersCommand:
