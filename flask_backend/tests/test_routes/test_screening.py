@@ -820,3 +820,41 @@ class TestWantToWatchToggle:
         response = client.post("/movie/99999/want-to-watch")
 
         assert response.status_code == 404
+
+
+class TestReelsWantToWatchState:
+    def test_homepage_marks_card_as_wanted_for_matching_visitor(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Querido",
+                screening_date=date.today() + timedelta(days=1),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        assert f'data-movie-id="{movie_id}"' in html
+        assert 'data-wanted="true"' in html
+
+    def test_homepage_card_not_wanted_without_a_visitor_cookie(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Qualquer",
+                screening_date=date.today() + timedelta(days=1),
+            )
+
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        assert 'data-wanted="true"' not in html

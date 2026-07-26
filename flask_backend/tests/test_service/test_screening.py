@@ -909,3 +909,56 @@ class TestBuildReelsFeed:
         )
 
         assert [card["screening_id"] for card in cards] == [2, 1]
+
+    def test_marks_card_as_wanted_when_its_movie_id_is_in_the_set(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+
+        cards = build_reels_feed(
+            [screening],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            wanted_movie_ids={1},
+        )
+
+        assert cards[0]["wanted"] is True
+        assert cards[0]["movie_id"] == 1
+
+    def test_card_not_wanted_when_its_movie_id_is_not_in_the_set(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+
+        cards = build_reels_feed(
+            [screening],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            wanted_movie_ids={999},
+        )
+
+        assert cards[0]["wanted"] is False
+
+    def test_defaults_to_not_wanted_when_no_set_given(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+
+        cards = build_reels_feed(
+            [screening], [], today, today + timedelta(days=6), False
+        )
+
+        assert cards[0]["wanted"] is False

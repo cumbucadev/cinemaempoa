@@ -4,7 +4,7 @@ import os
 from collections import OrderedDict, defaultdict
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import filetype
 import requests
@@ -151,15 +151,20 @@ def build_reels_feed(
     window_end: date,
     user_logged_in: bool,
     earliest_datetime: Optional[datetime] = None,
+    wanted_movie_ids: Optional[Set[int]] = None,
 ) -> List[dict]:
     """Builds the mobile reels feed: one card per non-draft screening (all
     screenings if user_logged_in), sorted by each screening's soonest
     future ScreeningDate within [today, window_end]. `movie_dates` is the
     flat, cross-cinema list of ScreeningDate rows for every movie present in
     `screenings` within the same window - grouped here per movie for each
-    card's "next dates" list."""
+    card's "next dates" list. `wanted_movie_ids` marks cards for the
+    current anonymous visitor's want-to-watch picks (see
+    docs/superpowers/specs/2026-07-26-want-to-watch-design.md)."""
     if earliest_datetime is None:
         earliest_datetime = datetime.combine(today, time.min)
+    if wanted_movie_ids is None:
+        wanted_movie_ids = set()
 
     dates_by_movie: Dict[int, List[ScreeningDate]] = defaultdict(list)
     for screening_date in movie_dates:
@@ -186,6 +191,7 @@ def build_reels_feed(
         cards.append(
             {
                 "screening_id": screening.id,
+                "movie_id": screening.movie_id,
                 "movie_title": screening.movie.title,
                 "directors": [director.name for director in screening.movie.directors],
                 "release_year": screening.movie.release_year,
@@ -206,6 +212,7 @@ def build_reels_feed(
                 ],
                 "draft": screening.draft,
                 "screening_url": screening.url,
+                "wanted": screening.movie_id in wanted_movie_ids,
             }
         )
 

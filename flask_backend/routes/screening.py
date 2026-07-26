@@ -39,7 +39,10 @@ from flask_backend.repository.screenings import (
     update as update_screening,
     update_screening_dates,
 )
-from flask_backend.repository.want_to_watch import toggle as toggle_want_to_watch
+from flask_backend.repository.want_to_watch import (
+    get_movie_ids_for_visitor,
+    toggle as toggle_want_to_watch,
+)
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.screening import (
@@ -70,6 +73,8 @@ def _mobile_index():
     movie_dates = get_screening_dates_for_movies(
         movie_ids, today, window_end, include_drafts=user_logged_in
     )
+    visitor_id = get_visitor_id(request)
+    wanted_movie_ids = get_movie_ids_for_visitor(visitor_id) if visitor_id else set()
     cards = build_reels_feed(
         screenings,
         movie_dates,
@@ -77,6 +82,7 @@ def _mobile_index():
         window_end,
         user_logged_in,
         earliest_datetime=now,
+        wanted_movie_ids=wanted_movie_ids,
     )
 
     return render_template("screening/index_mobile.html", cards=cards)

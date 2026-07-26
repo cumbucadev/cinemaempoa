@@ -10,7 +10,9 @@
     <div class="reels-feed">
         {% if cards %}
             {% for card in cards %}
-                <section class="reels-card">
+                <section class="reels-card"
+                         data-movie-id="{{ card.movie_id }}"
+                         data-wanted="{{ 'true' if card.wanted else 'false' }}">
                     <p class="reels-day-label">{{ card.day_label }}</p>
                     <div class="reels-card-panels">
                         <div class="reels-panel reels-panel-poster">
