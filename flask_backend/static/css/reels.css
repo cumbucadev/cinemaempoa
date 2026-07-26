@@ -1,0 +1,270 @@
+/* the reels feed itself (poster art + gradient scrim + day-label chip) stays
+   dark regardless of theme - it's a photo backdrop, not app chrome. only the
+   menu and info panel (plain UI surfaces) follow the device's light/dark
+   preference, reflected in the data-bs-theme attribute base_reels.html sets
+   on <html> from prefers-color-scheme. */
+.reels-root {
+    --reels-bg: #000;
+    --reels-surface: #141414;
+    --reels-text: #f5f5f0;
+    --reels-text-muted: #9b9b95;
+    --reels-accent: #f0b429;
+    --reels-hairline: rgba(255, 255, 255, 0.12);
+    --reels-close-filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+:root[data-bs-theme="light"] .reels-root {
+    --reels-surface: #f0ece3;
+    --reels-text: #1c1a17;
+    --reels-text-muted: #6b655c;
+    --reels-accent: #9c5b00;
+    --reels-hairline: rgba(0, 0, 0, 0.12);
+    --reels-close-filter: none;
+}
+
+html,
+body.reels-root {
+    height: 100%;
+    margin: 0;
+    background: #000;
+}
+
+.reels-feed {
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.reels-card {
+    height: 100vh;
+    height: 100dvh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    position: relative;
+}
+
+.reels-day-label {
+    position: absolute;
+    top: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    margin: 0;
+    padding: 0.25rem 0.75rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}
+
+.reels-card-panels {
+    display: flex;
+    height: 100%;
+    overflow-x: scroll;
+    scroll-snap-type: x mandatory;
+}
+
+.reels-panel {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    box-sizing: border-box;
+}
+
+.reels-panel-poster {
+    position: relative;
+    overflow: hidden;
+}
+
+.reels-poster-img,
+.reels-poster-placeholder {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.reels-poster-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.reels-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+    color: #fff;
+}
+
+.reels-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+    padding: 2rem;
+}
+
+/* swipe-right hint: a circular affordance instead of a bare glyph, with a
+   gentle pulse to draw the eye without relying on opacity/size alone for
+   visibility against light or dark poster art */
+.reels-swipe-hint {
+    position: absolute;
+    top: 50%;
+    right: 0.85rem;
+    transform: translateY(-50%);
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    /* fixed white, not themed: sits over poster art like the rest of the
+       overlay/day-label chip, not on an app-chrome surface */
+    color: #fff;
+    font-size: 1.75rem;
+    line-height: 1;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .reels-swipe-hint {
+        animation: reels-swipe-pulse 1.8s ease-in-out infinite;
+    }
+}
+
+@keyframes reels-swipe-pulse {
+    0%,
+    100% {
+        transform: translateY(-50%) translateX(0);
+    }
+
+    50% {
+        transform: translateY(-50%) translateX(5px);
+    }
+}
+
+/* info panel: locked to the dark reels surface regardless of OS light/dark
+   theme so swiping right doesn't flash white against the black poster panel */
+.reels-panel-info {
+    overflow-y: auto;
+    /* disable overscroll-behavier contain as it prevents
+       the user from scrolling back left to the poster */
+    /* overscroll-behavior: contain; */
+    /* contain vertical overscroll, forcing user to
+       go back to poster in order to go to the next screening */
+    overscroll-behavior-y: contain;
+    padding: 1.75rem 1.5rem;
+    /* extra top clearance: the hamburger toggle is fixed to the viewport and
+       floats over whichever panel is in view, including this one */
+    padding-top: 3.5rem;
+    padding-bottom: max(1.75rem, env(safe-area-inset-bottom));
+    background: var(--reels-surface);
+    color: var(--reels-text);
+}
+
+.reels-info-header {
+    border-bottom: 1px solid var(--reels-hairline);
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+}
+
+.reels-info-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    color: var(--reels-text);
+}
+
+.reels-info-meta {
+    margin: 0;
+    color: var(--reels-text-muted);
+    font-size: 0.9rem;
+}
+
+.reels-panel-info .reels-description {
+    line-height: 1.6;
+    color: var(--reels-text);
+    /* keeps line breaks of scraper-sourced descriptions, mirroring the
+       `white-space: break-spaces` the desktop layout uses. scoped to the
+       description so the panel's markup indentation isn't rendered too. */
+    white-space: pre-wrap;
+}
+
+.reels-panel-info h3 {
+    color: var(--reels-text);
+}
+
+.reels-panel-info ul.list-unstyled li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    color: var(--reels-text-muted);
+}
+
+.reels-session-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.reels-panel-info a {
+    color: var(--reels-accent);
+}
+
+.reels-panel-info .reels-utility-links {
+    color: var(--reels-text-muted);
+    font-size: 0.85rem;
+}
+
+/* hamburger offcanvas menu */
+.reels-root #reels-menu {
+    background: var(--reels-surface);
+    color: var(--reels-text);
+}
+
+.reels-root #reels-menu .offcanvas-header {
+    border-bottom: 1px solid var(--reels-hairline);
+}
+
+.reels-root #reels-menu .offcanvas-title {
+    color: var(--reels-text);
+}
+
+.reels-root #reels-menu .btn-close {
+    filter: var(--reels-close-filter);
+}
+
+.reels-root #reels-menu .nav-link {
+    color: var(--reels-text-muted);
+    padding: 0.6rem 0.25rem;
+    border-bottom: 1px solid var(--reels-hairline);
+}
+
+.reels-root #reels-menu .nav-item:last-child .nav-link {
+    border-bottom: none;
+}
+
+.reels-root #reels-menu .nav-link:hover,
+.reels-root #reels-menu .nav-link:focus,
+.reels-root #reels-menu .nav-link.active {
+    color: var(--reels-accent);
+}

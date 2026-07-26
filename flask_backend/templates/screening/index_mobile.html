@@ -6,133 +6,6 @@
     <meta name="description"
           content="Filmes em cartaz nos próximos dias nas salas de cinema alternativo em Porto Alegre.">
 {% endblock meta_tags %}
-{% block extra_head %}
-    <style>
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            background: #000;
-        }
-
-        .reels-feed {
-            height: 100vh;
-            height: 100dvh;
-            overflow-y: scroll;
-            scroll-snap-type: y mandatory;
-            scroll-behavior: smooth;
-        }
-
-        .reels-card {
-            height: 100vh;
-            height: 100dvh;
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
-            position: relative;
-        }
-
-        .reels-day-label {
-            position: absolute;
-            top: 0.75rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 2;
-            margin: 0;
-            padding: 0.25rem 0.75rem;
-            background: rgba(0, 0, 0, 0.6);
-            color: #fff;
-            border-radius: 999px;
-            font-size: 0.8rem;
-        }
-
-        .reels-card-panels {
-            display: flex;
-            height: 100%;
-            overflow-x: scroll;
-            scroll-snap-type: x mandatory;
-        }
-
-        .reels-panel {
-            flex: 0 0 100%;
-            width: 100%;
-            height: 100%;
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
-            box-sizing: border-box;
-        }
-
-        .reels-panel-poster {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .reels-poster-img,
-        .reels-poster-placeholder {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .reels-poster-placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-            color: #fff;
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-
-        .reels-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 1rem;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
-            color: #fff;
-        }
-
-        .reels-swipe-hint {
-            position: absolute;
-            top: 50%;
-            right: 0.5rem;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.5rem;
-            pointer-events: none;
-        }
-
-        .reels-panel-info {
-            overflow-y: auto;
-            /* disable overscroll-behavier contain as it prevents
-               the user from scrolling back left to the poster */
-            /* overscroll-behavior: contain; */
-            /* contain vertical overscroll, forcing user to
-               go back to poster in order to go to the next screening */
-            overscroll-behavior-y: contain;
-            padding: 1.5rem;
-            background: var(--bs-content-bg, #fff);
-        }
-
-        /* keeps line breaks of scraper-sourced descriptions, mirroring the
-           `white-space: break-spaces` the desktop layout uses. scoped to the
-           description so the panel's markup indentation isn't rendered too. */
-        .reels-panel-info .reels-description {
-            white-space: pre-wrap;
-        }
-
-        .reels-empty {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            text-align: center;
-            padding: 2rem;
-        }
-    </style>
-{% endblock extra_head %}
 {% block content %}
     <div class="reels-feed">
         {% if cards %}
@@ -173,12 +46,25 @@
                             <span class="reels-swipe-hint" aria-hidden="true">›</span>
                         </div>
                         <div class="reels-panel reels-panel-info">
+                            <div class="reels-info-header">
+                                <h2 class="reels-info-title">{{ card.movie_title }}</h2>
+                                <p class="reels-info-meta">
+                                    {% if card.directors %}{{ card.directors|join(", ") }}{% endif %}
+                                    {% if card.release_year %}
+                                        {% if card.directors %}·{% endif %}
+                                        {{ card.release_year }}
+                                    {% endif %}
+                                    {% if card.cinema_name %}· {{ card.cinema_name }}{% endif %}
+                                </p>
+                            </div>
                             <p class="reels-description">{{ card.description }}</p>
                             {% if card.next_dates %}
                                 <h3 class="h6">Próximas sessões</h3>
                                 <ul class="list-unstyled">
                                     {% for next_date in card.next_dates %}
                                         <li>
+                                            <span class="reels-session-dot"
+                                                  style="background-color: {{ card.cinema_color }}"></span>
                                             {{ next_date.date.strftime("%d/%m") }} · {{ next_date.cinema_name }}
                                             {% if next_date.time %}· {{ next_date.time }}{% endif %}
                                         </li>
@@ -186,11 +72,11 @@
                                 </ul>
                             {% endif %}
                             {% if card.screening_url %}
-                                <p>
+                                <p class="reels-utility-links">
                                     <a href="{{ card.screening_url }}">Veja a postagem original</a>
                                 </p>
                             {% endif %}
-                            <p>
+                            <p class="reels-utility-links">
                                 {% if g.user %}
                                     <a href="{{ url_for('screening.update', id=card.screening_id) }}">Edite!</a>
                                 {% else %}

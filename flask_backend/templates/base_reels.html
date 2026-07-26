@@ -26,10 +26,12 @@
           href="{{ url_for('static', filename='site.webmanifest') }}">
     <link rel="stylesheet"
           href="{{ url_for('static', filename='halfmoon/halfmoon.min.css') }}" />
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/reels.css') }}" />
     {% block extra_head %}
     {% endblock extra_head %}
 </head>
-<body>
+<body class="reels-root">
     {# the reels layout has no room for the dev banner, so the goatcounter #}
     {# opt-out markers used by base.html are rendered hidden here #}
     {% if not is_production or g.user %}
@@ -55,7 +57,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body">
-            <ul class="nav flex-column">
+            <ul class="nav navbar-nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for("page.about") }}">Sobre o projeto</a>
                 </li>
