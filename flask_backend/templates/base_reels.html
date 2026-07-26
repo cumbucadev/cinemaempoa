@@ -65,6 +65,9 @@
                     <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for("screening.favoritos") }}">Meus Filmes</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
                 </li>
                 <li class="nav-item">
@@ -92,6 +95,7 @@
         }
     </script>
     <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
+    <script src="{{ url_for('static', filename='reels-want-to-watch.js') }}"></script>
     <script>
         // reference: https://www.goatcounter.com/help/skip-path
         // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
