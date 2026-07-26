@@ -7,7 +7,9 @@ from PIL import Image
 from flask_backend.db import db_session
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
+from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.service.screening import (
+    build_favorites_feed,
     build_reels_feed,
     download_image_from_url,
     format_day_label,
@@ -962,3 +964,94 @@ class TestBuildReelsFeed:
         )
 
         assert cards[0]["wanted"] is False
+
+
+class TestBuildFavoritesFeed:
+    def test_returns_empty_list_for_no_movie_ids(self, app):
+        with app.app_context():
+            assert build_favorites_feed([], date.today(), False) == []
+
+    def test_includes_card_for_movie_with_upcoming_screening(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Futuro", slug="filme-futuro")
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
+            )
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() + timedelta(days=2),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert len(cards) == 1
+            assert cards[0]["movie_title"] == "Filme Futuro"
+            assert cards[0]["no_sessions"] is False
+            assert cards[0]["wanted"] is True
+
+    def test_falls_back_to_latest_screening_when_no_upcoming_dates(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Antigo", slug="filme-antigo")
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="desc",
+                draft=False,
+                image="poster.jpg",
+            )
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() - timedelta(days=10),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert len(cards) == 1
+            assert cards[0]["movie_title"] == "Filme Antigo"
+            assert cards[0]["no_sessions"] is True
+            assert cards[0]["soonest_date"] is None
+            assert cards[0]["image"] == "poster.jpg"
+
+    def test_excludes_draft_fallback_when_not_logged_in(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Rascunho", slug="filme-rascunho")
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=True
+            )
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() - timedelta(days=10),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert cards == []

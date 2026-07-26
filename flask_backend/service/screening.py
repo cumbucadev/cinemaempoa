@@ -23,6 +23,9 @@ from flask_backend.repository.movies import (
 from flask_backend.repository.screenings import (
     create as create_screening,
     get_by_movie_id_and_cinema_id as get_screening_by_movie_id_and_cinema_id,
+    get_latest_screening_for_movie,
+    get_screening_dates_for_movies,
+    get_screenings_for_movies_with_dates_in_range,
     update_screening_dates,
     update_title_cleaning_info,
 )
@@ -220,6 +223,84 @@ def build_reels_feed(
 
     for card in cards:
         card["day_label"] = format_day_label(card["soonest_date"], today)
+
+    return cards
+
+
+_FAR_FUTURE_DATE = date(9999, 12, 31)
+
+
+def build_favorites_feed(
+    movie_ids: List[int],
+    today: date,
+    user_logged_in: bool,
+    now: Optional[datetime] = None,
+) -> List[dict]:
+    """Builds the /favoritos feed: every marked movie, sorted the same way
+    as the reels feed. A marked movie with an upcoming ScreeningDate gets a
+    normal reels card (any future date, unlike the homepage's 7-day
+    window - this is a personal list, not a "what's on this week" feed). A
+    marked movie with none falls back to its most recent past Screening
+    (there's always at least one, since a Movie row only exists because
+    some Screening created it), with no_sessions=True and no dates. A
+    fallback whose screening is a draft is skipped entirely when not
+    logged in, same as everywhere else drafts are visitor-hidden."""
+    if not movie_ids:
+        return []
+    if now is None:
+        now = datetime.now()
+
+    screenings = get_screenings_for_movies_with_dates_in_range(
+        movie_ids, today, _FAR_FUTURE_DATE
+    )
+    movie_dates = get_screening_dates_for_movies(
+        movie_ids, today, _FAR_FUTURE_DATE, include_drafts=user_logged_in
+    )
+    cards = build_reels_feed(
+        screenings,
+        movie_dates,
+        today,
+        _FAR_FUTURE_DATE,
+        user_logged_in,
+        earliest_datetime=now,
+        wanted_movie_ids=set(movie_ids),
+    )
+    for card in cards:
+        card["no_sessions"] = False
+
+    covered_movie_ids = {card["movie_id"] for card in cards}
+    for movie_id in movie_ids:
+        if movie_id in covered_movie_ids:
+            continue
+        stale_screening = get_latest_screening_for_movie(movie_id)
+        if stale_screening is None:
+            continue
+        if stale_screening.draft and not user_logged_in:
+            continue
+        cards.append(
+            {
+                "screening_id": stale_screening.id,
+                "movie_id": stale_screening.movie_id,
+                "movie_title": stale_screening.movie.title,
+                "directors": [
+                    director.name for director in stale_screening.movie.directors
+                ],
+                "release_year": stale_screening.movie.release_year,
+                "description": stale_screening.description,
+                "image": stale_screening.image,
+                "image_alt": stale_screening.image_alt,
+                "cinema_name": stale_screening.cinema.short_name,
+                "cinema_color": stale_screening.cinema.color,
+                "soonest_date": None,
+                "soonest_time": None,
+                "next_dates": [],
+                "draft": stale_screening.draft,
+                "screening_url": stale_screening.url,
+                "day_label": None,
+                "no_sessions": True,
+                "wanted": True,
+            }
+        )
 
     return cards
 

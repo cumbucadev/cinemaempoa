@@ -4,7 +4,9 @@ from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.screenings import (
+    get_latest_screening_for_movie,
     get_screening_dates_for_movies,
+    get_screenings_for_movies_with_dates_in_range,
     get_screenings_in_date_range,
     get_screenings_with_upcoming_dates,
 )
@@ -268,3 +270,82 @@ class TestGetScreeningDatesForMovies:
     def test_returns_empty_list_for_empty_movie_ids(self, app, setup_cinemas):
         with app.app_context():
             assert get_screening_dates_for_movies([], date.today(), date.today()) == []
+
+
+class TestGetScreeningsForMoviesWithDatesInRange:
+    def test_includes_screening_for_requested_movie_within_range(
+        self, app, setup_cinemas
+    ):
+        screening_id, movie_id = _create_screening(
+            app, "Filme", "filme", [date.today() + timedelta(days=1)]
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_for_movies_with_dates_in_range(
+                    [movie_id], date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert screening_id in ids
+
+    def test_excludes_screening_for_a_different_movie(self, app, setup_cinemas):
+        _, movie_id = _create_screening(
+            app, "Filme", "filme", [date.today() + timedelta(days=1)]
+        )
+        other_screening_id, _ = _create_screening(
+            app, "Outro Filme", "outro-filme", [date.today() + timedelta(days=1)]
+        )
+
+        with app.app_context():
+            ids = [
+                s.id
+                for s in get_screenings_for_movies_with_dates_in_range(
+                    [movie_id], date.today(), date.today() + timedelta(days=6)
+                )
+            ]
+            assert other_screening_id not in ids
+
+    def test_returns_empty_list_for_no_movie_ids(self, app, setup_cinemas):
+        with app.app_context():
+            result = get_screenings_for_movies_with_dates_in_range(
+                [], date.today(), date.today()
+            )
+            assert result == []
+
+
+class TestGetLatestScreeningForMovie:
+    def test_returns_the_most_recently_created_screening(self, app, setup_cinemas):
+        with app.app_context():
+            movie = Movie(title="Filme", slug="filme", created_at=datetime.now())
+            db_session.add(movie)
+            db_session.commit()
+            cinema = get_cinema_by_slug("capitolio")
+            older = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="antiga",
+                created_at=datetime.now() - timedelta(days=10),
+            )
+            newer = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="recente",
+                created_at=datetime.now(),
+            )
+            db_session.add_all([older, newer])
+            db_session.commit()
+
+            latest = get_latest_screening_for_movie(movie.id)
+
+            assert latest.id == newer.id
+
+    def test_returns_none_for_movie_without_screenings(self, app, setup_cinemas):
+        with app.app_context():
+            movie = Movie(
+                title="Sem Sessão", slug="sem-sessao", created_at=datetime.now()
+            )
+            db_session.add(movie)
+            db_session.commit()
+
+            assert get_latest_screening_for_movie(movie.id) is None
