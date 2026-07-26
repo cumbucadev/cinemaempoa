@@ -61,6 +61,21 @@ class TestAuthLogin:
         with client.session_transaction() as sess:
             assert sess["user_id"] is not None
 
+    def test_login_post_success_sets_persistent_session_cookie(self, client, app):
+        with app.app_context():
+            _create_user_with_password(username="realuser", password="right-pass")
+
+        response = client.post(
+            "/auth/login",
+            data={"username": "realuser", "password": "right-pass"},
+        )
+
+        set_cookie_headers = response.headers.get_all("Set-Cookie")
+        session_cookie = next(
+            header for header in set_cookie_headers if header.startswith("session=")
+        )
+        assert "Expires" in session_cookie
+
 
 class TestAuthLogout:
     def test_logout_redirects_and_clears_session(self, client, app):

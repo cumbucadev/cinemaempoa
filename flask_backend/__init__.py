@@ -1,10 +1,16 @@
 import contextlib
 import os
+from datetime import timedelta
 
 from flask import Flask, request, send_from_directory
 
 from flask_backend.db import db_session
-from flask_backend.env_config import APP_ENVIRONMENT, SESSION_KEY, UPLOAD_DIR
+from flask_backend.env_config import (
+    APP_ENVIRONMENT,
+    SESSION_KEY,
+    SESSION_LIFETIME_DAYS,
+    UPLOAD_DIR,
+)
 from flask_backend.utils.enums.environment import EnvironmentEnum
 
 
@@ -16,7 +22,10 @@ def create_app(test_config=None):
         app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
 
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 5  # max 5mb file uploads
-    app.config.from_mapping(SECRET_KEY=SESSION_KEY)
+    app.config.from_mapping(
+        SECRET_KEY=SESSION_KEY,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=SESSION_LIFETIME_DAYS),
+    )
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_pyfile("config.py", silent=True)

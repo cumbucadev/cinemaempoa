@@ -67,6 +67,7 @@ def login():
 
         if error is None:
             session.clear()
+            session.permanent = True
             welcome_message = Markup(f"Boas vindas, <strong>{user.username}</strong>!")
             flash(welcome_message, "success")
             session["user_id"] = user.id
