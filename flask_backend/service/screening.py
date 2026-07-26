@@ -26,6 +26,7 @@ from flask_backend.repository.screenings import (
     update_screening_dates,
     update_title_cleaning_info,
 )
+from flask_backend.service.shared import is_screening_date_upcoming
 from flask_backend.service.title_cleaning import clean_title
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
 from flask_backend.utils.enums.environment import EnvironmentEnum
@@ -143,25 +144,6 @@ def get_soonest_date_in_range(
     return min(in_range, key=lambda d: (d.date, d.time or ""))
 
 
-def _is_in_future(screening_date: ScreeningDate, earliest_datetime: datetime) -> bool:
-    """True when a ScreeningDate is at or after earliest_datetime.
-
-    Missing or unparseable times are treated as the start of the day so
-    same-day entries without a listed time are still surfaced to users."""
-    if screening_date.date > earliest_datetime.date():
-        return True
-    if screening_date.date < earliest_datetime.date():
-        return False
-    if not screening_date.time:
-        return True
-    try:
-        hour, minute = map(int, screening_date.time.split(":")[:2])
-        parsed_time = time(hour, minute)
-    except (ValueError, TypeError):
-        return True
-    return parsed_time >= earliest_datetime.time()
-
-
 def build_reels_feed(
     screenings: List[Screening],
     movie_dates: List[ScreeningDate],
@@ -181,7 +163,7 @@ def build_reels_feed(
 
     dates_by_movie: Dict[int, List[ScreeningDate]] = defaultdict(list)
     for screening_date in movie_dates:
-        if _is_in_future(screening_date, earliest_datetime):
+        if is_screening_date_upcoming(screening_date, earliest_datetime):
             dates_by_movie[screening_date.screening.movie_id].append(screening_date)
 
     cards = []
@@ -191,7 +173,8 @@ def build_reels_feed(
         future_dates = [
             d
             for d in screening.dates
-            if today <= d.date <= window_end and _is_in_future(d, earliest_datetime)
+            if today <= d.date <= window_end
+            and is_screening_date_upcoming(d, earliest_datetime)
         ]
         if not future_dates:
             continue

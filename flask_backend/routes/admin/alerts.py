@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from math import ceil
 
 from flask import (
@@ -64,7 +64,7 @@ def index():
         latest_actions = alert_actions.get_latest_by_screening_ids(
             [screening.id for screening in screenings]
         )
-        rows = get_pending_rows(screenings, latest_actions)
+        rows = get_pending_rows(screenings, latest_actions, now=datetime.now())
         if categoria is not None:
             rows = [row for row in rows if row.category == categoria]
         qtt_alerts = len(rows)

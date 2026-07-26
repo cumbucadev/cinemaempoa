@@ -39,6 +39,24 @@ def _create_screening(movie, dates, cinema_slug="capitolio"):
     return screening
 
 
+def _create_screening_with_times(movie, dates_and_times, cinema_slug="capitolio"):
+    cinema = get_cinema_by_slug(cinema_slug)
+    screening = Screening(
+        movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
+    )
+    db_session.add(screening)
+    db_session.commit()
+    for screening_date, screening_time in dates_and_times:
+        db_session.add(
+            ScreeningDate(
+                screening_id=screening.id, date=screening_date, time=screening_time
+            )
+        )
+    db_session.commit()
+    db_session.refresh(screening)
+    return screening
+
+
 class TestClassify:
     def test_single_upcoming_date_is_unica(self, client, app, setup_cinemas):
         with client.application.app_context():
@@ -106,6 +124,44 @@ class TestLastUpcomingDate:
 
             assert last_upcoming_date(screening, today=date(2026, 7, 24)) is None
 
+    def test_skips_todays_already_passed_time_for_recorrente(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening_with_times(
+                movie,
+                [
+                    (date(2026, 7, 25), "15:00"),
+                    (date(2026, 7, 26), "20:00"),
+                ],
+            )
+
+            result = last_upcoming_date(
+                screening,
+                today=date(2026, 7, 25),
+                now=datetime(2026, 7, 25, 16, 0),
+            )
+
+            assert result == date(2026, 7, 26)
+
+    def test_returns_none_when_only_date_is_today_and_already_passed(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening_with_times(
+                movie, [(date(2026, 7, 25), "15:00")]
+            )
+
+            result = last_upcoming_date(
+                screening,
+                today=date(2026, 7, 25),
+                now=datetime(2026, 7, 25, 16, 0),
+            )
+
+            assert result is None
+
 
 class TestBuildDraftedText:
     def test_unica_includes_emoji_year_director_next_date_and_cinema(
@@ -149,6 +205,28 @@ class TestBuildDraftedText:
             text = build_drafted_text(screening, today=date(2026, 7, 24))
 
             assert text.startswith("⏳ Filme Sem Metadados\n\n")
+
+    def test_skips_todays_already_passed_date_for_next_upcoming(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie(title="Duna", slug="duna")
+            screening = _create_screening_with_times(
+                movie,
+                [
+                    (date(2026, 7, 25), "15:00"),
+                    (date(2026, 7, 26), "20:00"),
+                ],
+            )
+
+            text = build_drafted_text(
+                screening,
+                today=date(2026, 7, 25),
+                now=datetime(2026, 7, 25, 16, 0),
+            )
+
+            assert "26/07 20:00" in text
+            assert "25/07 15:00" not in text
 
 
 class TestGetPendingRows:
@@ -229,3 +307,44 @@ class TestGetPendingRows:
             rows = get_pending_rows([later, sooner], {}, today=date(2026, 7, 24))
 
             assert [row.screening.id for row in rows] == [sooner.id, later.id]
+
+    def test_excludes_unica_screening_whose_only_date_is_today_and_passed(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening_with_times(
+                movie, [(date(2026, 7, 25), "15:00")]
+            )
+
+            rows = get_pending_rows(
+                [screening],
+                {},
+                today=date(2026, 7, 25),
+                now=datetime(2026, 7, 25, 16, 0),
+            )
+
+            assert rows == []
+
+    def test_keeps_recorrente_screening_using_next_real_date_when_todays_passed(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie = _create_movie()
+            screening = _create_screening_with_times(
+                movie,
+                [
+                    (date(2026, 7, 25), "15:00"),
+                    (date(2026, 7, 26), "20:00"),
+                ],
+            )
+
+            rows = get_pending_rows(
+                [screening],
+                {},
+                today=date(2026, 7, 25),
+                now=datetime(2026, 7, 25, 16, 0),
+            )
+
+            assert len(rows) == 1
+            assert rows[0].last_upcoming_date == date(2026, 7, 26)
