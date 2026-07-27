@@ -380,7 +380,7 @@ def import_scrapped_results(
                     title_cleaning_result.cleaned_title,
                     ", ".join(title_cleaning_result.matched_rules),
                 )
-            movie = get_movie_by_title_or_create(title_cleaning_result.cleaned_title)
+            movie, _ = get_movie_by_title_or_create(title_cleaning_result.cleaned_title)
 
             description: str = ""
             screenings_dates = None
