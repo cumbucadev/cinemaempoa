@@ -165,6 +165,10 @@
                                        href="{{ url_for("admin_alerts.index") }}">Alertas</a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item {% if request.path.startswith('/admin/cinemas') %}active{% endif %}"
+                                       href="{{ url_for("admin_cinemas.index") }}">Cinemas</a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item {% if request.path.startswith('/admin/pipelines') %}active{% endif %}"
                                        href="{{ url_for("admin_pipelines.index") }}">Pipelines</a>
                                 </li>
@@ -239,6 +243,10 @@
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('admin_alerts.index') %}active{% endif %}"
                                    href="{{ url_for("admin_alerts.index") }}">Alertas</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path.startswith('/admin/cinemas') %}active{% endif %}"
+                                   href="{{ url_for("admin_cinemas.index") }}">Cinemas</a>
                             </li>
                             <li>
                                 <a class="dropdown-item {% if request.path.startswith('/admin/pipelines') %}active{% endif %}"

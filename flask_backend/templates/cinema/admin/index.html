@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}
+    Gerenciar Cinemas
+{% endblock title %}
+{% block header %}
+    <h1>Gerenciar Cinemas</h1>
+{% endblock header %}
+{% block content %}
+    <ul class="list-group">
+        {% for cinema in cinemas %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ cinema.name }}
+                <a class="btn btn-sm btn-secondary"
+                   href="{{ url_for('admin_cinemas.update', cinema_id=cinema.id) }}">Editar</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock content %}

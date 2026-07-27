@@ -77,6 +77,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(admin_pipelines.bp)
 
+    from .routes.admin import cinemas as admin_cinemas
+
+    app.register_blueprint(admin_cinemas.bp)
+
     from .routes import page
 
     app.register_blueprint(page.bp)
