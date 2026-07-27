@@ -94,10 +94,18 @@
                 </select>
             </div>
         {% endif %}
-        <div>
-            <button type="submit" class="btn btn-primary">Filtrar</button>
-        </div>
     </form>
+    <script>
+        document.getElementById("cinema-filter").addEventListener("change", function() {
+            this.form.submit();
+        });
+        var categoriaFilter = document.getElementById("categoria-filter");
+        if (categoriaFilter) {
+            categoriaFilter.addEventListener("change", function() {
+                this.form.submit();
+            });
+        }
+    </script>
     {% if status == "pending" %}
         {% if pending_rows %}
             <div class="table-responsive d-none d-md-block">
