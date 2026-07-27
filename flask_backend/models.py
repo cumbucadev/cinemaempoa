@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, relationship
 
@@ -192,6 +193,24 @@ class ScreeningDate(Base):
     time = Column(String, nullable=True)
 
     screening: Mapped["Screening"] = relationship(back_populates="dates")
+
+
+class WantToWatch(Base):
+    """One row per (movie, anonymous visitor) mark on the reels homepage's
+    want-to-watch star. visitor_id is an opaque UUID from a dedicated
+    cookie (flask_backend/utils/visitor.py) - not tied to Screening, so a
+    mark survives across cinemas and past a specific showtime's dates."""
+
+    __tablename__ = "want_to_watch"
+
+    id = Column(Integer, primary_key=True)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False, index=True)
+    visitor_id = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    __table_args__ = (UniqueConstraint("movie_id", "visitor_id"),)
+
+    movie: Mapped["Movie"] = relationship()
 
 
 class PipelineRun(Base):

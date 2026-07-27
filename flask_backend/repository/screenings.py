@@ -66,6 +66,25 @@ def get_screenings_in_date_range(start_date: date, end_date: date) -> List[Scree
     )
 
 
+def get_screenings_for_movies_with_dates_in_range(
+    movie_ids: List[int], start_date: date, end_date: date
+) -> List[Screening]:
+    """Screenings (draft included) for the given movie IDs with at least
+    one ScreeningDate between start_date and end_date, inclusive. Powers
+    the /favoritos feed - the caller decides whether to keep drafts based
+    on login state, same as get_screenings_in_date_range."""
+    if not movie_ids:
+        return []
+    return (
+        db_session.query(Screening)
+        .join(ScreeningDate)
+        .filter(Screening.movie_id.in_(movie_ids))
+        .filter(func.date(ScreeningDate.date).between(start_date, end_date))
+        .distinct()
+        .all()
+    )
+
+
 def get_screening_dates_for_movies(
     movie_ids: List[int],
     start_date: date,
@@ -196,6 +215,21 @@ def get_screenings_with_upcoming_dates(
     if cinema_id is not None:
         query = query.filter(Screening.cinema_id == cinema_id)
     return query.distinct().all()
+
+
+def get_latest_screening_for_movie(
+    movie_id: int, include_drafts: bool = False
+) -> Optional[Screening]:
+    """Most recently created Screening row for a movie, regardless of its
+    dates. Used as a fallback source of poster/description/cinema data on
+    /favoritos for a marked movie with no upcoming session. Excludes drafts
+    by default so an anonymous visitor's stale-pick fallback never resolves
+    to a newer unpublished draft while an older published screening exists -
+    callers must pass include_drafts=True only for logged-in requests."""
+    query = db_session.query(Screening).filter(Screening.movie_id == movie_id)
+    if not include_drafts:
+        query = query.filter(Screening.draft == False)  # noqa: E712
+    return query.order_by(Screening.created_at.desc()).first()
 
 
 def update_screening_dates(

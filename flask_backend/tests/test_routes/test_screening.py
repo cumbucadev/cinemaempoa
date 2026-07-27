@@ -1,4 +1,5 @@
 import io
+import re
 from datetime import date, datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch
@@ -745,6 +746,39 @@ class TestScreeningIndexMobile:
             about_url = url_for("page.about")
         assert about_url in html
 
+    def test_want_to_watch_toast_markup_is_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'id="reels-wtw-toast"' in html
+        assert 'data-bs-autohide="true"' in html
+        assert 'data-bs-delay="3000"' in html
+        assert "Filme adicionado! Veja em Meus Filmes ☰" in html
+
+    def test_sidebar_lists_home_and_favoritos_first_and_highlights_home(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        with client.application.test_request_context():
+            home_url = url_for("screening.index")
+            favoritos_url = url_for("screening.favoritos")
+            about_url = url_for("page.about")
+            posters_url = url_for("movie.posters")
+
+        assert html.index(home_url) < html.index(favoritos_url)
+        assert html.index(favoritos_url) < html.index(about_url)
+        assert posters_url in html
+
+        home_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(home_url)}"', html
+        )
+        favoritos_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(favoritos_url)}"', html
+        )
+        assert "active" in home_link.group(1).split()
+        assert "active" not in favoritos_link.group(1).split()
+
     def test_shows_empty_state_when_no_screenings_in_range(self, client, setup_cinemas):
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
@@ -780,3 +814,211 @@ class TestScreeningIndexMobile:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert "Filme Já Começou" not in html
+
+
+def _create_movie(title="Filme"):
+    movie = Movie(title=title, slug=title.lower().replace(" ", "-"))
+    db_session.add(movie)
+    db_session.commit()
+    return movie.id
+
+
+class TestWantToWatchToggle:
+    def test_first_toggle_marks_the_movie_and_sets_visitor_cookie(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            movie_id = _create_movie()
+
+        response = client.post(f"/movie/{movie_id}/want-to-watch")
+
+        assert response.status_code == 200
+        assert response.get_json() == {"wanted": True}
+        set_cookie_headers = response.headers.get_all("Set-Cookie")
+        visitor_cookie = next(
+            header for header in set_cookie_headers if header.startswith("visitor_id=")
+        )
+        assert "HttpOnly" in visitor_cookie
+
+    def test_second_toggle_unmarks_using_the_same_visitor(self, client, setup_cinemas):
+        with client.application.app_context():
+            movie_id = _create_movie()
+
+        first = client.post(f"/movie/{movie_id}/want-to-watch")
+        second = client.post(f"/movie/{movie_id}/want-to-watch")
+
+        assert first.get_json() == {"wanted": True}
+        assert second.get_json() == {"wanted": False}
+
+    def test_returns_404_for_unknown_movie(self, client, setup_cinemas):
+        response = client.post("/movie/99999/want-to-watch")
+
+        assert response.status_code == 404
+
+
+class TestReelsWantToWatchState:
+    def test_homepage_marks_card_as_wanted_for_matching_visitor(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Querido",
+                screening_date=date.today() + timedelta(days=1),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        assert re.search(rf'data-movie-id="{movie_id}"\s+data-wanted="true"', html)
+
+    def test_homepage_card_not_wanted_without_a_visitor_cookie(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Qualquer",
+                screening_date=date.today() + timedelta(days=1),
+            )
+
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        assert 'data-wanted="true"' not in html
+
+
+class TestFavoritos:
+    def test_returns_200(self, client, setup_cinemas):
+        response = client.get("/favoritos")
+
+        assert response.status_code == 200
+
+    def test_shows_empty_state_without_a_visitor_cookie(self, client, setup_cinemas):
+        response = client.get("/favoritos")
+
+        assert "ainda não marcou" in response.get_data(as_text=True)
+
+    def test_shows_marked_movie_with_upcoming_screening(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Futuro",
+                screening_date=date.today() + timedelta(days=2),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+
+        assert b"Filme Futuro" in response.data
+
+    def test_shows_marked_movie_with_no_upcoming_screening_as_stale(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Antigo",
+                screening_date=date.today() - timedelta(days=30),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert "Filme Antigo" in html
+        assert "Não há sessões previstas no momento" in html
+
+    def test_third_card_onward_defers_poster_loading_via_shared_scripts(
+        self, client, setup_cinemas
+    ):
+        # /favoritos shares _reels_card.html with the homepage, which only
+        # ever loads because base_reels.html carries the lazy-poster
+        # IntersectionObserver script both pages extend from - this guards
+        # against that script silently going missing again on either page.
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            client.set_cookie("visitor_id", "visitor-a")
+            for i in range(3):
+                screening_id = _create_screening(
+                    movie_title=f"Filme Favorito {i}",
+                    image=f"poster{i}.jpg",
+                    image_width=100,
+                    image_height=200,
+                    screening_date=date.today() + timedelta(days=i + 1),
+                )
+                movie_id = db_session.query(Screening).get(screening_id).movie_id
+                toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert 'data-src="poster2.jpg"' in html
+        assert "posterObserver" in html
+        assert "IntersectionObserver" in html
+
+    def test_toggle_then_favoritos_then_untoggle_round_trip(
+        self, client, setup_cinemas
+    ):
+        # exercises the real user flow end to end through the HTTP layer,
+        # instead of seeding state by calling the want_to_watch repository
+        # directly - every other /favoritos test does the latter.
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Round Trip",
+                screening_date=date.today() + timedelta(days=1),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        toggle_on = client.post(f"/movie/{movie_id}/want-to-watch")
+        assert toggle_on.get_json() == {"wanted": True}
+        set_cookie_headers = toggle_on.headers.get_all("Set-Cookie")
+        assert any(header.startswith("visitor_id=") for header in set_cookie_headers)
+
+        marked_response = client.get("/favoritos")
+        assert "Filme Round Trip" in marked_response.get_data(as_text=True)
+
+        toggle_off = client.post(f"/movie/{movie_id}/want-to-watch")
+        assert toggle_off.get_json() == {"wanted": False}
+
+        unmarked_response = client.get("/favoritos")
+        unmarked_html = unmarked_response.get_data(as_text=True)
+        assert "ainda não marcou" in unmarked_html
+        assert "Filme Round Trip" not in unmarked_html
+
+    def test_sidebar_links_back_to_home_and_highlights_meus_filmes(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        with client.application.test_request_context():
+            home_url = url_for("screening.index")
+            favoritos_url = url_for("screening.favoritos")
+
+        assert home_url in html
+
+        home_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(home_url)}"', html
+        )
+        favoritos_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(favoritos_url)}"', html
+        )
+        assert "active" not in home_link.group(1).split()
+        assert "active" in favoritos_link.group(1).split()

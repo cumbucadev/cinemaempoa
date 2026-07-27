@@ -7,7 +7,9 @@ from PIL import Image
 from flask_backend.db import db_session
 from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedResult
 from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
+from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.service.screening import (
+    build_favorites_feed,
     build_reels_feed,
     download_image_from_url,
     format_day_label,
@@ -909,3 +911,201 @@ class TestBuildReelsFeed:
         )
 
         assert [card["screening_id"] for card in cards] == [2, 1]
+
+    def test_marks_card_as_wanted_when_its_movie_id_is_in_the_set(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+
+        cards = build_reels_feed(
+            [screening],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            wanted_movie_ids={1},
+        )
+
+        assert cards[0]["wanted"] is True
+        assert cards[0]["movie_id"] == 1
+
+    def test_card_not_wanted_when_its_movie_id_is_not_in_the_set(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+
+        cards = build_reels_feed(
+            [screening],
+            [],
+            today,
+            today + timedelta(days=6),
+            False,
+            wanted_movie_ids={999},
+        )
+
+        assert cards[0]["wanted"] is False
+
+    def test_defaults_to_not_wanted_when_no_set_given(self):
+        today = date.today()
+        movie = _movie()
+        cinema = _cinema()
+        screening = _screening(
+            movie, cinema, [ScreeningDate(date=today, time="20:00")], screening_id=1
+        )
+
+        cards = build_reels_feed(
+            [screening], [], today, today + timedelta(days=6), False
+        )
+
+        assert cards[0]["wanted"] is False
+
+
+class TestBuildFavoritesFeed:
+    def test_returns_empty_list_for_no_movie_ids(self, app):
+        with app.app_context():
+            assert build_favorites_feed([], date.today(), False) == []
+
+    def test_includes_card_for_movie_with_upcoming_screening(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Futuro", slug="filme-futuro")
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=False
+            )
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() + timedelta(days=2),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert len(cards) == 1
+            assert cards[0]["movie_title"] == "Filme Futuro"
+            assert cards[0]["no_sessions"] is False
+            assert cards[0]["wanted"] is True
+
+    def test_falls_back_to_latest_screening_when_no_upcoming_dates(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Antigo", slug="filme-antigo")
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="desc",
+                draft=False,
+                image="poster.jpg",
+            )
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() - timedelta(days=10),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert len(cards) == 1
+            assert cards[0]["movie_title"] == "Filme Antigo"
+            assert cards[0]["no_sessions"] is True
+            assert cards[0]["soonest_date"] is None
+            assert cards[0]["image"] == "poster.jpg"
+
+    def test_excludes_draft_fallback_when_not_logged_in(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Rascunho", slug="filme-rascunho")
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id, cinema_id=cinema.id, description="desc", draft=True
+            )
+            db_session.add(screening)
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=screening.id,
+                    date=date.today() - timedelta(days=10),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert cards == []
+
+    def test_falls_back_to_newest_non_draft_screening_when_newest_is_a_draft(
+        self, app, setup_cinemas
+    ):
+        # an older non-draft screening plus a newer draft screening (e.g.
+        # a re-scrape that hasn't been published yet) must not make the
+        # movie disappear from an anonymous visitor's /favoritos - the
+        # stale-pick fallback should skip the draft and use the older
+        # published screening instead.
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            movie = Movie(title="Filme Rascunho Mais Novo", slug="filme-rascunho-novo")
+            db_session.add(movie)
+            db_session.commit()
+            older_non_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="publicado antigo",
+                draft=False,
+                image="antigo.jpg",
+                created_at=datetime.now() - timedelta(days=10),
+            )
+            newer_draft = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="rascunho recente",
+                draft=True,
+                image="rascunho.jpg",
+                created_at=datetime.now(),
+            )
+            db_session.add_all([older_non_draft, newer_draft])
+            db_session.commit()
+            db_session.add(
+                ScreeningDate(
+                    screening_id=older_non_draft.id,
+                    date=date.today() - timedelta(days=5),
+                    time="20:00",
+                )
+            )
+            db_session.add(
+                ScreeningDate(
+                    screening_id=newer_draft.id,
+                    date=date.today() - timedelta(days=1),
+                    time="20:00",
+                )
+            )
+            db_session.commit()
+
+            cards = build_favorites_feed([movie.id], date.today(), False)
+
+            assert len(cards) == 1
+            assert cards[0]["no_sessions"] is True
+            assert cards[0]["image"] == "antigo.jpg"
+            assert cards[0]["draft"] is False

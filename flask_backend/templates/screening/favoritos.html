@@ -1,10 +1,10 @@
 {% extends "base_reels.html" %}
 {% block title %}
-    Programação do dia
+    Meus Filmes
 {% endblock title %}
 {% block meta_tags %}
     <meta name="description"
-          content="Filmes em cartaz nos próximos dias nas salas de cinema alternativo em Porto Alegre.">
+          content="Filmes que você marcou como &quot;quero assistir&quot; no cinemaempoa.">
 {% endblock meta_tags %}
 {% block content %}
     <div class="reels-feed">
@@ -15,7 +15,7 @@
             {% endfor %}
         {% else %}
             <section class="reels-card reels-empty">
-                <strong>Não há sessões nos próximos dias.</strong>
+                <strong>Você ainda não marcou nenhum filme. Toque na estrela em um filme para adicioná-lo aqui.</strong>
             </section>
         {% endif %}
     </div>

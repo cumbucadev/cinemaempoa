@@ -51,6 +51,17 @@
         ☰
     </button>
     {# djlint:on #}
+    {# djlint:off #}
+    <div id="reels-wtw-toast"
+         class="toast reels-wtw-toast"
+         role="status"
+         aria-live="polite"
+         aria-atomic="true"
+         data-bs-autohide="true"
+         data-bs-delay="3000">
+        <div class="toast-body">Filme adicionado! Veja em Meus Filmes ☰</div>
+    </div>
+    {# djlint:on #}
     <div class="offcanvas offcanvas-start" tabindex="-1" id="reels-menu">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title">Cinema em POA</h5>
@@ -59,16 +70,35 @@
         <div class="offcanvas-body">
             <ul class="nav navbar-nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("page.about") }}">Sobre o projeto</a>
+                    <a class="nav-link {% if request.path == url_for("screening.index") %}active{% endif %}"
+                       href="{{ url_for("screening.index") }}">O que está passando</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("screening.programacao") }}">Programação</a>
+                    <a class="nav-link {% if request.path == url_for("screening.favoritos") %}active{% endif %}"
+                       href="{{ url_for("screening.favoritos") }}">Meus Filmes</a>
+                </li>
+                <li>
+                    <hr class="my-2">
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("movie.index") }}">Filmes</a>
+                    <a class="nav-link {% if request.path == url_for("page.about") %}active{% endif %}"
+                       href="{{ url_for("page.about") }}">Sobre o projeto</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for("blog.index") }}">Blog</a>
+                    <a class="nav-link {% if request.path == url_for("screening.programacao") %}active{% endif %}"
+                       href="{{ url_for("screening.programacao") }}">Programação</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == url_for("movie.index") %}active{% endif %}"
+                       href="{{ url_for("movie.index") }}">Filmes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == url_for("movie.posters") %}active{% endif %}"
+                       href="{{ url_for("movie.posters") }}">Posters</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == url_for("blog.index") %}active{% endif %}"
+                       href="{{ url_for("blog.index") }}">Blog</a>
                 </li>
                 {% if g.user %}
                     <li class="nav-item">
@@ -76,7 +106,8 @@
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for("auth.login") }}">Acessar</a>
+                        <a class="nav-link {% if request.path == url_for("auth.login") %}active{% endif %}"
+                           href="{{ url_for("auth.login") }}">Acessar</a>
                     </li>
                 {% endif %}
             </ul>
@@ -92,6 +123,53 @@
         }
     </script>
     <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
+    <script src="{{ url_for('static', filename='reels-want-to-watch.js') }}"></script>
+    <script>
+        const lazyPosters = document.querySelectorAll(".reels-poster-img[data-src]");
+        const posterObserver = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.removeAttribute("data-src");
+                        posterObserver.unobserve(img);
+                    }
+                });
+            }, {
+                rootMargin: "200% 0px 200% 0px"
+            }
+        );
+        lazyPosters.forEach((img) => posterObserver.observe(img));
+    </script>
+    <script>
+        document.querySelectorAll('[data-function="publish"]').forEach((btn) => {
+            btn.addEventListener("click", () => {
+                fetch(`/screening/${btn.dataset.screeningId}/publish`, {
+                        method: "POST"
+                    })
+                    .then((response) => {
+                        if (response.ok) window.location.reload();
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
+            });
+        });
+        document.querySelectorAll('[data-function="delete"]').forEach((btn) => {
+            btn.addEventListener("click", () => {
+                fetch(`/screening/${btn.dataset.screeningId}/delete`, {
+                        method: "POST"
+                    })
+                    .then((response) => {
+                        if (response.ok) window.location.reload();
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
+            });
+        });
+    </script>
     <script>
         // reference: https://www.goatcounter.com/help/skip-path
         // doesn't load analytics if there's an element containing `data-goatcounter-skip` attribute
