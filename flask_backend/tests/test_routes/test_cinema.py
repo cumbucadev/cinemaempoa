@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
+from flask_backend.repository import cinemas
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 
 
@@ -26,11 +27,37 @@ def _create_screening(app, title, slug, screening_date, cinema_slug="capitolio")
         db_session.commit()
 
 
+def _populate_cinema_profile(app, slug="capitolio"):
+    with app.app_context():
+        cinema = get_cinema_by_slug(slug)
+        cinemas.update(
+            cinema,
+            name=cinema.name,
+            url=cinema.url,
+            address="Rua Fictícia, 123",
+            opening_hours="Ter-Dom 14h-22h",
+            instagram_url="https://instagram.com/capitolio-fake",
+            map_embed_url="https://maps.example.com/embed/capitolio-fake",
+            photo="https://example.com/capitolio-photo.jpg",
+            photo_width=800,
+            photo_height=600,
+        )
+
+
 class TestCinemaIndex:
     def test_returns_200_and_lists_cinemas(self, client, setup_cinemas):
         response = client.get("/cinemas")
         assert response.status_code == 200
         assert "Cinemateca Capitólio" in response.get_data(as_text=True)
+
+    def test_renders_photo_for_fully_populated_cinema(self, app, client, setup_cinemas):
+        _populate_cinema_profile(app)
+
+        response = client.get("/cinemas")
+        body = response.get_data(as_text=True)
+
+        assert response.status_code == 200
+        assert "https://example.com/capitolio-photo.jpg" in body
 
 
 class TestCinemaShow:
@@ -56,3 +83,16 @@ class TestCinemaShow:
         assert response.status_code == 200
         assert "Filme Futuro" in body
         assert "Filme Antigo" in body
+
+    def test_renders_all_profile_fields_for_fully_populated_cinema(
+        self, app, client, setup_cinemas
+    ):
+        _populate_cinema_profile(app)
+
+        response = client.get("/cinemas/capitolio")
+        body = response.get_data(as_text=True)
+
+        assert response.status_code == 200
+        assert "https://example.com/capitolio-photo.jpg" in body
+        assert "https://maps.example.com/embed/capitolio-fake" in body
+        assert "https://instagram.com/capitolio-fake" in body
