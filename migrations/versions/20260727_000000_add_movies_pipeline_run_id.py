@@ -21,9 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "movies", sa.Column("pipeline_run_id", sa.Integer(), nullable=True)
-    )
+    op.add_column("movies", sa.Column("pipeline_run_id", sa.Integer(), nullable=True))
     with op.batch_alter_table("movies") as batch_op:
         batch_op.create_foreign_key(
             "fk_movies_pipeline_run_id_pipeline_runs",
