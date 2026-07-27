@@ -746,6 +746,31 @@ class TestScreeningIndexMobile:
             about_url = url_for("page.about")
         assert about_url in html
 
+    def test_sidebar_lists_home_and_favoritos_first_and_highlights_home(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+
+        with client.application.test_request_context():
+            home_url = url_for("screening.index")
+            favoritos_url = url_for("screening.favoritos")
+            about_url = url_for("page.about")
+            posters_url = url_for("movie.posters")
+
+        assert html.index(home_url) < html.index(favoritos_url)
+        assert html.index(favoritos_url) < html.index(about_url)
+        assert posters_url in html
+
+        home_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(home_url)}"', html
+        )
+        favoritos_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(favoritos_url)}"', html
+        )
+        assert "active" in home_link.group(1).split()
+        assert "active" not in favoritos_link.group(1).split()
+
     def test_shows_empty_state_when_no_screenings_in_range(self, client, setup_cinemas):
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
@@ -968,3 +993,24 @@ class TestFavoritos:
         unmarked_html = unmarked_response.get_data(as_text=True)
         assert "ainda não marcou" in unmarked_html
         assert "Filme Round Trip" not in unmarked_html
+
+    def test_sidebar_links_back_to_home_and_highlights_meus_filmes(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        with client.application.test_request_context():
+            home_url = url_for("screening.index")
+            favoritos_url = url_for("screening.favoritos")
+
+        assert home_url in html
+
+        home_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(home_url)}"', html
+        )
+        favoritos_link = re.search(
+            rf'<a class="([^"]*)"\s+href="{re.escape(favoritos_url)}"', html
+        )
+        assert "active" not in home_link.group(1).split()
+        assert "active" in favoritos_link.group(1).split()

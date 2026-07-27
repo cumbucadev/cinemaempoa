@@ -279,6 +279,11 @@ body.reels-root {
     color: var(--reels-accent);
 }
 
+.reels-root #reels-menu hr {
+    border-color: var(--reels-hairline);
+    margin: 0.5rem 0;
+}
+
 .reels-actions {
     flex: 0 0 auto;
     display: flex;
