@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import func
 
@@ -353,3 +353,31 @@ def get_past_movies_for_cinema(
         for movie, _last_shown in past_movie_rows
         if movie.id not in upcoming_movie_ids
     ][:limit]
+
+
+def get_latest_screening_images_for_movies(
+    cinema_id: int, movie_ids: List[int]
+) -> Dict[int, Screening]:
+    """Most recent Screening (by last ScreeningDate) at this cinema for each
+    of the given movies - source of a poster image for the "already screened
+    here" grid on a cinema's page, since Movie itself has no image field."""
+    if not movie_ids:
+        return {}
+
+    rows = (
+        db_session.query(Screening, func.max(ScreeningDate.date).label("last_shown"))
+        .join(ScreeningDate)
+        .filter(Screening.cinema_id == cinema_id)
+        .filter(Screening.movie_id.in_(movie_ids))
+        .filter(Screening.draft == False)  # noqa: E712
+        .group_by(Screening.id)
+        .all()
+    )
+
+    latest: Dict[int, Tuple[Screening, date]] = {}
+    for screening, last_shown in rows:
+        current = latest.get(screening.movie_id)
+        if current is None or last_shown > current[1]:
+            latest[screening.movie_id] = (screening, last_shown)
+
+    return {movie_id: screening for movie_id, (screening, _) in latest.items()}
