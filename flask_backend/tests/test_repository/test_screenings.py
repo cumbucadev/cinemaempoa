@@ -5,6 +5,7 @@ from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.screenings import (
     get_latest_screening_for_movie,
+    get_past_movies_for_cinema,
     get_screening_dates_for_movies,
     get_screenings_for_movies_with_dates_in_range,
     get_screenings_in_date_range,
@@ -409,3 +410,65 @@ class TestGetLatestScreeningForMovie:
             latest = get_latest_screening_for_movie(movie.id, include_drafts=True)
 
             assert latest.id == newer_draft.id
+
+
+class TestGetPastMoviesForCinema:
+    def test_includes_movie_with_only_a_past_date(self, app, setup_cinemas):
+        screening_id, movie_id = _create_screening(
+            app, "Filme Antigo", "filme-antigo", [date.today() - timedelta(days=1)]
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(
+                get_cinema_by_slug("capitolio").id
+            )
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert movie_id in movie_ids
+
+    def test_excludes_movie_with_an_upcoming_date_at_this_cinema(
+        self, app, setup_cinemas
+    ):
+        screening_id, movie_id = _create_screening(
+            app, "Filme Futuro", "filme-futuro", [date.today() + timedelta(days=1)]
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(
+                get_cinema_by_slug("capitolio").id
+            )
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert movie_id not in movie_ids
+
+    def test_marks_movie_screened_only_here_as_exclusive(self, app, setup_cinemas):
+        _screening_id, movie_id = _create_screening(
+            app, "Exclusivo", "exclusivo", [date.today() - timedelta(days=1)]
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(
+                get_cinema_by_slug("capitolio").id
+            )
+            exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
+            assert exclusivity_by_id[movie_id] is True
+
+    def test_marks_movie_screened_elsewhere_as_not_exclusive(
+        self, app, setup_cinemas
+    ):
+        _screening_id, movie_id = _create_screening(
+            app, "Compartilhado", "compartilhado", [date.today() - timedelta(days=2)]
+        )
+        _create_screening(
+            app,
+            "Compartilhado",
+            "compartilhado",
+            [date.today() - timedelta(days=1)],
+            cinema_slug="sala-redencao",
+            movie_id=movie_id,
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(
+                get_cinema_by_slug("capitolio").id
+            )
+            exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
+            assert exclusivity_by_id[movie_id] is False
