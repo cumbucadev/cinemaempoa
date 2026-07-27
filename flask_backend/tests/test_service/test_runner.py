@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from flask_backend.service.runner import Runner
+from flask_backend.service.screening import ImportSummary
 
 
 class TestRunnerParseScrappedJson:
@@ -36,14 +37,17 @@ class TestRunnerImportScrappedResults:
         runner = Runner()
         runner.scrapped_results = MagicMock()
         fake_app = MagicMock()
+        fake_summary = ImportSummary(
+            movies_created=1, screenings_created=2, dates_registered=3
+        )
 
         with patch(
             "flask_backend.service.runner.import_scrapped_results",
-            return_value=5,
+            return_value=fake_summary,
         ) as mock_import:
             result = runner.import_scrapped_results(fake_app)
 
         mock_import.assert_called_once_with(
             runner.scrapped_results, fake_app, pipeline_run_id=None
         )
-        assert result == 5
+        assert result is fake_summary

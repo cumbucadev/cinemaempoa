@@ -1,7 +1,7 @@
 from typing import Optional
 
 from flask_backend.import_json import ScrappedResult
-from flask_backend.service.screening import import_scrapped_results
+from flask_backend.service.screening import ImportSummary, import_scrapped_results
 
 
 class Runner:
@@ -10,7 +10,7 @@ class Runner:
 
     def import_scrapped_results(
         self, current_app, pipeline_run_id: Optional[int] = None
-    ):
+    ) -> ImportSummary:
         return import_scrapped_results(
             self.scrapped_results, current_app, pipeline_run_id=pipeline_run_id
         )
