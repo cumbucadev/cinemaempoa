@@ -21,25 +21,29 @@
                     <span>{{ card.movie_title }}</span>
                 </div>
             {% endif %}
-            <button type="button"
-                    class="reels-want-to-watch"
-                    data-function="want-to-watch"
-                    data-movie-id="{{ card.movie_id }}"
-                    data-wanted="{{ 'true' if card.wanted else 'false' }}"
-                    aria-pressed="{{ 'true' if card.wanted else 'false' }}"
-                    aria-label="{{ 'Remover dos meus filmes' if card.wanted else 'Adicionar aos meus filmes' }}">
-                <span aria-hidden="true">{{ '★' if card.wanted else '☆' }}</span>
-            </button>
-            <div class="reels-overlay">
-                <span class="badge rounded-pill"
-                      style="background-color: {{ card.cinema_color }}">{{ card.cinema_name }}</span>
-                <h2>{{ card.movie_title }}</h2>
-                <p>
-                    {% if card.soonest_time %}{{ card.soonest_time }}{% endif %}
-                    {% if card.directors %}· {{ card.directors|join(", ") }}{% endif %}
-                    {% if card.release_year %}· {{ card.release_year }}{% endif %}
-                </p>
-                {% if card.draft %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+            <div class="reels-bottom-bar">
+                <div class="reels-overlay">
+                    <span class="badge rounded-pill"
+                          style="background-color: {{ card.cinema_color }}">{{ card.cinema_name }}</span>
+                    <h2>{{ card.movie_title }}</h2>
+                    <p>
+                        {% if card.soonest_time %}{{ card.soonest_time }}{% endif %}
+                        {% if card.directors %}· {{ card.directors|join(", ") }}{% endif %}
+                        {% if card.release_year %}· {{ card.release_year }}{% endif %}
+                    </p>
+                    {% if card.draft %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                </div>
+                <div class="reels-actions">
+                    <button type="button"
+                            class="reels-want-to-watch"
+                            data-function="want-to-watch"
+                            data-movie-id="{{ card.movie_id }}"
+                            data-wanted="{{ 'true' if card.wanted else 'false' }}"
+                            aria-pressed="{{ 'true' if card.wanted else 'false' }}"
+                            aria-label="{{ 'Remover dos meus filmes' if card.wanted else 'Adicionar aos meus filmes' }}">
+                        <span aria-hidden="true">{{ '★' if card.wanted else '☆' }}</span>
+                    </button>
+                </div>
             </div>
             <span class="reels-swipe-hint" aria-hidden="true">›</span>
         </div>
