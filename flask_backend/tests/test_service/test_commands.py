@@ -65,7 +65,7 @@ class TestImportJsonCommand:
         json_path.write_text(json.dumps(payload))
 
         result = runner.invoke(args=["import-json", str(json_path)])
-        assert "sessões criadas com sucesso" in result.output
+        assert "novos horários registrados" in result.output
 
     def test_success_creates_pipeline_run_with_source_and_summary(
         self, app, runner, tmp_path, setup_cinemas
@@ -105,7 +105,9 @@ class TestImportJsonCommand:
             assert run.status == "success"
             assert run.source == "capitolio"
             assert run.finished_at is not None
-            assert '"created": 1' in run.summary
+            assert '"movies_created": 1' in run.summary
+            assert '"screenings_created": 1' in run.summary
+            assert '"dates_registered": 0' in run.summary
 
             screening = (
                 db_session.query(Screening).filter_by(pipeline_run_id=run.id).one()
