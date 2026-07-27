@@ -32,9 +32,18 @@ document.addEventListener("click", (event) => {
         })
         .then((data) => {
             setWantToWatchState(button, data.wanted);
-            if (data.wanted && !shownAddedHint) {
-                shownAddedHint = true;
-                showAddedToast();
+            if (data.wanted) {
+                if (window.goatcounter && window.goatcounter.count) {
+                    window.goatcounter.count({
+                        path: "reels-want-to-watch-add",
+                        title: "Marked movie as want-to-watch",
+                        event: true,
+                    });
+                }
+                if (!shownAddedHint) {
+                    shownAddedHint = true;
+                    showAddedToast();
+                }
             }
         })
         .catch((error) => {
