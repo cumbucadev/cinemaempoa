@@ -421,6 +421,88 @@ class TestImportScrappedResults:
         assert summary.screenings_created == 0
         assert summary.dates_registered == 0
 
+    def test_feature_with_no_scraped_time_never_registers_as_a_new_date(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_movie_on_db(db_session)
+
+        scrapped_results = ScrappedResult(
+            cinemas=[
+                ScrappedCinema(
+                    url="",
+                    cinema="Capitolio",
+                    slug="capitolio",
+                    features=[
+                        ScrappedFeature(
+                            title="Lobo e Cão",
+                            excerpt="cool film",
+                            poster="",
+                            original_title="",
+                            price="",
+                            director="",
+                            classification="",
+                            general_info="",
+                            read_more="",
+                            time=[],
+                        )
+                    ],
+                )
+            ]
+        )
+
+        first = import_scrapped_results(scrapped_results, app)
+        second = import_scrapped_results(scrapped_results, app)
+
+        assert first.dates_registered == 0
+        assert second.dates_registered == 0
+
+    def test_two_features_for_the_same_screening_register_dates_once(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_movie_on_db(db_session)
+
+        scrapped_results = ScrappedResult(
+            cinemas=[
+                ScrappedCinema(
+                    url="",
+                    cinema="Capitolio",
+                    slug="capitolio",
+                    features=[
+                        ScrappedFeature(
+                            title="Lobo e Cão",
+                            excerpt="cool film",
+                            poster="",
+                            original_title="",
+                            price="",
+                            director="",
+                            classification="",
+                            general_info="",
+                            read_more="",
+                            time=["2025-12-28T10:00"],
+                        ),
+                        ScrappedFeature(
+                            title="Lobo e Cão",
+                            excerpt="cool film",
+                            poster="",
+                            original_title="",
+                            price="",
+                            director="",
+                            classification="",
+                            general_info="",
+                            read_more="",
+                            time=["2025-12-29T11:00"],
+                        ),
+                    ],
+                )
+            ]
+        )
+
+        summary = import_scrapped_results(scrapped_results, app)
+
+        assert summary.dates_registered == 1
+
 
 class _FakeUpload:
     def __init__(self, filename, content: bytes):

@@ -376,7 +376,7 @@ def import_scrapped_results(
 ) -> ImportSummary:
     movies_created = 0
     screenings_created = 0
-    dates_registered = 0
+    screenings_with_new_dates: Set[int] = set()
     scrapped_cinema: ScrappedCinema
     for scrapped_cinema in scrapped_results.cinemas:
         cinema = get_cinema_by_slug(scrapped_cinema.slug)
@@ -397,6 +397,7 @@ def import_scrapped_results(
                 movies_created += 1
 
             description: str = ""
+            had_scraped_time = bool(scrapped_feature.time)
             screenings_dates = None
             if scrapped_feature.time:
                 screenings_dates = build_dates(scrapped_feature.time)
@@ -504,16 +505,22 @@ def import_scrapped_results(
                             break
                     if not already_registered:
                         existing_dates.append(new_date)
-                update_screening_dates(screening, existing_dates)
 
-                got_new_date = any(
+                # computed before update_screening_dates()'s commit expires
+                # these ORM objects, to avoid a reload query per attribute
+                # access below. had_scraped_time guards against the
+                # datetime.now() fallback (used when nothing was scraped)
+                # always counting as "new" on every run.
+                got_new_date = had_scraped_time and any(
                     (nd.date, nd.time) not in original_date_time_pairs
                     for nd in screenings_dates
                 )
                 if got_new_date:
-                    dates_registered += 1
+                    screenings_with_new_dates.add(screening.id)
+
+                update_screening_dates(screening, existing_dates)
     return ImportSummary(
         movies_created=movies_created,
         screenings_created=screenings_created,
-        dates_registered=dates_registered,
+        dates_registered=len(screenings_with_new_dates),
     )

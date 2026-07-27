@@ -68,14 +68,11 @@ def _run_import_json(run, json_path):
             return
 
     # all validations passed, import screenings :)
-    summary = runner.import_scrapped_results(current_app, pipeline_run_id=run.id)
-    status = (
-        "warning"
-        if summary.movies_created == 0
-        and summary.screenings_created == 0
-        and summary.dates_registered == 0
-        else "success"
+    features_processed = sum(
+        len(cinema.features) for cinema in runner.scrapped_results.cinemas
     )
+    summary = runner.import_scrapped_results(current_app, pipeline_run_id=run.id)
+    status = "warning" if features_processed == 0 else "success"
     pipeline_runs.finish(
         run.id,
         status=status,
