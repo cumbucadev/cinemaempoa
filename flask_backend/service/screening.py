@@ -2,6 +2,7 @@ import hashlib
 import logging
 import os
 from collections import OrderedDict, defaultdict
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from typing import Dict, List, Optional, Set, Tuple
@@ -363,10 +364,19 @@ def get_image_metadata(img_path):
     return loaded_image.width, loaded_image.height
 
 
+@dataclass
+class ImportSummary:
+    movies_created: int
+    screenings_created: int
+    dates_registered: int
+
+
 def import_scrapped_results(
     scrapped_results: ScrappedResult, current_app, pipeline_run_id: Optional[int] = None
-):
-    created_features = 0
+) -> ImportSummary:
+    movies_created = 0
+    screenings_created = 0
+    dates_registered = 0
     scrapped_cinema: ScrappedCinema
     for scrapped_cinema in scrapped_results.cinemas:
         cinema = get_cinema_by_slug(scrapped_cinema.slug)
@@ -380,7 +390,11 @@ def import_scrapped_results(
                     title_cleaning_result.cleaned_title,
                     ", ".join(title_cleaning_result.matched_rules),
                 )
-            movie, _ = get_movie_by_title_or_create(title_cleaning_result.cleaned_title)
+            movie, movie_created = get_movie_by_title_or_create(
+                title_cleaning_result.cleaned_title, pipeline_run_id=pipeline_run_id
+            )
+            if movie_created:
+                movies_created += 1
 
             description: str = ""
             screenings_dates = None
@@ -435,12 +449,19 @@ def import_scrapped_results(
                     or None,
                     pipeline_run_id=pipeline_run_id,
                 )
+                screenings_created += 1
             else:
                 update_title_cleaning_info(
                     screening,
                     title_cleaning_result.raw_title,
                     title_cleaning_result.matched_rules,
                 )
+                # captured before any of the filtering below mutates what
+                # "existing" means, so it reflects what was truly on file
+                # before this run - see issue #249
+                original_date_time_pairs = {
+                    (sd.date, sd.time) for sd in screening.dates
+                }
                 if cinema.slug == "capitolio":
                     # capitolio may occasionally change
                     # screening times for a given movie
@@ -484,5 +505,15 @@ def import_scrapped_results(
                     if not already_registered:
                         existing_dates.append(new_date)
                 update_screening_dates(screening, existing_dates)
-            created_features += 1
-    return created_features
+
+                got_new_date = any(
+                    (nd.date, nd.time) not in original_date_time_pairs
+                    for nd in screenings_dates
+                )
+                if got_new_date:
+                    dates_registered += 1
+    return ImportSummary(
+        movies_created=movies_created,
+        screenings_created=screenings_created,
+        dates_registered=dates_registered,
+    )
