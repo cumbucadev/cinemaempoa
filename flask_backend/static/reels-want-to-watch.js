@@ -1,3 +1,5 @@
+let shownAddedHint = false;
+
 function setWantToWatchState(button, wanted) {
     button.dataset.wanted = wanted ? "true" : "false";
     button.setAttribute("aria-pressed", wanted ? "true" : "false");
@@ -6,6 +8,12 @@ function setWantToWatchState(button, wanted) {
         wanted ? "Remover dos meus filmes" : "Adicionar aos meus filmes"
     );
     button.querySelector("span").textContent = wanted ? "★" : "☆";
+}
+
+function showAddedToast() {
+    const toastEl = document.getElementById("reels-wtw-toast");
+    if (!toastEl) return;
+    bootstrap.Toast.getOrCreateInstance(toastEl).show();
 }
 
 document.addEventListener("click", (event) => {
@@ -24,6 +32,10 @@ document.addEventListener("click", (event) => {
         })
         .then((data) => {
             setWantToWatchState(button, data.wanted);
+            if (data.wanted && !shownAddedHint) {
+                shownAddedHint = true;
+                showAddedToast();
+            }
         })
         .catch((error) => {
             console.error("Error:", error);
