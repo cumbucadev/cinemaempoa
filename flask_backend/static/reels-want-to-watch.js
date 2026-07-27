@@ -32,7 +32,7 @@ document.addEventListener("click", (event) => {
         })
         .then((data) => {
             setWantToWatchState(button, data.wanted);
-            if (data.wanted) {
+            if (data.wanted && !shownAddedHint) {
                 if (window.goatcounter && window.goatcounter.count) {
                     window.goatcounter.count({
                         path: "reels-want-to-watch-add",
@@ -40,10 +40,8 @@ document.addEventListener("click", (event) => {
                         event: true,
                     });
                 }
-                if (!shownAddedHint) {
-                    shownAddedHint = true;
-                    showAddedToast();
-                }
+                shownAddedHint = true;
+                showAddedToast();
             }
         })
         .catch((error) => {
