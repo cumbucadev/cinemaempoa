@@ -65,7 +65,7 @@ class TestImportJsonCommand:
         json_path.write_text(json.dumps(payload))
 
         result = runner.invoke(args=["import-json", str(json_path)])
-        assert "sessões criadas com sucesso" in result.output
+        assert "novos horários registrados" in result.output
 
     def test_success_creates_pipeline_run_with_source_and_summary(
         self, app, runner, tmp_path, setup_cinemas
@@ -105,7 +105,9 @@ class TestImportJsonCommand:
             assert run.status == "success"
             assert run.source == "capitolio"
             assert run.finished_at is not None
-            assert '"created": 1' in run.summary
+            assert '"movies_created": 1' in run.summary
+            assert '"screenings_created": 1' in run.summary
+            assert '"dates_registered": 0' in run.summary
 
             screening = (
                 db_session.query(Screening).filter_by(pipeline_run_id=run.id).one()
@@ -135,6 +137,50 @@ class TestImportJsonCommand:
                 .one()
             )
             assert run.status == "warning"
+
+    def test_reimporting_identical_payload_stays_success_not_warning(
+        self, app, runner, tmp_path, setup_cinemas
+    ):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio",
+                "features": [
+                    {
+                        "poster": "",
+                        "time": ["2026-08-01T19:00"],
+                        "title": "Filme Reimportado",
+                        "original_title": "",
+                        "price": "",
+                        "director": "",
+                        "classification": "",
+                        "general_info": "",
+                        "excerpt": "um filme",
+                        "read_more": "",
+                    }
+                ],
+            }
+        ]
+        json_path = tmp_path / "reimport.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            runs = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .order_by(PipelineRun.id)
+                .all()
+            )
+            assert len(runs) == 2
+            assert runs[0].status == "success"
+            assert runs[1].status == "success"
+            assert '"movies_created": 0' in runs[1].summary
+            assert '"screenings_created": 0' in runs[1].summary
+            assert '"dates_registered": 0' in runs[1].summary
 
     def test_invalid_json_marks_run_as_error(self, app, runner, tmp_path):
         json_path = tmp_path / "bad.json"

@@ -15,10 +15,17 @@ from flask_backend.models import (
 from flask_backend.repository import alert_actions
 
 
-def create(title: str, slug: Optional[str] = None) -> Movie:
+def create(
+    title: str, slug: Optional[str] = None, pipeline_run_id: Optional[int] = None
+) -> Movie:
     if slug is None:
         slug = slugify(title)
-    movie = Movie(title=title, slug=slug, created_at=datetime.now())
+    movie = Movie(
+        title=title,
+        slug=slug,
+        created_at=datetime.now(),
+        pipeline_run_id=pipeline_run_id,
+    )
     db_session.add(movie)
     db_session.commit()
     db_session.refresh(movie)
@@ -93,12 +100,15 @@ def get_by_slug(slug: str) -> Optional[Movie]:
     return db_session.query(Movie).filter(Movie.slug == slug).first()
 
 
-def get_by_title_or_create(title: str) -> Movie:
+def get_by_title_or_create(
+    title: str, pipeline_run_id: Optional[int] = None
+) -> Tuple[Movie, bool]:
     slug = slugify(title)
     movie = get_by_slug(slug)
-    if not movie:
-        movie = create(title=title, slug=slug)
-    return movie
+    if movie:
+        return movie, False
+    movie = create(title=title, slug=slug, pipeline_run_id=pipeline_run_id)
+    return movie, True
 
 
 def get_movies_with_similar_titles(title: str) -> List[Movie]:

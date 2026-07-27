@@ -68,14 +68,26 @@ def _run_import_json(run, json_path):
             return
 
     # all validations passed, import screenings :)
-    created_features = runner.import_scrapped_results(
-        current_app, pipeline_run_id=run.id
+    features_processed = sum(
+        len(cinema.features) for cinema in runner.scrapped_results.cinemas
     )
-    status = "warning" if created_features == 0 else "success"
+    summary = runner.import_scrapped_results(current_app, pipeline_run_id=run.id)
+    status = "warning" if features_processed == 0 else "success"
     pipeline_runs.finish(
-        run.id, status=status, summary=json.dumps({"created": created_features})
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "movies_created": summary.movies_created,
+                "screenings_created": summary.screenings_created,
+                "dates_registered": summary.dates_registered,
+            }
+        ),
     )
-    click.echo(f"«{created_features}» sessões criadas com sucesso!")
+    click.echo(
+        f"«{summary.movies_created}» filmes, «{summary.screenings_created}» sessões "
+        f"e «{summary.dates_registered}» novos horários registrados!"
+    )
 
 
 @click.command("import-json")

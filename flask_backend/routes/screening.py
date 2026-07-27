@@ -275,7 +275,7 @@ def create():
         if error is not None:
             flash(error, "danger")
         else:
-            movie = get_movie_by_title_or_create(movie_title)
+            movie, _ = get_movie_by_title_or_create(movie_title)
             create_screening(
                 movie.id,
                 description,
@@ -385,7 +385,7 @@ def update(id):
         else:
             update_screening_dates(screening, parsed_screening_dates)
 
-            movie = get_movie_by_title_or_create(movie_title)
+            movie, _ = get_movie_by_title_or_create(movie_title)
             update_screening(
                 screening,
                 movie.id,

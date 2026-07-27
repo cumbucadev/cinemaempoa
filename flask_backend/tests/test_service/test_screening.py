@@ -87,6 +87,32 @@ def _create_scrapped_results_with_title(cinema, slug, title):
     )
 
 
+def _create_scrapped_results_with_times(cinema, slug, times):
+    return ScrappedResult(
+        cinemas=[
+            ScrappedCinema(
+                url="",
+                cinema=cinema,
+                slug=slug,
+                features=[
+                    ScrappedFeature(
+                        title="Lobo e Cão",
+                        excerpt="cool film",
+                        poster="",
+                        original_title="",
+                        price="",
+                        director="",
+                        classification="",
+                        general_info="",
+                        read_more="",
+                        time=times,
+                    )
+                ],
+            )
+        ]
+    )
+
+
 def _create_movie_on_db(db_session):
     movie = Movie(
         title="Lobo e Cão",
@@ -321,6 +347,161 @@ class TestImportScrappedResults:
             )
             assert third_date is not None, "new dates should be added"
             assert third_date.time == "14:00", "error adding new date"
+
+    def test_counts_new_movie_and_new_screening_on_first_import(
+        self, client, app, setup_cinemas
+    ):
+        summary = import_scrapped_results(
+            _create_scrapped_results("Capitolio", "capitolio"), app
+        )
+
+        assert summary.movies_created == 1
+        assert summary.screenings_created == 1
+        assert summary.dates_registered == 0
+
+    def test_capitolio_reimporting_identical_dates_registers_no_new_dates(
+        self, client, app, setup_cinemas
+    ):
+        import_scrapped_results(_create_scrapped_results("Capitolio", "capitolio"), app)
+
+        summary = import_scrapped_results(
+            _create_scrapped_results("Capitolio", "capitolio"), app
+        )
+
+        assert summary.movies_created == 0
+        assert summary.screenings_created == 0
+        assert summary.dates_registered == 0
+
+    def test_capitolio_changed_time_and_new_date_register_as_dates_registered(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_movie_on_db(db_session)
+
+        summary = import_scrapped_results(
+            _create_scrapped_results("Capitolio", "capitolio"), app
+        )
+
+        assert summary.movies_created == 0
+        assert summary.screenings_created == 0
+        assert summary.dates_registered == 1
+
+    def test_appends_a_new_date_to_an_existing_non_capitolio_screening(
+        self, client, app, setup_cinemas
+    ):
+        import_scrapped_results(
+            _create_scrapped_results("CineBancarios", "cinebancarios"), app
+        )
+
+        summary = import_scrapped_results(
+            _create_scrapped_results_with_times(
+                "CineBancarios",
+                "cinebancarios",
+                ["2025-12-25T12:00", "2025-12-28T10:00"],
+            ),
+            app,
+        )
+
+        assert summary.movies_created == 0
+        assert summary.screenings_created == 0
+        assert summary.dates_registered == 1
+
+    def test_reimporting_identical_non_capitolio_payload_registers_no_new_dates(
+        self, client, app, setup_cinemas
+    ):
+        import_scrapped_results(
+            _create_scrapped_results("CineBancarios", "cinebancarios"), app
+        )
+
+        summary = import_scrapped_results(
+            _create_scrapped_results("CineBancarios", "cinebancarios"), app
+        )
+
+        assert summary.movies_created == 0
+        assert summary.screenings_created == 0
+        assert summary.dates_registered == 0
+
+    def test_feature_with_no_scraped_time_never_registers_as_a_new_date(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_movie_on_db(db_session)
+
+        scrapped_results = ScrappedResult(
+            cinemas=[
+                ScrappedCinema(
+                    url="",
+                    cinema="Capitolio",
+                    slug="capitolio",
+                    features=[
+                        ScrappedFeature(
+                            title="Lobo e Cão",
+                            excerpt="cool film",
+                            poster="",
+                            original_title="",
+                            price="",
+                            director="",
+                            classification="",
+                            general_info="",
+                            read_more="",
+                            time=[],
+                        )
+                    ],
+                )
+            ]
+        )
+
+        first = import_scrapped_results(scrapped_results, app)
+        second = import_scrapped_results(scrapped_results, app)
+
+        assert first.dates_registered == 0
+        assert second.dates_registered == 0
+
+    def test_two_features_for_the_same_screening_register_dates_once(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            _create_movie_on_db(db_session)
+
+        scrapped_results = ScrappedResult(
+            cinemas=[
+                ScrappedCinema(
+                    url="",
+                    cinema="Capitolio",
+                    slug="capitolio",
+                    features=[
+                        ScrappedFeature(
+                            title="Lobo e Cão",
+                            excerpt="cool film",
+                            poster="",
+                            original_title="",
+                            price="",
+                            director="",
+                            classification="",
+                            general_info="",
+                            read_more="",
+                            time=["2025-12-28T10:00"],
+                        ),
+                        ScrappedFeature(
+                            title="Lobo e Cão",
+                            excerpt="cool film",
+                            poster="",
+                            original_title="",
+                            price="",
+                            director="",
+                            classification="",
+                            general_info="",
+                            read_more="",
+                            time=["2025-12-29T11:00"],
+                        ),
+                    ],
+                )
+            ]
+        )
+
+        summary = import_scrapped_results(scrapped_results, app)
+
+        assert summary.dates_registered == 1
 
 
 class _FakeUpload:

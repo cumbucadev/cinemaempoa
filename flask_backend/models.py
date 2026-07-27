@@ -119,6 +119,12 @@ class Movie(Base):
     collection_id = Column(
         Integer, ForeignKey("collections.id"), nullable=True, index=True
     )
+    # Set when this movie was created by a tracked pipeline run (e.g.
+    # import-json). NULL for movies created manually via /admin or by
+    # scripts/dedupper.py.
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
 
     screenings: Mapped[List["Screening"]] = relationship(back_populates="movie")
     genres: Mapped[List["Genre"]] = relationship(secondary=movie_genres)
