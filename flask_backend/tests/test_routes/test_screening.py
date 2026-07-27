@@ -746,6 +746,14 @@ class TestScreeningIndexMobile:
             about_url = url_for("page.about")
         assert about_url in html
 
+    def test_want_to_watch_toast_markup_is_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'id="reels-wtw-toast"' in html
+        assert 'data-bs-autohide="true"' in html
+        assert 'data-bs-delay="3000"' in html
+        assert "Filme adicionado! Veja em Meus Filmes ☰" in html
+
     def test_sidebar_lists_home_and_favoritos_first_and_highlights_home(
         self, client, setup_cinemas
     ):

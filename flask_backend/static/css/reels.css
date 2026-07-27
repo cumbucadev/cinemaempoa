@@ -284,6 +284,24 @@ body.reels-root {
     margin: 0.5rem 0;
 }
 
+.reels-wtw-toast {
+    position: fixed;
+    top: 3.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    background: var(--reels-surface);
+    border: 1px solid var(--reels-hairline);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.reels-wtw-toast .toast-body {
+    color: var(--reels-text);
+    padding: 0.65rem 1rem;
+    font-size: 0.9rem;
+}
+
 .reels-actions {
     flex: 0 0 auto;
     display: flex;
