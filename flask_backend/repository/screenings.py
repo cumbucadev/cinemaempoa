@@ -306,10 +306,13 @@ def get_by_pipeline_run_id(pipeline_run_id: int) -> List[Screening]:
     )
 
 
-def get_past_movies_for_cinema(cinema_id: int) -> List[Tuple[Movie, bool]]:
+def get_past_movies_for_cinema(
+    cinema_id: int, limit: int = 24
+) -> List[Tuple[Movie, bool]]:
     """Distinct movies with a Screening at this cinema and no upcoming
     ScreeningDate here, paired with whether the movie has ever screened
-    at another cinema too (False) or only ever at this one (True)."""
+    at another cinema too (False) or only ever at this one (True).
+    Capped to the `limit` most recently shown movies."""
     today = date.today()
 
     upcoming_movie_ids = {
@@ -349,4 +352,4 @@ def get_past_movies_for_cinema(cinema_id: int) -> List[Tuple[Movie, bool]]:
         (movie, movie.id in exclusive_movie_ids)
         for movie, _last_shown in past_movie_rows
         if movie.id not in upcoming_movie_ids
-    ]
+    ][:limit]

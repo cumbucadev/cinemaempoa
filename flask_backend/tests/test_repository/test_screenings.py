@@ -476,3 +476,23 @@ class TestGetPastMoviesForCinema:
             result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
             movie_ids = [movie.id for movie, _exclusive in result]
             assert movie_id not in movie_ids
+
+    def test_caps_result_to_24_most_recently_shown_movies(self, app, setup_cinemas):
+        movie_ids_by_recency = []
+        for days_ago in range(30, 0, -1):
+            _screening_id, movie_id = _create_screening(
+                app,
+                f"Filme {days_ago}",
+                f"filme-{days_ago}",
+                [date.today() - timedelta(days=days_ago)],
+            )
+            movie_ids_by_recency.append(movie_id)
+        # movie_ids_by_recency is ordered from oldest (30 days ago) to most
+        # recently shown (1 day ago) - the 24 most recent are the last 24.
+        expected_movie_ids = set(movie_ids_by_recency[-24:])
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert len(movie_ids) == 24
+            assert set(movie_ids) == expected_movie_ids
