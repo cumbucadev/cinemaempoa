@@ -22,7 +22,9 @@ class TestUpdateCinema:
             assert updated.address == "Rua dos Andradas, 736"
             assert updated.opening_hours == "Ter-Dom, 14h-22h"
             assert updated.instagram_url == "https://instagram.com/cinemateca.capitolio"
-            assert updated.map_embed_url == "https://www.google.com/maps/embed?pb=example"
+            assert (
+                updated.map_embed_url == "https://www.google.com/maps/embed?pb=example"
+            )
 
     def test_keeps_existing_photo_when_none_provided(self, app, setup_cinemas):
         with app.app_context():

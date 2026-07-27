@@ -419,9 +419,7 @@ class TestGetPastMoviesForCinema:
         )
 
         with app.app_context():
-            result = get_past_movies_for_cinema(
-                get_cinema_by_slug("capitolio").id
-            )
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
             movie_ids = [movie.id for movie, _exclusive in result]
             assert movie_id in movie_ids
 
@@ -433,9 +431,7 @@ class TestGetPastMoviesForCinema:
         )
 
         with app.app_context():
-            result = get_past_movies_for_cinema(
-                get_cinema_by_slug("capitolio").id
-            )
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
             movie_ids = [movie.id for movie, _exclusive in result]
             assert movie_id not in movie_ids
 
@@ -445,15 +441,11 @@ class TestGetPastMoviesForCinema:
         )
 
         with app.app_context():
-            result = get_past_movies_for_cinema(
-                get_cinema_by_slug("capitolio").id
-            )
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
             exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
             assert exclusivity_by_id[movie_id] is True
 
-    def test_marks_movie_screened_elsewhere_as_not_exclusive(
-        self, app, setup_cinemas
-    ):
+    def test_marks_movie_screened_elsewhere_as_not_exclusive(self, app, setup_cinemas):
         _screening_id, movie_id = _create_screening(
             app, "Compartilhado", "compartilhado", [date.today() - timedelta(days=2)]
         )
@@ -467,9 +459,7 @@ class TestGetPastMoviesForCinema:
         )
 
         with app.app_context():
-            result = get_past_movies_for_cinema(
-                get_cinema_by_slug("capitolio").id
-            )
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
             exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
             assert exclusivity_by_id[movie_id] is False
 
@@ -483,8 +473,6 @@ class TestGetPastMoviesForCinema:
         )
 
         with app.app_context():
-            result = get_past_movies_for_cinema(
-                get_cinema_by_slug("capitolio").id
-            )
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
             movie_ids = [movie.id for movie, _exclusive in result]
             assert movie_id not in movie_ids
