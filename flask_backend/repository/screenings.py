@@ -318,6 +318,7 @@ def get_past_movies_for_cinema(cinema_id: int) -> List[Tuple[Movie, bool]]:
             db_session.query(Screening.movie_id)
             .join(ScreeningDate)
             .filter(Screening.cinema_id == cinema_id)
+            .filter(Screening.draft == False)  # noqa: E712
             .filter(func.date(ScreeningDate.date) >= today)
             .distinct()
         )
@@ -328,6 +329,7 @@ def get_past_movies_for_cinema(cinema_id: int) -> List[Tuple[Movie, bool]]:
         .join(Screening, Screening.movie_id == Movie.id)
         .join(ScreeningDate, ScreeningDate.screening_id == Screening.id)
         .filter(Screening.cinema_id == cinema_id)
+        .filter(Screening.draft == False)  # noqa: E712
         .group_by(Movie.id)
         .order_by(func.max(ScreeningDate.date).desc())
         .all()
@@ -337,6 +339,7 @@ def get_past_movies_for_cinema(cinema_id: int) -> List[Tuple[Movie, bool]]:
         movie_id
         for (movie_id,) in (
             db_session.query(Screening.movie_id)
+            .filter(Screening.draft == False)  # noqa: E712
             .group_by(Screening.movie_id)
             .having(func.count(func.distinct(Screening.cinema_id)) == 1)
         )

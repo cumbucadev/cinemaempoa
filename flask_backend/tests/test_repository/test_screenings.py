@@ -472,3 +472,19 @@ class TestGetPastMoviesForCinema:
             )
             exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
             assert exclusivity_by_id[movie_id] is False
+
+    def test_excludes_draft_screening_with_a_past_date(self, app, setup_cinemas):
+        screening_id, movie_id = _create_screening(
+            app,
+            "Rascunho Passado",
+            "rascunho-passado",
+            [date.today() - timedelta(days=1)],
+            draft=True,
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(
+                get_cinema_by_slug("capitolio").id
+            )
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert movie_id not in movie_ids
