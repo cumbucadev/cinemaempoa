@@ -5,9 +5,9 @@ if (reelsCards.length > 1) {
         (entries) => {
             entries.forEach((entry) => {
                 if (!entry.isIntersecting) return;
-                if (window.goatcounter) {
+                if (window.goatcounter && window.goatcounter.count) {
                     window.goatcounter.count({
-                        path: window.location.pathname,
+                        path: "reels-scroll-past-first-card" + window.location.pathname,
                         title: "Reels scrolled past first card",
                         event: true,
                     });

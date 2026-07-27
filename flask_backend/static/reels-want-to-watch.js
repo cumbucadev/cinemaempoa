@@ -33,9 +33,9 @@ document.addEventListener("click", (event) => {
         .then((data) => {
             setWantToWatchState(button, data.wanted);
             if (data.wanted) {
-                if (window.goatcounter) {
+                if (window.goatcounter && window.goatcounter.count) {
                     window.goatcounter.count({
-                        path: window.location.pathname,
+                        path: "reels-want-to-watch-add",
                         title: "Marked movie as want-to-watch",
                         event: true,
                     });
