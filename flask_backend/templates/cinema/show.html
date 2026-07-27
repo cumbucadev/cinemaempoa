@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block meta_tags %}
+    <meta name="description"
+          content="{{ cinema.name }}: programação, endereço e informações sobre esta sala de cinema em Porto Alegre.">
+{% endblock meta_tags %}
+{% block title %}
+    {{ cinema.name }}
+{% endblock title %}
+{% block header %}
+    {% if cinema.photo %}
+        {# djlint:off #}
+        <img src="{{ cinema.photo }}"
+             class="img-fluid rounded mb-3"
+             alt="{{ cinema.name }}"
+             style="max-height: 300px; width: 100%; object-fit: cover;">
+        {# djlint:on #}
+    {% endif %}
+    <h1>{{ cinema.name }}</h1>
+    {% if cinema.address %}<p class="mb-1">{{ cinema.address }}</p>{% endif %}
+    {% if cinema.opening_hours %}<p class="mb-1 text-muted">{{ cinema.opening_hours }}</p>{% endif %}
+    <p>
+        <a href="{{ cinema.url }}">Visite o site</a>
+        {% if cinema.instagram_url %}· <a href="{{ cinema.instagram_url }}">Instagram</a>{% endif %}
+    </p>
+    {% if cinema.map_embed_url %}
+        <div class="ratio ratio-16x9 mb-3">
+            <iframe src="{{ cinema.map_embed_url }}" loading="lazy" allowfullscreen></iframe>
+        </div>
+    {% endif %}
+{% endblock header %}
+{% block content %}
+    <h2>Em cartaz</h2>
+    {% if upcoming_screenings %}
+        <div class="row mb-5">
+            {% for screening in upcoming_screenings %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <article class="card h-100">
+                        {% if screening.image %}
+                            {# djlint:off #}
+                            <img src="{{ screening.image }}"
+                                 class="card-img-top"
+                                 loading="lazy"
+                                 alt="{{ screening.image_alt or screening.movie.title }}"
+                                 style="height: 250px;
+                                        object-fit: cover;
+                                        object-position: top center">
+                            {# djlint:on #}
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ screening.movie.title }}</h5>
+                        </div>
+                    </article>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted mb-5">Nenhuma sessão futura cadastrada.</p>
+    {% endif %}
+    <h2>Já passou por aqui</h2>
+    {% if past_movies %}
+        <div class="row">
+            {% for movie, exclusive in past_movies %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <article class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                {{ movie.title }}
+                                {% if exclusive %}
+                                    <span class="badge rounded-pill"
+                                          style="background-color: {{ cinema.color }}">exclusivo</span>
+                                {% endif %}
+                            </h5>
+                        </div>
+                    </article>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Nenhum filme exibido até o momento.</p>
+    {% endif %}
+{% endblock content %}
