@@ -1,0 +1,20 @@
+{% macro cinema_row(cinema) %}
+    <a class="cinema-row"
+       href="{{ url_for('cinema.show', slug=cinema.slug) }}"
+       style="--row-accent: {{ cinema.color }}">
+        <span class="cinema-row-thumb" aria-hidden="true">
+            {% if cinema.photo %}
+                {# djlint:off #}
+                <img src="{{ cinema.photo }}" loading="lazy" alt="">
+                {# djlint:on #}
+            {% else %}
+                {{ cinema.short_name[0] }}
+            {% endif %}
+        </span>
+        <span class="cinema-row-body">
+            <span class="cinema-row-name">{{ cinema.name }}</span>
+            {% if cinema.address %}<span class="cinema-row-address">{{ cinema.address }}</span>{% endif %}
+        </span>
+        <span class="cinema-row-chevron" aria-hidden="true">›</span>
+    </a>
+{% endmacro %}

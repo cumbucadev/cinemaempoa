@@ -1,7 +1,10 @@
 {% extends "base.html" %}
+{% from "macros/cinema_row.html" import cinema_row %}
 {% block meta_tags %}
     <meta name="description"
           content="Conheça as salas de cinema alternativo de Porto Alegre: {{ cinemas | map(attribute='name') | join(', ') }}.">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/cinema.css') }}">
 {% endblock meta_tags %}
 {% block title %}
     Cinemas
@@ -11,37 +14,7 @@
     <p>Salas de cinema alternativo em Porto Alegre.</p>
 {% endblock header %}
 {% block content %}
-    <div class="row">
-        {% for cinema in cinemas %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <article class="card h-100">
-                    {% if cinema.photo %}
-                        {# djlint:off #}
-                        <img src="{{ cinema.photo }}"
-                             class="card-img-top"
-                             loading="lazy"
-                             alt="{{ cinema.name }}"
-                             style="height: 200px;
-                                    object-fit: cover;
-                                    object-position: top center">
-                        {# djlint:on #}
-                    {% else %}
-                        {# djlint:off #}
-                        <div class="card-img-top d-flex align-items-center justify-content-center"
-                             style="height: 200px; background-color: {{ cinema.color }};">
-                            <span class="text-white fs-4">{{ cinema.short_name }}</span>
-                        </div>
-                        {# djlint:on #}
-                    {% endif %}
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">
-                            <a href="{{ url_for('cinema.show', slug=cinema.slug) }}"
-                               class="text-decoration-none">{{ cinema.name }}</a>
-                        </h5>
-                        {% if cinema.address %}<p class="card-text text-muted flex-grow-1">{{ cinema.address }}</p>{% endif %}
-                    </div>
-                </article>
-            </div>
-        {% endfor %}
+    <div class="cinema-list">
+        {% for cinema in cinemas %}{{ cinema_row(cinema) }}{% endfor %}
     </div>
 {% endblock content %}
