@@ -815,6 +815,21 @@ class TestScreeningIndexMobile:
         html = response.get_data(as_text=True)
         assert "Filme Já Começou" not in html
 
+    def test_share_button_is_present_with_deep_link_data(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Compartilhável",
+                cinema_slug="capitolio",
+                screening_date=date.today() + timedelta(days=1),
+                screening_time="21:00",
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-function="share"' in html
+        assert f"/?screening={screening_id}" in html
+        assert 'data-movie-title="Filme Compartilhável"' in html
+        assert "Capitólio" in html
+
 
 class TestScreeningSharedLink:
     def test_mobile_with_screening_in_current_feed_renders_and_highlights_card(
