@@ -754,6 +754,13 @@ class TestScreeningIndexMobile:
         assert 'data-bs-delay="3000"' in html
         assert "Filme adicionado! Veja em Meus Filmes ☰" in html
 
+    def test_share_script_and_toast_markup_are_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'src="/static/reels-share.js"' in html
+        assert 'id="reels-share-toast"' in html
+        assert "Link copiado!" in html
+
     def test_sidebar_lists_home_and_favoritos_first_and_highlights_home(
         self, client, setup_cinemas
     ):
