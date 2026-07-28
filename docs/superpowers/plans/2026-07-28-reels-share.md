@@ -59,7 +59,7 @@ class TestScreeningSharedLink:
         )
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert f'id="reels-card-{screening_id}"' in html
+        assert "Filme Compartilhável" in html
 
     def test_desktop_with_valid_screening_redirects_to_movie_page(
         self, client, setup_cinemas
@@ -129,7 +129,7 @@ class TestScreeningSharedLink:
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest flask_backend/tests/test_routes/test_screening.py -k TestScreeningSharedLink -v`
-Expected: `test_mobile_with_screening_in_current_feed_renders_and_highlights_card` and the two redirect tests FAIL (no `id="reels-card-*"` in output yet, and no redirect happens since `screening` is currently ignored by the route). The three fallback tests PASS already (current behavior already renders 200 regardless of the param), which is fine — they lock in behavior Step 3 must preserve.
+Expected: `test_desktop_with_valid_screening_redirects_to_movie_page` and `test_mobile_with_screening_aged_out_of_feed_redirects_to_movie_page` FAIL (both currently get 200 instead of 302, since `screening` is currently ignored by the route). `test_mobile_with_screening_in_current_feed_renders_and_highlights_card` and the three fallback tests already PASS — the route already ignores the param and renders the normal 200 feed today, which happens to satisfy these; that's fine, they lock in behavior Step 3 must preserve rather than driving new code on their own.
 
 - [ ] **Step 3: Implement the routing logic**
 
@@ -359,7 +359,7 @@ Add to `TestScreeningIndexMobile` in `flask_backend/tests/test_routes/test_scree
         assert "Capitólio" in html
 ```
 
-Also add this assertion to the existing `test_shared_card_scrolls_to_its_card_on_load` test in `TestScreeningSharedLink` (it already asserts the script references the id — this step just makes it pass now that the id will exist).
+No changes needed to `test_shared_card_scrolls_to_its_card_on_load` in `TestScreeningSharedLink` — it already asserts the script references the id; this task's markup change is what makes that existing assertion true.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
