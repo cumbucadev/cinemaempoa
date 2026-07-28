@@ -207,14 +207,14 @@ git commit -m "feat: add favoritos.js interaction glue for the redesigned /favor
 ### Task 3: Route split, tile partial, page template, and tests
 
 **Files:**
-- Modify: `flask_backend/routes/screening.py:482-489` (the `favoritos()` view)
+- Modify: `flask_backend/routes/screening.py:518-525` (the `favoritos()` view)
 - Create: `flask_backend/templates/screening/_favorites_tile.html`
 - Modify: `flask_backend/templates/screening/favoritos.html` (full rewrite)
 - Modify: `flask_backend/tests/test_routes/test_screening.py` (`TestFavoritos` class: remove one obsolete test, add five new tests)
 
 **Interfaces:**
-- Consumes: `build_favorites_feed(movie_ids, today, user_logged_in)` (existing, `flask_backend/service/screening.py:234`), which returns a list of dicts each with (at minimum) `movie_id`, `movie_title`, `directors`, `release_year`, `description`, `image`, `image_alt`, `cinema_name`, `soonest_date`, `soonest_time`, `next_dates`, `draft`, `screening_url`, `no_sessions`, `screening_id`. Consumes CSS classes/files from Task 1 (`favoritos.css`) and JS from Task 2 (`favoritos.js`).
-- Produces: `favoritos()` now renders `screening/favoritos.html` with `em_exibicao` (list, `no_sessions=False`, sorted by soonest date — unchanged from `build_favorites_feed`'s own order) and `todos` (list, `no_sessions=True`, sorted alphabetically by `movie_title`) instead of a single `cards` list.
+- Consumes: `build_favorites_feed(movie_ids, today, user_logged_in)` (existing, `flask_backend/service/screening.py:234`), which returns a list of dicts each with (at minimum) `movie_id`, `movie_title`, `directors`, `release_year`, `description`, `image`, `image_alt`, `cinema_name`, `soonest_date`, `soonest_time`, `next_dates`, `draft`, `screening_url`, `no_sessions`, `screening_id`. Also consumes the `CANONICAL_BASE_URL` constant already defined and imported in `screening.py:68` (`"https://cinemaempoa.com.br"`) — the just-merged `feat/reels-share` work (PR #283, now on `main`) changed `favoritos()` to already pass this as `canonical_base_url` into the template context, because `_reels_card.html`'s share button now builds its URL as `{{ canonical_base_url }}{{ url_for(...) }}` instead of `url_for(..., _external=True)` (see `flask_backend/tests/test_routes/test_screening.py::TestFavoritos::test_share_url_uses_the_canonical_production_domain`, which must keep passing). The new tile partial follows the same convention. Consumes CSS classes/files from Task 1 (`favoritos.css`) and JS from Task 2 (`favoritos.js`).
+- Produces: `favoritos()` now renders `screening/favoritos.html` with `em_exibicao` (list, `no_sessions=False`, sorted by soonest date — unchanged from `build_favorites_feed`'s own order), `todos` (list, `no_sessions=True`, sorted alphabetically by `movie_title`), and `canonical_base_url` (unchanged, passed through as before) instead of a single `cards` list.
 
 This task's tests only make sense once the route and both templates exist together (each is untestable alone via this project's HTTP-integration test style), so it follows TDD at the task level: write the new/updated tests first, confirm they fail against the *current* (pre-change) implementation, then implement route + templates, then confirm everything passes.
 
@@ -253,7 +253,9 @@ First, delete this now-obsolete test (it asserts on `_reels_card.html`'s custom 
         assert "IntersectionObserver" in html
 ```
 
-Then, add these five tests immediately after `test_toggle_then_favoritos_then_untoggle_round_trip` (the last method in `TestFavoritos`), keeping the same indentation/class body:
+Also note two tests already exist in `TestFavoritos` from the just-merged `feat/reels-share` work that this task doesn't touch but must keep passing: `test_share_url_uses_the_canonical_production_domain` (asserts the share button's `data-share-url` on `/favoritos` resolves to `https://cinemaempoa.com.br/?screening=<id>`) and `test_sidebar_links_back_to_home_and_highlights_meus_filmes` (asserts the offcanvas menu highlights "Meus Filmes" — unaffected by this task since `partials/site_menu.html` is included by `base.html` exactly as it was by `base_reels.html`).
+
+Then, add these five tests at the end of the `TestFavoritos` class, immediately after `test_sidebar_links_back_to_home_and_highlights_meus_filmes` (now the last method in the class), keeping the same indentation/class body:
 
 ```python
     def test_splits_movies_into_em_exibicao_and_todos_sections(
@@ -386,7 +388,7 @@ Run: `uv run pytest flask_backend/tests/test_routes/test_screening.py -k TestFav
 
 Expected, precisely (the five new tests don't all fail the same way against the old template — check each on its own terms, not just "red = good"):
 
-- `test_returns_200`, `test_shows_empty_state_without_a_visitor_cookie`, `test_shows_marked_movie_with_upcoming_screening`, `test_shows_marked_movie_with_no_upcoming_screening_as_stale`, `test_toggle_then_favoritos_then_untoggle_round_trip` — PASS (untouched by this change so far).
+- `test_returns_200`, `test_shows_empty_state_without_a_visitor_cookie`, `test_shows_marked_movie_with_upcoming_screening`, `test_share_url_uses_the_canonical_production_domain`, `test_shows_marked_movie_with_no_upcoming_screening_as_stale`, `test_toggle_then_favoritos_then_untoggle_round_trip`, `test_sidebar_links_back_to_home_and_highlights_meus_filmes` — PASS (untouched by this change so far).
 - `test_splits_movies_into_em_exibicao_and_todos_sections` — FAILS (errors on `html.index("Em exibição")`, `ValueError: substring not found` — the old template never renders that heading).
 - `test_shows_no_screenings_message_when_none_showing` — FAILS (the old template's empty-ish states never render "Nenhum dos seus filmes está em cartaz agora.").
 - `test_date_badge_only_shown_for_em_exibicao_cards` — FAILS (the old template has no `poster-tile-badge` class anywhere; count is 0, not 1).
@@ -395,22 +397,22 @@ Expected, precisely (the five new tests don't all fail the same way against the 
 
 - [ ] **Step 3: Update the route**
 
-In `flask_backend/routes/screening.py`, replace the `favoritos()` view (currently lines 482-489):
+In `flask_backend/routes/screening.py`, replace the `favoritos()` view (currently lines 518-525 — note it already passes `canonical_base_url` as of the just-merged `feat/reels-share` PR; this must be preserved, not dropped):
 
 ```python
-@bp.route("/favoritos")
 def favoritos():
     visitor_id = get_visitor_id(request)
     movie_ids = list(get_movie_ids_for_visitor(visitor_id)) if visitor_id else []
     user_logged_in = g.user is not None
     cards = build_favorites_feed(movie_ids, date.today(), user_logged_in)
-    return render_template("screening/favoritos.html", cards=cards)
+    return render_template(
+        "screening/favoritos.html", cards=cards, canonical_base_url=CANONICAL_BASE_URL
+    )
 ```
 
 with:
 
 ```python
-@bp.route("/favoritos")
 def favoritos():
     visitor_id = get_visitor_id(request)
     movie_ids = list(get_movie_ids_for_visitor(visitor_id)) if visitor_id else []
@@ -422,13 +424,18 @@ def favoritos():
         key=lambda card: card["movie_title"],
     )
     return render_template(
-        "screening/favoritos.html", em_exibicao=em_exibicao, todos=todos
+        "screening/favoritos.html",
+        em_exibicao=em_exibicao,
+        todos=todos,
+        canonical_base_url=CANONICAL_BASE_URL,
     )
 ```
 
-No new imports needed — `date`, `get_visitor_id`, `get_movie_ids_for_visitor`, and `build_favorites_feed` are already imported in this file.
+No new imports needed — `date`, `get_visitor_id`, `get_movie_ids_for_visitor`, `build_favorites_feed`, and `CANONICAL_BASE_URL` are already imported/defined in this file (the `@bp.route("/favoritos")` decorator above the function is unchanged, keep it).
 
 - [ ] **Step 4: Create `flask_backend/templates/screening/_favorites_tile.html`**
+
+`{% include %}` shares the including template's full context by default, so `canonical_base_url` (passed to `favoritos.html` in Step 3) is already in scope here without any extra wiring — same mechanism `_reels_card.html` relies on.
 
 ```html
 <details class="favorites-tile"
@@ -477,11 +484,18 @@ No new imports needed — `date`, `get_visitor_id`, `get_movie_ids_for_visitor`,
     {% elif card.no_sessions %}
       <p class="text-muted">Não há sessões previstas no momento.</p>
     {% endif %}
+    {# Compute share text once, same pattern _reels_card.html uses, to keep
+       the attribute readable and satisfy djlint #}
+    {%- if card.soonest_date %}
+      {%- set share_text = card.cinema_name + " · " + card.soonest_date.strftime("%d/%m") + ((" " + card.soonest_time) if card.soonest_time else "") %}
+    {%- else %}
+      {%- set share_text = card.cinema_name %}
+    {%- endif %}
     <p>
       <button type="button" class="favorites-tile-share" data-function="share"
-              data-share-url="{{ url_for('screening.index', screening=card.screening_id, _external=True) }}"
+              data-share-url="{{ canonical_base_url }}{{ url_for('screening.index', screening=card.screening_id) }}"
               data-movie-title="{{ card.movie_title }}"
-              data-share-text="{%- if card.soonest_date %}{{ card.cinema_name }} · {{ card.soonest_date.strftime("%d/%m") }}{% if card.soonest_time %} {{ card.soonest_time }}{% endif %}{% else %}{{ card.cinema_name }}{% endif -%}"
+              data-share-text="{{ share_text }}"
               aria-label="Compartilhar">Compartilhar</button>
     </p>
     {% if card.screening_url %}
@@ -582,7 +596,7 @@ Replace the entire file with:
 
 Run: `uv run pytest flask_backend/tests/test_routes/test_screening.py -k TestFavoritos -v`
 
-Expected: all 9 tests pass (the 4 pre-existing ones untouched, plus the 5 new ones from Step 1).
+Expected: all 12 tests pass (the 7 pre-existing ones untouched — including `test_share_url_uses_the_canonical_production_domain`, which now depends on Step 4's `canonical_base_url`/`share_text` handling in the new partial — plus the 5 new ones from Step 1).
 
 - [ ] **Step 7: Run the full backend test suite to check for regressions elsewhere**
 
