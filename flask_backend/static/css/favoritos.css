@@ -8,6 +8,17 @@
     list-style: none;
 }
 
+/* .poster-tile (from cinema.css) is display:block with no explicit width,
+   so it normally fills its container's inline size - fine inside a grid
+   cell, but once the parent <details> spans the full row above, an
+   unconstrained summary would stretch to that same full width and, with
+   aspect-ratio: 2/3 still applied, blow up to an enormous poster. Cap it
+   back to a normal tile-sized column so the freed space is available for
+   .favorites-tile-detail instead. */
+.favorites-tile[open] .favorites-tile-summary {
+    max-width: 9rem;
+}
+
 .favorites-tile-summary::-webkit-details-marker {
     display: none;
 }
