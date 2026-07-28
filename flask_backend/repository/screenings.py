@@ -1,10 +1,10 @@
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import func
 
 from flask_backend.db import db_session
-from flask_backend.models import Cinema, Screening, ScreeningDate
+from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
 from flask_backend.repository import alert_actions
 from flask_backend.service.shared import get_weekend_dates
 
@@ -304,3 +304,80 @@ def get_by_pipeline_run_id(pipeline_run_id: int) -> List[Screening]:
         .order_by(Screening.id)
         .all()
     )
+
+
+def get_past_movies_for_cinema(
+    cinema_id: int, limit: int = 24
+) -> List[Tuple[Movie, bool]]:
+    """Distinct movies with a Screening at this cinema and no upcoming
+    ScreeningDate here, paired with whether the movie has ever screened
+    at another cinema too (False) or only ever at this one (True).
+    Capped to the `limit` most recently shown movies."""
+    today = date.today()
+
+    upcoming_movie_ids = {
+        movie_id
+        for (movie_id,) in (
+            db_session.query(Screening.movie_id)
+            .join(ScreeningDate)
+            .filter(Screening.cinema_id == cinema_id)
+            .filter(Screening.draft == False)  # noqa: E712
+            .filter(func.date(ScreeningDate.date) >= today)
+            .distinct()
+        )
+    }
+
+    past_movie_rows = (
+        db_session.query(Movie, func.max(ScreeningDate.date).label("last_shown"))
+        .join(Screening, Screening.movie_id == Movie.id)
+        .join(ScreeningDate, ScreeningDate.screening_id == Screening.id)
+        .filter(Screening.cinema_id == cinema_id)
+        .filter(Screening.draft == False)  # noqa: E712
+        .group_by(Movie.id)
+        .order_by(func.max(ScreeningDate.date).desc())
+        .all()
+    )
+
+    exclusive_movie_ids = {
+        movie_id
+        for (movie_id,) in (
+            db_session.query(Screening.movie_id)
+            .filter(Screening.draft == False)  # noqa: E712
+            .group_by(Screening.movie_id)
+            .having(func.count(func.distinct(Screening.cinema_id)) == 1)
+        )
+    }
+
+    return [
+        (movie, movie.id in exclusive_movie_ids)
+        for movie, _last_shown in past_movie_rows
+        if movie.id not in upcoming_movie_ids
+    ][:limit]
+
+
+def get_latest_screening_images_for_movies(
+    cinema_id: int, movie_ids: List[int]
+) -> Dict[int, Screening]:
+    """Most recent Screening (by last ScreeningDate) at this cinema for each
+    of the given movies - source of a poster image for the "already screened
+    here" grid on a cinema's page, since Movie itself has no image field."""
+    if not movie_ids:
+        return {}
+
+    rows = (
+        db_session.query(Screening, func.max(ScreeningDate.date).label("last_shown"))
+        .join(ScreeningDate)
+        .filter(Screening.cinema_id == cinema_id)
+        .filter(Screening.movie_id.in_(movie_ids))
+        .filter(Screening.draft == False)  # noqa: E712
+        .group_by(Screening.id)
+        .all()
+    )
+
+    latest: Dict[int, Tuple[Screening, date]] = {}
+    for screening, last_shown in rows:
+        current = latest.get(screening.movie_id)
+        if current is None or last_shown > current[1]:
+            latest[screening.movie_id] = (screening, last_shown)
+
+    return {movie_id: screening for movie_id, (screening, _) in latest.items()}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "macros/cinema_row.html" import cinema_row %}
+{% block meta_tags %}
+    <meta name="description"
+          content="Conheça as salas de cinema alternativo de Porto Alegre: {{ cinemas | map(attribute='name') | join(', ') }}.">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/cinema.css') }}">
+{% endblock meta_tags %}
+{% block title %}
+    Cinemas
+{% endblock title %}
+{% block header %}
+    <h1>Cinemas</h1>
+    <p>Salas de cinema alternativo em Porto Alegre.</p>
+{% endblock header %}
+{% block content %}
+    <div class="cinema-list">
+        {% for cinema in cinemas %}{{ cinema_row(cinema) }}{% endfor %}
+    </div>
+{% endblock content %}

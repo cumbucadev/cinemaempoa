@@ -123,6 +123,10 @@
                         <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
                            href="{{ url_for("screening.programacao") }}">Programação</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('cinema.index') %}active{% endif %}"
+                           href="{{ url_for("cinema.index") }}">Cinemas</a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle"
                            href="#"
@@ -161,6 +165,10 @@
                                        href="{{ url_for("admin_alerts.index") }}">Alertas</a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item {% if request.path.startswith('/admin/cinemas') %}active{% endif %}"
+                                       href="{{ url_for("admin_cinemas.index") }}">Cinemas</a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item {% if request.path.startswith('/admin/pipelines') %}active{% endif %}"
                                        href="{{ url_for("admin_pipelines.index") }}">Pipelines</a>
                                 </li>
@@ -190,6 +198,11 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == url_for('screening.programacao') %}active{% endif %}"
                        href="{{ url_for("screening.programacao") }}">Programação</a>
+                </li>
+                <div class="vr mx-3"></div>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == url_for('cinema.index') %}active{% endif %}"
+                       href="{{ url_for("cinema.index") }}">Cinemas</a>
                 </li>
                 <div class="vr mx-3"></div>
                 <li class="nav-item dropdown">
@@ -230,6 +243,10 @@
                             <li>
                                 <a class="dropdown-item {% if request.path == url_for('admin_alerts.index') %}active{% endif %}"
                                    href="{{ url_for("admin_alerts.index") }}">Alertas</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.path.startswith('/admin/cinemas') %}active{% endif %}"
+                                   href="{{ url_for("admin_cinemas.index") }}">Cinemas</a>
                             </li>
                             <li>
                                 <a class="dropdown-item {% if request.path.startswith('/admin/pipelines') %}active{% endif %}"

@@ -142,6 +142,13 @@ class Cinema(Base):
     slug = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     url = Column(String, nullable=False)
+    address = Column(String, nullable=True)
+    opening_hours = Column(Text, nullable=True)
+    instagram_url = Column(String, nullable=True)
+    map_embed_url = Column(String, nullable=True)
+    photo = Column(String, nullable=True)
+    photo_width = Column(Integer, nullable=True)
+    photo_height = Column(Integer, nullable=True)
 
     @property
     def short_name(self) -> str:

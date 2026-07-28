@@ -5,6 +5,8 @@ from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.screenings import (
     get_latest_screening_for_movie,
+    get_latest_screening_images_for_movies,
+    get_past_movies_for_cinema,
     get_screening_dates_for_movies,
     get_screenings_for_movies_with_dates_in_range,
     get_screenings_in_date_range,
@@ -409,3 +411,158 @@ class TestGetLatestScreeningForMovie:
             latest = get_latest_screening_for_movie(movie.id, include_drafts=True)
 
             assert latest.id == newer_draft.id
+
+
+class TestGetPastMoviesForCinema:
+    def test_includes_movie_with_only_a_past_date(self, app, setup_cinemas):
+        screening_id, movie_id = _create_screening(
+            app, "Filme Antigo", "filme-antigo", [date.today() - timedelta(days=1)]
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert movie_id in movie_ids
+
+    def test_excludes_movie_with_an_upcoming_date_at_this_cinema(
+        self, app, setup_cinemas
+    ):
+        screening_id, movie_id = _create_screening(
+            app, "Filme Futuro", "filme-futuro", [date.today() + timedelta(days=1)]
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert movie_id not in movie_ids
+
+    def test_marks_movie_screened_only_here_as_exclusive(self, app, setup_cinemas):
+        _screening_id, movie_id = _create_screening(
+            app, "Exclusivo", "exclusivo", [date.today() - timedelta(days=1)]
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
+            assert exclusivity_by_id[movie_id] is True
+
+    def test_marks_movie_screened_elsewhere_as_not_exclusive(self, app, setup_cinemas):
+        _screening_id, movie_id = _create_screening(
+            app, "Compartilhado", "compartilhado", [date.today() - timedelta(days=2)]
+        )
+        _create_screening(
+            app,
+            "Compartilhado",
+            "compartilhado",
+            [date.today() - timedelta(days=1)],
+            cinema_slug="sala-redencao",
+            movie_id=movie_id,
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            exclusivity_by_id = {movie.id: exclusive for movie, exclusive in result}
+            assert exclusivity_by_id[movie_id] is False
+
+    def test_excludes_draft_screening_with_a_past_date(self, app, setup_cinemas):
+        screening_id, movie_id = _create_screening(
+            app,
+            "Rascunho Passado",
+            "rascunho-passado",
+            [date.today() - timedelta(days=1)],
+            draft=True,
+        )
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert movie_id not in movie_ids
+
+    def test_caps_result_to_24_most_recently_shown_movies(self, app, setup_cinemas):
+        movie_ids_by_recency = []
+        for days_ago in range(30, 0, -1):
+            _screening_id, movie_id = _create_screening(
+                app,
+                f"Filme {days_ago}",
+                f"filme-{days_ago}",
+                [date.today() - timedelta(days=days_ago)],
+            )
+            movie_ids_by_recency.append(movie_id)
+        # movie_ids_by_recency is ordered from oldest (30 days ago) to most
+        # recently shown (1 day ago) - the 24 most recent are the last 24.
+        expected_movie_ids = set(movie_ids_by_recency[-24:])
+
+        with app.app_context():
+            result = get_past_movies_for_cinema(get_cinema_by_slug("capitolio").id)
+            movie_ids = [movie.id for movie, _exclusive in result]
+            assert len(movie_ids) == 24
+            assert set(movie_ids) == expected_movie_ids
+
+
+class TestGetLatestScreeningImagesForMovies:
+    def test_returns_empty_dict_for_no_movie_ids(self, app, setup_cinemas):
+        with app.app_context():
+            result = get_latest_screening_images_for_movies(
+                get_cinema_by_slug("capitolio").id, []
+            )
+            assert result == {}
+
+    def test_returns_the_screening_for_a_movie_shown_at_this_cinema(
+        self, app, setup_cinemas
+    ):
+        screening_id, movie_id = _create_screening(
+            app, "Filme", "filme", [date.today() - timedelta(days=1)]
+        )
+
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            result = get_latest_screening_images_for_movies(cinema.id, [movie_id])
+            assert result[movie_id].id == screening_id
+
+    def test_picks_the_screening_with_the_most_recent_date_for_this_cinema(
+        self, app, setup_cinemas
+    ):
+        older_screening_id, movie_id = _create_screening(
+            app, "Filme", "filme", [date.today() - timedelta(days=10)]
+        )
+        newer_screening_id, _ = _create_screening(
+            app,
+            "Filme",
+            "filme",
+            [date.today() - timedelta(days=1)],
+            movie_id=movie_id,
+        )
+
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            result = get_latest_screening_images_for_movies(cinema.id, [movie_id])
+            assert result[movie_id].id == newer_screening_id
+            assert result[movie_id].id != older_screening_id
+
+    def test_ignores_screenings_at_other_cinemas(self, app, setup_cinemas):
+        _screening_id, movie_id = _create_screening(
+            app,
+            "Filme",
+            "filme",
+            [date.today() - timedelta(days=1)],
+            cinema_slug="sala-redencao",
+        )
+
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            result = get_latest_screening_images_for_movies(cinema.id, [movie_id])
+            assert movie_id not in result
+
+    def test_ignores_draft_screenings(self, app, setup_cinemas):
+        _screening_id, movie_id = _create_screening(
+            app,
+            "Filme",
+            "filme",
+            [date.today() - timedelta(days=1)],
+            draft=True,
+        )
+
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            result = get_latest_screening_images_for_movies(cinema.id, [movie_id])
+            assert movie_id not in result

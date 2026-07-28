@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "macros/poster_tile.html" import poster_tile %}
+{% block meta_tags %}
+    <meta name="description"
+          content="{{ cinema.name }}: programação, endereço e informações sobre esta sala de cinema em Porto Alegre.">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/cinema.css') }}">
+    {# djlint:off #}
+    <style>:root { --cinema-accent: {{ cinema.color }}; }</style>
+    {# djlint:on #}
+{% endblock meta_tags %}
+{% block title %}
+    {{ cinema.name }}
+{% endblock title %}
+{% block header %}
+    {% if cinema.photo %}
+        {# djlint:off #}
+        <img src="{{ cinema.photo }}"
+             class="img-fluid rounded mb-3"
+             alt="{{ cinema.name }}"
+             style="max-height: 300px; width: 100%; object-fit: cover;">
+        {# djlint:on #}
+    {% endif %}
+    <h1>{{ cinema.name }}</h1>
+    <div class="cinema-accent-bar"></div>
+    {% if cinema.address %}<p class="mb-1">{{ cinema.address }}</p>{% endif %}
+    {% if cinema.opening_hours %}<p class="mb-1 text-muted">{{ cinema.opening_hours }}</p>{% endif %}
+    <p>
+        <a href="{{ cinema.url }}">Visite o site</a>
+        {% if cinema.instagram_url %}· <a href="{{ cinema.instagram_url }}">Instagram</a>{% endif %}
+    </p>
+    {% if cinema.map_embed_url %}
+        <div class="ratio ratio-16x9 mb-3">
+            <iframe src="{{ cinema.map_embed_url }}" loading="lazy" allowfullscreen></iframe>
+        </div>
+    {% endif %}
+{% endblock header %}
+{% block content %}
+    <h2 class="section-eyebrow">
+        <span class="section-eyebrow-dot" aria-hidden="true"></span>
+        Em cartaz
+    </h2>
+    {% if upcoming_screenings %}
+        <div class="poster-grid mb-5">
+            {% for screening in upcoming_screenings %}
+                {{ poster_tile(href=url_for("movie.show", slug=screening.movie.slug, screening=screening.id) , title=screening.movie.title, image=screening.image, image_alt=screening.image_alt) }}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted mb-5">Nenhuma sessão futura cadastrada.</p>
+    {% endif %}
+    <h2 class="section-eyebrow">Já passou por aqui</h2>
+    {% if past_movies %}
+        <div class="poster-grid">
+            {% for movie, exclusive in past_movies %}
+                {% set past_screening = past_movie_screenings.get(movie.id) %}
+                {% set movie_href = url_for("movie.show", slug=movie.slug, screening=past_screening.id) if past_screening else url_for("movie.show", slug=movie.slug) %}
+                {{ poster_tile(href=movie_href, title=movie.title, image=past_screening.image if past_screening else none, image_alt=past_screening.image_alt if past_screening else none, badge="exclusivo" if exclusive else none) }}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Nenhum filme exibido até o momento.</p>
+    {% endif %}
+{% endblock content %}

@@ -1,0 +1,285 @@
+/* poster-wall grid for a single cinema's page (/cinemas/<slug>): "em cartaz"
+   and "ja passou por aqui" both render as a dense wall of full posters,
+   letterboxd-style, instead of the site's default bootstrap card. --cinema-
+   accent is set inline per page from Cinema.color (constants.py) so each
+   venue's page carries its own existing brand color rather than one shared
+   theme. some brand colors (e.g. sala-redencao's #000075) are near-black and
+   unreadable as text on the dark theme's near-black background, so
+   --cinema-accent-text lightens the accent for that use only -- badges and
+   the poster placeholder keep the raw --cinema-accent since white text sits
+   on top of those and needs a darker, saturated fill instead. */
+
+:root {
+    --cinema-accent-text: var(--cinema-accent);
+}
+
+:root[data-bs-theme="dark"] {
+    --cinema-accent-text: color-mix(in srgb, var(--cinema-accent) 45%, white);
+}
+
+.cinema-accent-bar {
+    height: 3px;
+    width: 3rem;
+    background: var(--cinema-accent-text);
+    border-radius: 999px;
+    margin: 0.6rem 0 1.25rem;
+}
+
+.section-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 2.75rem 0 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--cinema-accent-text);
+}
+
+.section-eyebrow::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.25;
+}
+
+.section-eyebrow-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--cinema-accent-text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .section-eyebrow-dot {
+        animation: cinema-eyebrow-pulse 2s ease-in-out infinite;
+    }
+}
+
+@keyframes cinema-eyebrow-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+.poster-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.55rem;
+}
+
+@media (min-width: 480px) {
+    .poster-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.7rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .poster-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.poster-tile {
+    position: relative;
+    display: block;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--bs-content-bg);
+    box-shadow: 0 0 0 1px var(--bs-content-border-color);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.poster-tile-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+}
+
+.poster-tile-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--cinema-accent);
+    color: #fff;
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.poster-tile-badge {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: var(--cinema-accent);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.4;
+}
+
+.poster-tile-scrim {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 1.5rem 0.5rem 0.4rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0));
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.poster-tile-title {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #f5f5f0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.25;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.poster-tile:hover,
+.poster-tile:focus-visible {
+    box-shadow: 0 0 0 2px var(--cinema-accent), 0 8px 20px rgba(0, 0, 0, 0.35);
+    transform: translateY(-2px);
+}
+
+.poster-tile:hover .poster-tile-scrim,
+.poster-tile:focus-visible .poster-tile-scrim {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.poster-tile:focus-visible {
+    outline: 2px solid var(--cinema-accent);
+    outline-offset: 2px;
+}
+
+/* touch devices can't hover, so the scrim/title stays on permanently instead
+   of only revealing on tap-then-navigate */
+@media (hover: none) {
+    .poster-tile-scrim {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .poster-tile,
+    .poster-tile-scrim {
+        transition: none;
+    }
+}
+
+/* /cinemas directory: a compact row list rather than a bootstrap card grid,
+   so all 5 venues are scannable in close to one mobile screen. each row
+   exposes that venue's own Cinema.color (already used on its /cinemas/<slug>
+   page) as a spine + thumbnail tint, set inline per-row via --row-accent
+   since (unlike the single-cinema page) this list mixes every venue's color
+   at once. */
+.cinema-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.cinema-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--bs-content-border-color);
+    border-left: 3px solid var(--row-accent);
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+}
+
+.cinema-list .cinema-row:last-child {
+    border-bottom: none;
+}
+
+.cinema-row:hover,
+.cinema-row:focus-visible {
+    background-color: color-mix(in srgb, var(--row-accent) 10%, transparent);
+    color: inherit;
+}
+
+.cinema-row:focus-visible {
+    outline: 2px solid var(--row-accent);
+    outline-offset: -2px;
+}
+
+.cinema-row-thumb {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    overflow: hidden;
+    border-radius: 0.4rem;
+    background: var(--row-accent);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.cinema-row-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+}
+
+.cinema-row-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.cinema-row-name {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.cinema-row-address {
+    overflow: hidden;
+    color: var(--bs-secondary-color);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cinema-row-chevron {
+    flex: 0 0 auto;
+    color: var(--row-accent);
+    font-size: 1.3rem;
+    opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cinema-row {
+        transition: none;
+    }
+}

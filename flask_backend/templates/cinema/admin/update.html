@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}
+    Editar {{ cinema.name }}
+{% endblock title %}
+{% block header %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for("admin_cinemas.index") }}">Cinemas</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Editar {{ cinema.name }}</li>
+        </ol>
+    </nav>
+    <h1>Editar {{ cinema.name }}</h1>
+{% endblock header %}
+{% block content %}
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label class="form-label" for="name">Nome</label>
+            <input class="form-control"
+                   id="name"
+                   name="name"
+                   value="{{ request.form.get('name', cinema.name) }}"
+                   required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="url">Site</label>
+            <input class="form-control"
+                   type="url"
+                   id="url"
+                   name="url"
+                   value="{{ request.form.get('url', cinema.url) }}"
+                   required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="address">Endereço</label>
+            <input class="form-control"
+                   id="address"
+                   name="address"
+                   value="{{ request.form.get('address', cinema.address or '') }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="opening_hours">Horário de funcionamento</label>
+            <textarea class="form-control" id="opening_hours" name="opening_hours" rows="2">{{ request.form.get('opening_hours', cinema.opening_hours or '') }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="instagram_url">Instagram</label>
+            <input class="form-control"
+                   type="url"
+                   id="instagram_url"
+                   name="instagram_url"
+                   value="{{ request.form.get('instagram_url', cinema.instagram_url or '') }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="map_embed_url">URL de incorporação do Google Maps</label>
+            <input class="form-control"
+                   type="url"
+                   id="map_embed_url"
+                   name="map_embed_url"
+                   value="{{ request.form.get('map_embed_url', cinema.map_embed_url or '') }}">
+            <div class="form-text">
+                No Google Maps, use "Compartilhar" → "Incorporar um mapa" e cole aqui a URL do atributo src do iframe.
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="cinema_photo">Foto</label>
+            {% if cinema.photo %}
+                {# djlint:off #}
+                <img src="{{ cinema.photo }}"
+                     alt="{{ cinema.name }}"
+                     class="d-block mb-2"
+                     style="max-height: 150px;">
+                {# djlint:on #}
+            {% endif %}
+            <input class="form-control"
+                   type="file"
+                   id="cinema_photo"
+                   name="cinema_photo"
+                   accept="image/*">
+        </div>
+        <div class="container mb-3 pb-3">
+            <input class="btn btn-primary" type="submit" value="Salvar">
+            <a class="btn btn-secondary" href="{{ url_for("admin_cinemas.index") }}">Voltar</a>
+        </div>
+    </form>
+{% endblock content %}

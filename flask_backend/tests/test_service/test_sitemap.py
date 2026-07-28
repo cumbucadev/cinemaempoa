@@ -52,3 +52,12 @@ class TestSitemap:
 
         output = capsys.readouterr().out
         assert "/filme-rascunho" not in output
+
+    def test_prints_urls_for_cinemas(self, app, setup_cinemas, capsys):
+        sitemap()
+
+        output = capsys.readouterr().out
+        urls = output.strip().split("\n")
+
+        assert any(url.endswith("/cinemas") for url in urls)
+        assert any(url.endswith("/cinemas/capitolio") for url in urls)

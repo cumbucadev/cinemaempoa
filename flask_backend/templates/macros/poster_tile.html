@@ -1,0 +1,18 @@
+{% macro poster_tile(href, title, image=None, image_alt=None, badge=None) %}
+    <a class="poster-tile" href="{{ href }}">
+        {% if image %}
+            {# djlint:off #}
+            <img class="poster-tile-img"
+                 src="{{ image }}"
+                 loading="lazy"
+                 alt="{{ image_alt or title }}">
+            {# djlint:on #}
+        {% else %}
+            <span class="poster-tile-placeholder" aria-hidden="true">{{ title[0] }}</span>
+        {% endif %}
+        {% if badge %}<span class="poster-tile-badge">{{ badge }}</span>{% endif %}
+        <span class="poster-tile-scrim">
+            <span class="poster-tile-title">{{ title }}</span>
+        </span>
+    </a>
+{% endmacro %}
