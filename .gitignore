@@ -31,3 +31,5 @@ flask_backend/static/sitemaps.txt
 
 .idea
 .python-version
+
+.superpowers/

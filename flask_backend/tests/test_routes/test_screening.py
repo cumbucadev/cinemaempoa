@@ -754,6 +754,13 @@ class TestScreeningIndexMobile:
         assert 'data-bs-delay="3000"' in html
         assert "Filme adicionado! Veja em Meus Filmes ☰" in html
 
+    def test_share_script_and_toast_markup_are_present(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'src="/static/reels-share.js"' in html
+        assert 'id="reels-share-toast"' in html
+        assert "Link copiado!" in html
+
     def test_sidebar_lists_home_and_favoritos_first_and_highlights_home(
         self, client, setup_cinemas
     ):
@@ -814,6 +821,159 @@ class TestScreeningIndexMobile:
         response = client.get("/", headers={"User-Agent": MOBILE_UA})
         html = response.get_data(as_text=True)
         assert "Filme Já Começou" not in html
+
+    def test_share_button_is_present_with_deep_link_data(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Compartilhável",
+                cinema_slug="capitolio",
+                screening_date=date.today() + timedelta(days=1),
+                screening_time="21:00",
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert 'data-function="share"' in html
+        assert f"/?screening={screening_id}" in html
+        assert 'data-movie-title="Filme Compartilhável"' in html
+        assert "Capitólio" in html
+
+    def test_share_url_uses_the_canonical_production_domain(
+        self, client, setup_cinemas
+    ):
+        # url_for(..., _external=True) can't be trusted behind this app's
+        # nginx setup (no Host-header rewrite), so the share link is built
+        # from a hardcoded canonical domain instead - see screening.py's
+        # CANONICAL_BASE_URL.
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Compartilhável Externo",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert (
+            f'data-share-url="https://cinemaempoa.com.br/?screening={screening_id}"'
+            in html
+        )
+
+
+class TestScreeningSharedLink:
+    def test_mobile_with_screening_in_current_feed_renders_and_highlights_card(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Compartilhável",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert "Filme Compartilhável" in html
+
+    def test_desktop_with_valid_screening_redirects_to_movie_page(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Redirecionado",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(f"/?screening={screening_id}")
+        assert response.status_code == 302
+        assert (
+            response.headers["Location"]
+            == f"/movies/filme-redirecionado?screening={screening_id}"
+        )
+
+    def test_mobile_with_screening_aged_out_of_feed_redirects_to_movie_page(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Expirado",
+                screening_date=date.today() - timedelta(days=30),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        assert response.status_code == 302
+        assert (
+            response.headers["Location"]
+            == f"/movies/filme-expirado?screening={screening_id}"
+        )
+
+    def test_invalid_screening_id_falls_back_to_normal_mobile_feed(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/?screening=999999", headers={"User-Agent": MOBILE_UA})
+        assert response.status_code == 200
+
+    def test_non_integer_screening_param_falls_back_to_normal_mobile_feed(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/?screening=abc", headers={"User-Agent": MOBILE_UA})
+        assert response.status_code == 200
+
+    def test_screening_with_movie_missing_slug_falls_back_to_normal_mobile_feed(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            cinema = _get_cinema()
+            movie = Movie(title="Filme Sem Slug", slug=None)
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="A description",
+                dates=[
+                    ScreeningDate(date=date.today() + timedelta(days=1), time="20:00")
+                ],
+            )
+            db_session.add(screening)
+            db_session.commit()
+            screening_id = screening.id
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        assert response.status_code == 200
+
+    def test_shared_card_renders_movie_specific_og_tags(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme OG",
+                image="poster-og.jpg",
+                image_width=100,
+                image_height=200,
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        html = response.get_data(as_text=True)
+        assert '<meta property="og:title" content="Filme OG">' in html
+        assert '<meta property="og:image" content="poster-og.jpg">' in html
+
+    def test_plain_feed_keeps_generic_og_tags(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Programação do dia" in html
+        assert 'property="og:title"' not in html
+
+    def test_shared_card_scrolls_to_its_card_on_load(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Scroll",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        html = response.get_data(as_text=True)
+        assert f'getElementById("reels-card-{screening_id}")' in html
 
 
 def _create_movie(title="Filme"):
@@ -921,6 +1081,32 @@ class TestFavoritos:
         response = client.get("/favoritos")
 
         assert b"Filme Futuro" in response.data
+
+    def test_share_url_uses_the_canonical_production_domain(
+        self, client, setup_cinemas
+    ):
+        # /favoritos shares _reels_card.html with the homepage, which needs
+        # canonical_base_url in its render context to build data-share-url.
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Favorito Compartilhável",
+                screening_date=date.today() + timedelta(days=2),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert (
+            f'data-share-url="https://cinemaempoa.com.br/?screening={screening_id}"'
+            in html
+        )
 
     def test_shows_marked_movie_with_no_upcoming_screening_as_stale(
         self, client, setup_cinemas

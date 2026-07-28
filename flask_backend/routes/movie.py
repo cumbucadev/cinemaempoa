@@ -10,6 +10,7 @@ from flask_backend.repository.movies import (
     get_paginated_screenings_with_image,
 )
 from flask_backend.routes.auth import login_required
+from flask_backend.routes.screening import CANONICAL_BASE_URL
 
 bp = Blueprint("movie", __name__)
 
@@ -147,9 +148,25 @@ def show(slug):
     if selected_screening_id not in valid_screening_ids:
         selected_screening_id = None
 
+    og_image = None
+    if selected_screening_id is not None:
+        selected_screening = next(
+            (s for s in movie.screenings if s.id == selected_screening_id), None
+        )
+        if selected_screening is not None:
+            og_image = selected_screening.image
+    elif images:
+        og_image = images[0]
+
+    if og_image and not og_image.startswith("http"):
+        og_image = CANONICAL_BASE_URL + (
+            og_image if og_image.startswith("/") else f"/{og_image}"
+        )
+
     return render_template(
         "movie/show.html",
         movie=movie,
         images=images,
         selected_screening_id=selected_screening_id,
+        og_image=og_image,
     )

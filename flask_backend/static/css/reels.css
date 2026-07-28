@@ -277,7 +277,8 @@ body.reels-root {
     gap: 0.75rem;
 }
 
-.reels-want-to-watch {
+.reels-want-to-watch,
+.reels-share {
     width: 2.5rem;
     height: 2.5rem;
     display: flex;
@@ -295,12 +296,17 @@ body.reels-root {
     transition: transform 0.15s ease;
 }
 
-.reels-want-to-watch:active {
+.reels-want-to-watch:active,
+.reels-share:active {
     transform: scale(0.9);
 }
 
 .reels-want-to-watch[data-wanted="true"] {
     color: var(--reels-accent);
+}
+
+.reels-want-to-watch[data-wanted="true"] svg {
+    fill: currentColor;
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -3,8 +3,15 @@
     Programação do dia
 {% endblock title %}
 {% block meta_tags %}
-    <meta name="description"
-          content="Filmes em cartaz nos próximos dias nas salas de cinema alternativo em Porto Alegre.">
+    {% if shared_card %}
+        <meta property="og:title" content="{{ shared_card.movie_title }}">
+        <meta property="og:description"
+              content="{{ shared_card.description or shared_card.movie_title }}">
+        {% if shared_card.image %}<meta property="og:image" content="{{ shared_card.image }}">{% endif %}
+    {% else %}
+        <meta name="description"
+              content="Filmes em cartaz nos próximos dias nas salas de cinema alternativo em Porto Alegre.">
+    {% endif %}
 {% endblock meta_tags %}
 {% block content %}
     <div class="reels-feed">
@@ -19,4 +26,13 @@
             </section>
         {% endif %}
     </div>
+    {% if shared_card %}
+        <script>
+            document.getElementById("reels-card-{{ shared_card.screening_id }}")
+                ?.scrollIntoView({
+                    behavior: "instant",
+                    block: "start"
+                });
+        </script>
+    {% endif %}
 {% endblock content %}

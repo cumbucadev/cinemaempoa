@@ -64,6 +64,17 @@
         <div class="toast-body">Filme adicionado! Veja em Meus Filmes ☰</div>
     </div>
     {# djlint:on #}
+    {# djlint:off #}
+    <div id="reels-share-toast"
+         class="toast reels-wtw-toast"
+         role="status"
+         aria-live="polite"
+         aria-atomic="true"
+         data-bs-autohide="true"
+         data-bs-delay="3000">
+        <div class="toast-body">Link copiado!</div>
+    </div>
+    {# djlint:on #}
     {% include "partials/site_menu.html" %}
     {% block content %}
     {% endblock content %}
@@ -76,6 +87,7 @@
     </script>
     <script src="{{ url_for('static', filename='halfmoon/bootstrap.bundle.js') }}"></script>
     <script src="{{ url_for('static', filename='reels-want-to-watch.js') }}"></script>
+    <script src="{{ url_for('static', filename='reels-share.js') }}"></script>
     <script src="{{ url_for('static', filename='reels-scroll-tracking.js') }}"></script>
     <script>
         const lazyPosters = document.querySelectorAll(".reels-poster-img[data-src]");
