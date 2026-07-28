@@ -13,10 +13,25 @@
    cell, but once the parent <details> spans the full row above, an
    unconstrained summary would stretch to that same full width and, with
    aspect-ratio: 2/3 still applied, blow up to an enormous poster. Cap it
-   back to a normal tile-sized column so the freed space is available for
-   .favorites-tile-detail instead. */
+   back to the width of a single .poster-grid column (cinema.css) at each of
+   that grid's breakpoints, so the opened tile's poster stays tile-sized
+   instead of stretching to the full row. .favorites-tile-detail renders
+   below the summary (not beside it), so this doesn't free up space for it -
+   it just keeps the poster itself from blowing up. */
 .favorites-tile[open] .favorites-tile-summary {
-    max-width: 9rem;
+    max-width: calc((100% - 1.1rem) / 3);
+}
+
+@media (min-width: 480px) {
+    .favorites-tile[open] .favorites-tile-summary {
+        max-width: calc((100% - 2.1rem) / 4);
+    }
+}
+
+@media (min-width: 768px) {
+    .favorites-tile[open] .favorites-tile-summary {
+        max-width: calc((100% - 2.8rem) / 5);
+    }
 }
 
 .favorites-tile-summary::-webkit-details-marker {
