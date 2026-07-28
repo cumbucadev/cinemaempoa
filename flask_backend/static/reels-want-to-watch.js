@@ -7,7 +7,6 @@ function setWantToWatchState(button, wanted) {
         "aria-label",
         wanted ? "Remover dos meus filmes" : "Adicionar aos meus filmes"
     );
-    button.querySelector("span").textContent = wanted ? "★" : "☆";
 }
 
 function showAddedToast() {

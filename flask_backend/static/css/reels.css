@@ -305,6 +305,10 @@ body.reels-root {
     color: var(--reels-accent);
 }
 
+.reels-want-to-watch[data-wanted="true"] svg {
+    fill: currentColor;
+}
+
 @media (prefers-reduced-motion: no-preference) {
     .reels-want-to-watch-pop {
         animation: reels-want-to-watch-pop 0.3s ease;
