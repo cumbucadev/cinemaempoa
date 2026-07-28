@@ -29,17 +29,23 @@ body.reels-root {
     background: #000;
 }
 
+/* svh (not dvh) on purpose: dvh live-resizes as Chrome for Android's address
+   bar animates on scroll-direction change, and scroll-snap only re-evaluates
+   snap targets on the *next* gesture, not mid-resize - so the first swipe
+   past the toolbar's hide/show threshold would compute against stale
+   geometry and misfire. svh is static (assumes the toolbar is shown), which
+   costs a sliver of unused space when it's hidden but keeps snap geometry
+   stable through the gesture. */
 .reels-feed {
     height: 100vh;
-    height: 100dvh;
+    height: 100svh;
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
 }
 
 .reels-card {
     height: 100vh;
-    height: 100dvh;
+    height: 100svh;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     position: relative;

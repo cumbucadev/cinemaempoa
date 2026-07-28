@@ -79,6 +79,7 @@
     <script src="{{ url_for('static', filename='reels-scroll-tracking.js') }}"></script>
     <script>
         const lazyPosters = document.querySelectorAll(".reels-poster-img[data-src]");
+        const reelsFeed = document.querySelector(".reels-feed");
         const posterObserver = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
@@ -87,6 +88,11 @@
                         img.src = img.dataset.src;
                         img.removeAttribute("data-src");
                         posterObserver.unobserve(img);
+                        // reading offsetHeight forces a synchronous reflow right after the
+                        // src swap instead of leaving it to the next frame; void just marks
+                        // the read as intentional (value unused) so it isn't mistaken for
+                        // dead code
+                        if (reelsFeed) void reelsFeed.offsetHeight;
                     }
                 });
             }, {
