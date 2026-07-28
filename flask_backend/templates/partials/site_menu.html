@@ -44,10 +44,10 @@
             <a class="nav-link {% if request.path == url_for("blog.index") %}active{% endif %}"
                href="{{ url_for("blog.index") }}">Blog</a>
         </li>
+        <li>
+            <hr class="my-2">
+        </li>
         {% if g.user %}
-            <li>
-                <hr class="my-2">
-            </li>
             <li class="nav-item">
                 <a class="nav-link {% if request.path == url_for("admin_blog.index") %}active{% endif %}"
                    href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
