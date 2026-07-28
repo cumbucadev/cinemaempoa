@@ -1,22 +1,73 @@
-{% extends "base_reels.html" %}
-{% block title %}
-    Meus Filmes
-{% endblock title %}
+{% extends "base.html" %}
 {% block meta_tags %}
     <meta name="description"
           content="Filmes que você marcou como &quot;quero assistir&quot; no cinemaempoa.">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/cinema.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/favoritos.css') }}">
+    {# djlint:off #}
+    <style>:root { --cinema-accent: #9c5b00; }</style>
+    {# djlint:on #}
 {% endblock meta_tags %}
+{% block title %}
+    Meus Filmes
+{% endblock title %}
+{% block header %}
+    <h1>Meus Filmes</h1>
+{% endblock header %}
 {% block content %}
-    <div class="reels-feed">
-        {% if cards %}
-            {% for card in cards %}
-                {% set current_loop = loop %}
-                {% include "screening/_reels_card.html" %}
-            {% endfor %}
+    {% if not em_exibicao and not todos %}
+        <p class="favorites-empty">
+            Você ainda não marcou nenhum filme. Toque na
+            estrela em um filme para adicioná-lo aqui.
+        </p>
+    {% else %}
+        <h2 class="section-eyebrow">
+            <span class="section-eyebrow-dot" aria-hidden="true"></span>
+            Em exibição
+        </h2>
+        {% if em_exibicao %}
+            <div class="poster-grid mb-5">
+                {% for card in em_exibicao %}
+                    {% include "screening/_favorites_tile.html" %}
+                {% endfor %}
+            </div>
         {% else %}
-            <section class="reels-card reels-empty">
-                <strong>Você ainda não marcou nenhum filme. Toque na estrela em um filme para adicioná-lo aqui.</strong>
-            </section>
+            <p class="text-muted mb-5">Nenhum dos seus filmes está em cartaz agora.</p>
         {% endif %}
+        {% if todos %}
+            <h2 class="section-eyebrow">Todos os filmes</h2>
+            <p class="favorites-section-subhead">
+                Sem sessões agora. Quando um filme
+                volta a passar, ele sobe pra Em exibição.
+            </p>
+            <div class="poster-grid">
+                {% for card in todos %}
+                    {% include "screening/_favorites_tile.html" %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+    <div id="reels-wtw-toast"
+         class="toast favorites-toast"
+         role="status"
+         aria-live="polite"
+         aria-atomic="true"
+         data-bs-autohide="true"
+         data-bs-delay="3000">
+        <div class="toast-body">Filme adicionado de volta!</div>
     </div>
+    <div id="reels-share-toast"
+         class="toast favorites-toast"
+         role="status"
+         aria-live="polite"
+         aria-atomic="true"
+         data-bs-autohide="true"
+         data-bs-delay="3000">
+        <div class="toast-body">Link copiado!</div>
+    </div>
+    <script src="{{ url_for('static', filename='reels-want-to-watch.js') }}"></script>
+    <script src="{{ url_for('static', filename='reels-share.js') }}"></script>
+    <script src="{{ url_for('static', filename='favoritos.js') }}"></script>
 {% endblock content %}
