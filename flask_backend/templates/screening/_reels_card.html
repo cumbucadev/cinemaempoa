@@ -52,7 +52,7 @@
                     <button type="button"
                             class="reels-share"
                             data-function="share"
-                            data-share-url="{{ url_for('screening.index', screening=card.screening_id, _external=True) }}"
+                            data-share-url="{{ canonical_base_url }}{{ url_for('screening.index', screening=card.screening_id) }}"
                             data-movie-title="{{ card.movie_title }}"
                             data-share-text="{{ share_text }}"
                             aria-label="Compartilhar">

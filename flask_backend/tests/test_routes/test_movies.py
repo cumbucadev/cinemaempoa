@@ -425,6 +425,112 @@ class TestMovieShow:
         assert response.status_code == 200
         assert b"Filme Individual" in response.data
 
+    def test_renders_og_title_and_falls_back_to_first_image(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme OG", slug="filme-og")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="https://i.ibb.co/poster-og.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-og")
+        html = response.get_data(as_text=True)
+        assert '<meta property="og:title" content="Filme OG">' in html
+        assert 'property="og:description"' in html
+        assert (
+            '<meta property="og:image" content="https://i.ibb.co/poster-og.jpg">'
+            in html
+        )
+
+    def test_og_image_prefers_the_selected_screening_over_the_first_image(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme OG Selecionado", slug="filme-og-selecionado")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d1",
+                    image="/screening/assets/poster-um.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                ),
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d2",
+                    image="/screening/assets/poster-dois.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 2), time="20:00")],
+                ),
+            ]
+            db_session.add(movie)
+            db_session.commit()
+            second_screening_id = movie.screenings[1].id
+
+        response = client.get(
+            f"/movies/filme-og-selecionado?screening={second_screening_id}"
+        )
+        html = response.get_data(as_text=True)
+        assert (
+            '<meta property="og:image" '
+            'content="https://cinemaempoa.com.br/screening/assets/poster-dois.jpg">'
+            in html
+        )
+        assert "poster-um.jpg" not in html.split('property="og:image"')[1].split(">")[0]
+
+    def test_og_image_absolutizes_a_relative_local_disk_url(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Upload Local", slug="filme-upload-local")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image="/screening/assets/poster.jpg",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-upload-local")
+        html = response.get_data(as_text=True)
+        assert (
+            '<meta property="og:image" '
+            'content="https://cinemaempoa.com.br/screening/assets/poster.jpg">' in html
+        )
+
+    def test_og_image_omitted_when_movie_has_no_images(
+        self, client, app, setup_cinemas
+    ):
+        with app.app_context():
+            cinema = db_session.query(Cinema).first()
+            movie = Movie(title="Filme Sem Poster OG", slug="filme-sem-poster-og")
+            movie.screenings = [
+                Screening(
+                    cinema_id=cinema.id,
+                    description="d",
+                    image=None,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+        response = client.get("/movies/filme-sem-poster-og")
+        html = response.get_data(as_text=True)
+        assert 'property="og:image"' not in html
+
     def test_carousel_opens_on_selected_screening(self, client, app, setup_cinemas):
         with app.app_context():
             cinema = db_session.query(Cinema).first()
@@ -456,11 +562,15 @@ class TestMovieShow:
         )
         assert response.status_code == 200
         html = response.data.decode()
+        # locate the <img src="..."> in the carousel body, not the
+        # og:image meta tag in <head> (which also embeds the filename)
         first_slide = html[
-            html.index("poster-um.jpg") - 200 : html.index("poster-um.jpg")
+            html.index('src="poster-um.jpg"') - 200 : html.index('src="poster-um.jpg"')
         ]
         second_slide = html[
-            html.index("poster-dois.jpg") - 200 : html.index("poster-dois.jpg")
+            html.index('src="poster-dois.jpg"') - 200 : html.index(
+                'src="poster-dois.jpg"'
+            )
         ]
         assert "active" not in first_slide
         assert "active" in second_slide
@@ -497,11 +607,15 @@ class TestMovieShow:
         response = client.get("/movies/filme-sessao-invalida?screening=999999")
         assert response.status_code == 200
         html = response.data.decode()
+        # locate the <img src="..."> in the carousel body, not the
+        # og:image meta tag in <head> (which also embeds the filename)
         first_slide = html[
-            html.index("poster-um.jpg") - 200 : html.index("poster-um.jpg")
+            html.index('src="poster-um.jpg"') - 200 : html.index('src="poster-um.jpg"')
         ]
         second_slide = html[
-            html.index("poster-dois.jpg") - 200 : html.index("poster-dois.jpg")
+            html.index('src="poster-dois.jpg"') - 200 : html.index(
+                'src="poster-dois.jpg"'
+            )
         ]
         assert "active" in first_slide
         assert "active" not in second_slide

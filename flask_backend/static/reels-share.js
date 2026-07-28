@@ -29,8 +29,10 @@ document.addEventListener("click", (event) => {
         return;
     }
 
-    navigator.clipboard.writeText(shareData.url).then(() => {
-        trackShare();
-        showShareToast();
-    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareData.url).then(() => {
+            trackShare();
+            showShareToast();
+        }).catch(() => {});
+    }
 });

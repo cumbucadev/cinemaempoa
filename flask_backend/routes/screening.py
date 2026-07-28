@@ -62,6 +62,17 @@ from flask_backend.utils.visitor import (
 
 bp = Blueprint("screening", __name__)
 
+# request-derived _external=True is unreliable behind this app's
+# nginx/traefik setup (no ProxyFix, no Host-header rewrite) — see
+# scripts/sitemap.py for the same workaround in a different context.
+CANONICAL_BASE_URL = "https://cinemaempoa.com.br"
+
+
+def _redirect_to_movie(screening: Screening):
+    return redirect(
+        url_for("movie.show", slug=screening.movie.slug, screening=screening.id)
+    )
+
 
 def _mobile_index(shared_screening: Optional[Screening] = None):
     now = datetime.now()
@@ -93,10 +104,13 @@ def _mobile_index(shared_screening: Optional[Screening] = None):
             None,
         )
         if shared_card is None:
-            return redirect(url_for("movie.show", slug=shared_screening.movie.slug))
+            return _redirect_to_movie(shared_screening)
 
     return render_template(
-        "screening/index_mobile.html", cards=cards, shared_card=shared_card
+        "screening/index_mobile.html",
+        cards=cards,
+        shared_card=shared_card,
+        canonical_base_url=CANONICAL_BASE_URL,
     )
 
 
@@ -110,7 +124,7 @@ def index():
     is_mobile = is_mobile_user_agent(request.headers.get("User-Agent", ""))
 
     if shared_screening is not None and not is_mobile:
-        return redirect(url_for("movie.show", slug=shared_screening.movie.slug))
+        return _redirect_to_movie(shared_screening)
 
     if is_mobile:
         return _mobile_index(shared_screening)
@@ -506,4 +520,6 @@ def favoritos():
     movie_ids = list(get_movie_ids_for_visitor(visitor_id)) if visitor_id else []
     user_logged_in = g.user is not None
     cards = build_favorites_feed(movie_ids, date.today(), user_logged_in)
-    return render_template("screening/favoritos.html", cards=cards)
+    return render_template(
+        "screening/favoritos.html", cards=cards, canonical_base_url=CANONICAL_BASE_URL
+    )

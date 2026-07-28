@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% from "macros/alt_badge.html" import alt_badge %}
 {% block meta_tags %}
-    <meta name="description"
-          content="Veja as exibições de {{ movie['title'] }} em {{ movie['screenings']|length }} {{ 'cinema' if movie['screenings']|length == 1 else 'cinemas' }} de Porto Alegre: posters, divulgação e datas.">
+    {% set description = "Veja as exibições de " + movie['title'] + " em " + movie['screenings']|length|string + " " + ('cinema' if movie['screenings']|length == 1 else 'cinemas') + " de Porto Alegre: posters, divulgação e datas." %}
+    <meta name="description" content="{{ description }}">
+    <meta property="og:title" content="{{ movie['title'] }}">
+    <meta property="og:description" content="{{ description }}">
+    {% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
 {% endblock meta_tags %}
 {% block header %}
     <h1>

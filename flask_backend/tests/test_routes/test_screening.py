@@ -837,6 +837,25 @@ class TestScreeningIndexMobile:
         assert 'data-movie-title="Filme Compartilhável"' in html
         assert "Capitólio" in html
 
+    def test_share_url_uses_the_canonical_production_domain(
+        self, client, setup_cinemas
+    ):
+        # url_for(..., _external=True) can't be trusted behind this app's
+        # nginx setup (no Host-header rewrite), so the share link is built
+        # from a hardcoded canonical domain instead - see screening.py's
+        # CANONICAL_BASE_URL.
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Compartilhável Externo",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert (
+            f'data-share-url="https://cinemaempoa.com.br/?screening={screening_id}"'
+            in html
+        )
+
 
 class TestScreeningSharedLink:
     def test_mobile_with_screening_in_current_feed_renders_and_highlights_card(
@@ -864,7 +883,10 @@ class TestScreeningSharedLink:
             )
         response = client.get(f"/?screening={screening_id}")
         assert response.status_code == 302
-        assert response.headers["Location"] == "/movies/filme-redirecionado"
+        assert (
+            response.headers["Location"]
+            == f"/movies/filme-redirecionado?screening={screening_id}"
+        )
 
     def test_mobile_with_screening_aged_out_of_feed_redirects_to_movie_page(
         self, client, setup_cinemas
@@ -878,7 +900,10 @@ class TestScreeningSharedLink:
             f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
         )
         assert response.status_code == 302
-        assert response.headers["Location"] == "/movies/filme-expirado"
+        assert (
+            response.headers["Location"]
+            == f"/movies/filme-expirado?screening={screening_id}"
+        )
 
     def test_invalid_screening_id_falls_back_to_normal_mobile_feed(
         self, client, setup_cinemas
@@ -1056,6 +1081,32 @@ class TestFavoritos:
         response = client.get("/favoritos")
 
         assert b"Filme Futuro" in response.data
+
+    def test_share_url_uses_the_canonical_production_domain(
+        self, client, setup_cinemas
+    ):
+        # /favoritos shares _reels_card.html with the homepage, which needs
+        # canonical_base_url in its render context to build data-share-url.
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Favorito Compartilhável",
+                screening_date=date.today() + timedelta(days=2),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert (
+            f'data-share-url="https://cinemaempoa.com.br/?screening={screening_id}"'
+            in html
+        )
 
     def test_shows_marked_movie_with_no_upcoming_screening_as_stale(
         self, client, setup_cinemas
