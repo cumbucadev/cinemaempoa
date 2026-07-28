@@ -1,6 +1,6 @@
 import math
 from datetime import date, datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 from flask import (
     Blueprint,
@@ -63,7 +63,7 @@ from flask_backend.utils.visitor import (
 bp = Blueprint("screening", __name__)
 
 
-def _mobile_index():
+def _mobile_index(shared_screening: Optional[Screening] = None):
     now = datetime.now()
     today = now.date()
     window_end = today + timedelta(days=6)
@@ -86,13 +86,34 @@ def _mobile_index():
         wanted_movie_ids=wanted_movie_ids,
     )
 
-    return render_template("screening/index_mobile.html", cards=cards)
+    shared_card = None
+    if shared_screening is not None:
+        shared_card = next(
+            (card for card in cards if card["screening_id"] == shared_screening.id),
+            None,
+        )
+        if shared_card is None:
+            return redirect(url_for("movie.show", slug=shared_screening.movie.slug))
+
+    return render_template(
+        "screening/index_mobile.html", cards=cards, shared_card=shared_card
+    )
 
 
 @bp.route("/")
 def index():
-    if is_mobile_user_agent(request.headers.get("User-Agent", "")):
-        return _mobile_index()
+    screening_id = request.args.get("screening", type=int)
+    shared_screening = get_screening_by_id(screening_id) if screening_id else None
+    if shared_screening is not None and not shared_screening.movie.slug:
+        shared_screening = None
+
+    is_mobile = is_mobile_user_agent(request.headers.get("User-Agent", ""))
+
+    if shared_screening is not None and not is_mobile:
+        return redirect(url_for("movie.show", slug=shared_screening.movie.slug))
+
+    if is_mobile:
+        return _mobile_index(shared_screening)
 
     cinemas = get_all_cinemas()
     today = date.today()

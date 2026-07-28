@@ -816,6 +816,85 @@ class TestScreeningIndexMobile:
         assert "Filme Já Começou" not in html
 
 
+class TestScreeningSharedLink:
+    def test_mobile_with_screening_in_current_feed_renders_and_highlights_card(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Compartilhável",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert "Filme Compartilhável" in html
+
+    def test_desktop_with_valid_screening_redirects_to_movie_page(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Redirecionado",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(f"/?screening={screening_id}")
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/movies/filme-redirecionado"
+
+    def test_mobile_with_screening_aged_out_of_feed_redirects_to_movie_page(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Expirado",
+                screening_date=date.today() - timedelta(days=30),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/movies/filme-expirado"
+
+    def test_invalid_screening_id_falls_back_to_normal_mobile_feed(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/?screening=999999", headers={"User-Agent": MOBILE_UA})
+        assert response.status_code == 200
+
+    def test_non_integer_screening_param_falls_back_to_normal_mobile_feed(
+        self, client, setup_cinemas
+    ):
+        response = client.get("/?screening=abc", headers={"User-Agent": MOBILE_UA})
+        assert response.status_code == 200
+
+    def test_screening_with_movie_missing_slug_falls_back_to_normal_mobile_feed(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            cinema = _get_cinema()
+            movie = Movie(title="Filme Sem Slug", slug=None)
+            db_session.add(movie)
+            db_session.commit()
+            screening = Screening(
+                movie_id=movie.id,
+                cinema_id=cinema.id,
+                description="A description",
+                dates=[
+                    ScreeningDate(date=date.today() + timedelta(days=1), time="20:00")
+                ],
+            )
+            db_session.add(screening)
+            db_session.commit()
+            screening_id = screening.id
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        assert response.status_code == 200
+
+
 def _create_movie(title="Filme"):
     movie = Movie(title=title, slug=title.lower().replace(" ", "-"))
     db_session.add(movie)
