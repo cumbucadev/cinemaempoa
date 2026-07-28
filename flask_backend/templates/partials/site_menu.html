@@ -1,0 +1,82 @@
+{# shared lateral (offcanvas) mobile menu: the single mobile nav used across #}
+{# every page, so it looks and behaves the same regardless of entry point #}
+{# djlint:off #}
+<div class="offcanvas offcanvas-start" tabindex="-1" id="site-menu" aria-labelledby="site-menu-label">
+{# djlint:on #}
+<div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="site-menu-label">Cinema em POA</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+</div>
+<div class="offcanvas-body">
+    <ul class="nav navbar-nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("screening.index") %}active{% endif %}"
+               href="{{ url_for("screening.index") }}">O que está passando</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("screening.favoritos") %}active{% endif %}"
+               href="{{ url_for("screening.favoritos") }}">Meus Filmes</a>
+        </li>
+        <li>
+            <hr class="my-2">
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("page.about") %}active{% endif %}"
+               href="{{ url_for("page.about") }}">Sobre o projeto</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("screening.programacao") %}active{% endif %}"
+               href="{{ url_for("screening.programacao") }}">Programação</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("cinema.index") %}active{% endif %}"
+               href="{{ url_for("cinema.index") }}">Cinemas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("movie.index") %}active{% endif %}"
+               href="{{ url_for("movie.index") }}">Filmes</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("movie.posters") %}active{% endif %}"
+               href="{{ url_for("movie.posters") }}">Posters</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == url_for("blog.index") %}active{% endif %}"
+               href="{{ url_for("blog.index") }}">Blog</a>
+        </li>
+        <li>
+            <hr class="my-2">
+        </li>
+        {% if g.user %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.path == url_for("admin_blog.index") %}active{% endif %}"
+                   href="{{ url_for("admin_blog.index") }}">Gerenciar Blog</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.path == url_for("admin_alerts.index") %}active{% endif %}"
+                   href="{{ url_for("admin_alerts.index") }}">Alertas</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.path.startswith('/admin/cinemas') %}active{% endif %}"
+                   href="{{ url_for("admin_cinemas.index") }}">Gerenciar Cinemas</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.path.startswith('/admin/pipelines') %}active{% endif %}"
+                   href="{{ url_for("admin_pipelines.index") }}">Pipelines</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.path == url_for("screening.create") %}active{% endif %}"
+                   href="{{ url_for("screening.create") }}">Nova sessão</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for("auth.logout") }}">Sair</a>
+            </li>
+        {% else %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.path == url_for("auth.login") %}active{% endif %}"
+                   href="{{ url_for("auth.login") }}">Acessar</a>
+            </li>
+        {% endif %}
+    </ul>
+</div>
+</div>
