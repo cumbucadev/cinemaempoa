@@ -6,7 +6,7 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("click", (event) => {
   const button = event.target.closest('[data-function="want-to-watch"]');
-  if (!button || button.disabled) return;
+  if (!button) return;
   const tile = button.closest(".favorites-tile");
   if (!tile) return;
   // reels-want-to-watch.js's own handler (loaded before this file, registered
