@@ -130,13 +130,18 @@ todos = sorted(
     (c for c in cards if c["no_sessions"]), key=lambda c: c["movie_title"]
 )
 return render_template(
-    "screening/favoritos.html", em_exibicao=em_exibicao, todos=todos
+    "screening/favoritos.html",
+    em_exibicao=em_exibicao,
+    todos=todos,
+    canonical_base_url=CANONICAL_BASE_URL,
 )
 ```
 
 `em_exibicao` keeps `build_favorites_feed`'s existing soonest-date sort;
 `todos` is sorted alphabetically — recency doesn't mean much for an archive
-list, alphabetical is easier to scan.
+list, alphabetical is easier to scan. `canonical_base_url` (already passed
+today, `flask_backend/routes/screening.py:68`) is preserved unchanged — the
+share button below still needs it.
 
 `favoritos.html`:
 
@@ -257,11 +262,16 @@ classes directly (same visual tile, different tag/interactivity):
     {% elif card.no_sessions %}
       <p class="text-muted">Não há sessões previstas no momento.</p>
     {% endif %}
+    {%- if card.soonest_date %}
+      {%- set share_text = card.cinema_name + " · " + card.soonest_date.strftime("%d/%m") + ((" " + card.soonest_time) if card.soonest_time else "") %}
+    {%- else %}
+      {%- set share_text = card.cinema_name %}
+    {%- endif %}
     <p>
       <button type="button" class="favorites-tile-share" data-function="share"
-              data-share-url="{{ url_for('screening.index', screening=card.screening_id, _external=True) }}"
+              data-share-url="{{ canonical_base_url }}{{ url_for('screening.index', screening=card.screening_id) }}"
               data-movie-title="{{ card.movie_title }}"
-              data-share-text="{%- if card.soonest_date %}{{ card.cinema_name }} · {{ card.soonest_date.strftime("%d/%m") }}{% if card.soonest_time %} {{ card.soonest_time }}{% endif %}{% else %}{{ card.cinema_name }}{% endif -%}"
+              data-share-text="{{ share_text }}"
               aria-label="Compartilhar">Compartilhar</button>
     </p>
     {% if card.screening_url %}
