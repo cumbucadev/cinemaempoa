@@ -3,12 +3,24 @@
    letterboxd-style, instead of the site's default bootstrap card. --cinema-
    accent is set inline per page from Cinema.color (constants.py) so each
    venue's page carries its own existing brand color rather than one shared
-   theme. */
+   theme. some brand colors (e.g. sala-redencao's #000075) are near-black and
+   unreadable as text on the dark theme's near-black background, so
+   --cinema-accent-text lightens the accent for that use only -- badges and
+   the poster placeholder keep the raw --cinema-accent since white text sits
+   on top of those and needs a darker, saturated fill instead. */
+
+:root {
+    --cinema-accent-text: var(--cinema-accent);
+}
+
+:root[data-bs-theme="dark"] {
+    --cinema-accent-text: color-mix(in srgb, var(--cinema-accent) 45%, white);
+}
 
 .cinema-accent-bar {
     height: 3px;
     width: 3rem;
-    background: var(--cinema-accent);
+    background: var(--cinema-accent-text);
     border-radius: 999px;
     margin: 0.6rem 0 1.25rem;
 }
@@ -22,7 +34,7 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--cinema-accent);
+    color: var(--cinema-accent-text);
 }
 
 .section-eyebrow::after {
@@ -38,7 +50,7 @@
     height: 0.4rem;
     flex: 0 0 auto;
     border-radius: 50%;
-    background: var(--cinema-accent);
+    background: var(--cinema-accent-text);
 }
 
 @media (prefers-reduced-motion: no-preference) {
