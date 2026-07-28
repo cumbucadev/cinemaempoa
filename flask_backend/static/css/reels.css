@@ -245,45 +245,6 @@ body.reels-root {
     font-size: 0.85rem;
 }
 
-/* hamburger offcanvas menu */
-.reels-root #reels-menu {
-    background: var(--reels-surface);
-    color: var(--reels-text);
-}
-
-.reels-root #reels-menu .offcanvas-header {
-    border-bottom: 1px solid var(--reels-hairline);
-}
-
-.reels-root #reels-menu .offcanvas-title {
-    color: var(--reels-text);
-}
-
-.reels-root #reels-menu .btn-close {
-    filter: var(--reels-close-filter);
-}
-
-.reels-root #reels-menu .nav-link {
-    color: var(--reels-text-muted);
-    padding: 0.6rem 0.25rem;
-    border-bottom: 1px solid var(--reels-hairline);
-}
-
-.reels-root #reels-menu .nav-item:last-child .nav-link {
-    border-bottom: none;
-}
-
-.reels-root #reels-menu .nav-link:hover,
-.reels-root #reels-menu .nav-link:focus,
-.reels-root #reels-menu .nav-link.active {
-    color: var(--reels-accent);
-}
-
-.reels-root #reels-menu hr {
-    border-color: var(--reels-hairline);
-    margin: 0.5rem 0;
-}
-
 .reels-wtw-toast {
     position: fixed;
     top: 3.5rem;
