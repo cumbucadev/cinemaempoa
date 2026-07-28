@@ -894,6 +894,40 @@ class TestScreeningSharedLink:
         )
         assert response.status_code == 200
 
+    def test_shared_card_renders_movie_specific_og_tags(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme OG",
+                image="poster-og.jpg",
+                image_width=100,
+                image_height=200,
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        html = response.get_data(as_text=True)
+        assert '<meta property="og:title" content="Filme OG">' in html
+        assert '<meta property="og:image" content="poster-og.jpg">' in html
+
+    def test_plain_feed_keeps_generic_og_tags(self, client, setup_cinemas):
+        response = client.get("/", headers={"User-Agent": MOBILE_UA})
+        html = response.get_data(as_text=True)
+        assert "Programação do dia" in html
+        assert 'property="og:title"' not in html
+
+    def test_shared_card_scrolls_to_its_card_on_load(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Scroll",
+                screening_date=date.today() + timedelta(days=1),
+            )
+        response = client.get(
+            f"/?screening={screening_id}", headers={"User-Agent": MOBILE_UA}
+        )
+        html = response.get_data(as_text=True)
+        assert f'getElementById("reels-card-{screening_id}")' in html
+
 
 def _create_movie(title="Filme"):
     movie = Movie(title=title, slug=title.lower().replace(" ", "-"))
