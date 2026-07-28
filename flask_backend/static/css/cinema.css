@@ -162,6 +162,15 @@
     outline-offset: 2px;
 }
 
+/* touch devices can't hover, so the scrim/title stays on permanently instead
+   of only revealing on tap-then-navigate */
+@media (hover: none) {
+    .poster-tile-scrim {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .poster-tile,
     .poster-tile-scrim {
