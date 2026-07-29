@@ -1082,32 +1082,6 @@ class TestFavoritos:
 
         assert b"Filme Futuro" in response.data
 
-    def test_share_url_uses_the_canonical_production_domain(
-        self, client, setup_cinemas
-    ):
-        # /favoritos shares _reels_card.html with the homepage, which needs
-        # canonical_base_url in its render context to build data-share-url.
-        with client.application.app_context():
-            screening_id = _create_screening(
-                movie_title="Filme Favorito Compartilhável",
-                screening_date=date.today() + timedelta(days=2),
-            )
-            movie_id = db_session.query(Screening).get(screening_id).movie_id
-
-        client.set_cookie("visitor_id", "visitor-a")
-        with client.application.app_context():
-            from flask_backend.repository.want_to_watch import toggle
-
-            toggle(movie_id, "visitor-a")
-
-        response = client.get("/favoritos")
-        html = response.get_data(as_text=True)
-
-        assert (
-            f'data-share-url="https://cinemaempoa.com.br/?screening={screening_id}"'
-            in html
-        )
-
     def test_shows_marked_movie_with_no_upcoming_screening_as_stale(
         self, client, setup_cinemas
     ):
@@ -1128,7 +1102,7 @@ class TestFavoritos:
         html = response.get_data(as_text=True)
 
         assert "Filme Antigo" in html
-        assert "Não há sessões previstas no momento" in html
+        assert "Todos os filmes" in html
 
     def test_toggle_then_favoritos_then_untoggle_round_trip(
         self, client, setup_cinemas
@@ -1276,7 +1250,10 @@ class TestFavoritos:
 
         assert "Nenhum dos seus filmes está em cartaz agora." in html
 
-    def test_date_badge_only_shown_for_em_exibicao_cards(self, client, setup_cinemas):
+    def test_tiles_never_show_a_date_badge(self, client, setup_cinemas):
+        # favoritos tiles are poster-only (poster + want-to-watch star): the
+        # section split (Em exibição / Todos os filmes) already signals
+        # whether a movie has upcoming sessions, so no per-tile date badge.
         with client.application.app_context():
             showing_id = _create_screening(
                 movie_title="Filme Com Data",
@@ -1299,4 +1276,4 @@ class TestFavoritos:
         response = client.get("/favoritos")
         html = response.get_data(as_text=True)
 
-        assert html.count('class="poster-tile-badge"') == 1
+        assert "poster-tile-badge" not in html

@@ -1,10 +1,4 @@
 document.addEventListener("click", (event) => {
-  if (event.target.closest('[data-function="want-to-watch"]')) {
-    event.preventDefault(); // suppress <summary>'s native open/close toggle
-  }
-});
-
-document.addEventListener("click", (event) => {
   const button = event.target.closest('[data-function="want-to-watch"]');
   if (!button) return;
   const tile = button.closest(".favorites-tile");
@@ -23,20 +17,4 @@ document.addEventListener("click", (event) => {
     observer.disconnect(); // terminal in both outcomes - success or failure
   });
   observer.observe(button, { attributes: true, attributeFilter: ["data-wanted", "disabled"] });
-});
-
-document.querySelectorAll('[data-function="publish"]').forEach((btn) => {
-  btn.addEventListener("click", () => {
-    fetch(`/screening/${btn.dataset.screeningId}/publish`, { method: "POST" })
-      .then((response) => { if (response.ok) window.location.reload(); })
-      .catch((error) => console.error("Error:", error));
-  });
-});
-
-document.querySelectorAll('[data-function="delete"]').forEach((btn) => {
-  btn.addEventListener("click", () => {
-    fetch(`/screening/${btn.dataset.screeningId}/delete`, { method: "POST" })
-      .then((response) => { if (response.ok) window.location.reload(); })
-      .catch((error) => console.error("Error:", error));
-  });
 });

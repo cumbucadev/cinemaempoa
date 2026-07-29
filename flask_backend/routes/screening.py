@@ -529,5 +529,4 @@ def favoritos():
         "screening/favoritos.html",
         em_exibicao=em_exibicao,
         todos=todos,
-        canonical_base_url=CANONICAL_BASE_URL,
     )

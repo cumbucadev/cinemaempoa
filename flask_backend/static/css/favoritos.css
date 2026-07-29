@@ -1,41 +1,30 @@
-/* expand-in-place: an opened tile spans the full grid row, pushing
-   subsequent tiles onto the next row via the grid's normal auto-flow */
-.favorites-tile[open] {
-    grid-column: 1 / -1;
+/* .poster-tile is a plain <div> here instead of the <a> the shared
+   macros/poster_tile.html macro uses, because this tile also needs a star
+   <button> overlaying the poster - nesting a button inside an <a> is
+   invalid HTML content model and unreliable for keyboard/screen-reader
+   users. Keeping them as absolutely-positioned siblings inside the same
+   position:relative .poster-tile avoids that: .favorites-tile-link fills
+   the tile and carries the click-through, .favorites-tile-star sits above
+   it via z-index. */
+.favorites-tile-link {
+    position: absolute;
+    inset: 0;
+    display: block;
 }
 
-.favorites-tile-summary {
-    list-style: none;
+.favorites-tile-link:focus-visible {
+    outline: 2px solid var(--cinema-accent);
+    outline-offset: 2px;
 }
 
-/* .poster-tile (from cinema.css) is display:block with no explicit width,
-   so it normally fills its container's inline size - fine inside a grid
-   cell, but once the parent <details> spans the full row above, an
-   unconstrained summary would stretch to that same full width and, with
-   aspect-ratio: 2/3 still applied, blow up to an enormous poster. Cap it
-   back to the width of a single .poster-grid column (cinema.css) at each of
-   that grid's breakpoints, so the opened tile's poster stays tile-sized
-   instead of stretching to the full row. .favorites-tile-detail renders
-   below the summary (not beside it), so this doesn't free up space for it -
-   it just keeps the poster itself from blowing up. */
-.favorites-tile[open] .favorites-tile-summary {
-    max-width: calc((100% - 1.1rem) / 3);
-}
-
-@media (min-width: 480px) {
-    .favorites-tile[open] .favorites-tile-summary {
-        max-width: calc((100% - 2.1rem) / 4);
-    }
-}
-
-@media (min-width: 768px) {
-    .favorites-tile[open] .favorites-tile-summary {
-        max-width: calc((100% - 2.8rem) / 5);
-    }
-}
-
-.favorites-tile-summary::-webkit-details-marker {
-    display: none;
+/* cinema.css's .poster-tile:hover .poster-tile-scrim already reveals the
+   title on hover regardless of nesting depth. .poster-tile:focus-visible
+   never matches here though, since .poster-tile is a plain <div> and
+   .favorites-tile-link is the thing that actually receives keyboard focus -
+   so the scrim needs its own focus-visible rule off that link instead. */
+.favorites-tile-link:focus-visible .poster-tile-scrim {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .favorites-tile-star {
@@ -48,22 +37,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
     border: none;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 1.1rem;
+    background: none;
+    color: var(--cinema-accent);
+    font-size: 1.2rem;
     line-height: 1;
     padding: 0;
     cursor: pointer;
+    /* every star on this page starts filled (data-wanted="true" by
+       definition - this is your favorites list), so a solid chip behind it
+       reads as chrome rather than information. A drop-shadow keeps it
+       legible over bright posters without adding a second loud badge next
+       to the star. */
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 5px rgba(0, 0, 0, 0.45));
 }
 
-.favorites-tile-star[data-wanted="true"] {
-    color: var(--cinema-accent);
-}
-
-.favorites-tile-detail {
-    padding: 1rem 0.25rem 1.5rem;
+.favorites-tile-star[data-wanted="false"] {
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .favorites-section-subhead {
