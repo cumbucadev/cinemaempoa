@@ -1,4 +1,4 @@
-let shownAddedHint = false;
+let shownAddedHint = false
 
 function setWantToWatchState(button, wanted) {
     button.dataset.wanted = wanted ? "true" : "false";
@@ -14,6 +14,12 @@ function showAddedToast() {
     if (!toastEl) return;
     bootstrap.Toast.getOrCreateInstance(toastEl).show();
 }
+
+document.addEventListener("click", (event) => {
+    const toastEl = document.getElementById("reels-wtw-toast");
+    if (!toastEl || !toastEl.contains(event.target)) return;
+    window.location.href = "/favoritos";
+});
 
 document.addEventListener("click", (event) => {
     const button = event.target.closest('[data-function="want-to-watch"]');
