@@ -28,6 +28,10 @@
             Em exibição
         </h2>
         {% if em_exibicao %}
+            <p class="favorites-section-subhead">
+                Clique nos filmes para saber quando e em qual cinema
+                você pode assistí-los.
+            </p>
             <div class="poster-grid mb-5">
                 {% for card in em_exibicao %}
                     {% include "screening/_favorites_tile.html" %}
