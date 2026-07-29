@@ -520,6 +520,13 @@ def favoritos():
     movie_ids = list(get_movie_ids_for_visitor(visitor_id)) if visitor_id else []
     user_logged_in = g.user is not None
     cards = build_favorites_feed(movie_ids, date.today(), user_logged_in)
+    em_exibicao = [card for card in cards if not card["no_sessions"]]
+    todos = sorted(
+        (card for card in cards if card["no_sessions"]),
+        key=lambda card: card["movie_title"],
+    )
     return render_template(
-        "screening/favoritos.html", cards=cards, canonical_base_url=CANONICAL_BASE_URL
+        "screening/favoritos.html",
+        em_exibicao=em_exibicao,
+        todos=todos,
     )

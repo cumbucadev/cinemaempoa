@@ -1082,32 +1082,6 @@ class TestFavoritos:
 
         assert b"Filme Futuro" in response.data
 
-    def test_share_url_uses_the_canonical_production_domain(
-        self, client, setup_cinemas
-    ):
-        # /favoritos shares _reels_card.html with the homepage, which needs
-        # canonical_base_url in its render context to build data-share-url.
-        with client.application.app_context():
-            screening_id = _create_screening(
-                movie_title="Filme Favorito Compartilhável",
-                screening_date=date.today() + timedelta(days=2),
-            )
-            movie_id = db_session.query(Screening).get(screening_id).movie_id
-
-        client.set_cookie("visitor_id", "visitor-a")
-        with client.application.app_context():
-            from flask_backend.repository.want_to_watch import toggle
-
-            toggle(movie_id, "visitor-a")
-
-        response = client.get("/favoritos")
-        html = response.get_data(as_text=True)
-
-        assert (
-            f'data-share-url="https://cinemaempoa.com.br/?screening={screening_id}"'
-            in html
-        )
-
     def test_shows_marked_movie_with_no_upcoming_screening_as_stale(
         self, client, setup_cinemas
     ):
@@ -1128,36 +1102,7 @@ class TestFavoritos:
         html = response.get_data(as_text=True)
 
         assert "Filme Antigo" in html
-        assert "Não há sessões previstas no momento" in html
-
-    def test_third_card_onward_defers_poster_loading_via_shared_scripts(
-        self, client, setup_cinemas
-    ):
-        # /favoritos shares _reels_card.html with the homepage, which only
-        # ever loads because base_reels.html carries the lazy-poster
-        # IntersectionObserver script both pages extend from - this guards
-        # against that script silently going missing again on either page.
-        with client.application.app_context():
-            from flask_backend.repository.want_to_watch import toggle
-
-            client.set_cookie("visitor_id", "visitor-a")
-            for i in range(3):
-                screening_id = _create_screening(
-                    movie_title=f"Filme Favorito {i}",
-                    image=f"poster{i}.jpg",
-                    image_width=100,
-                    image_height=200,
-                    screening_date=date.today() + timedelta(days=i + 1),
-                )
-                movie_id = db_session.query(Screening).get(screening_id).movie_id
-                toggle(movie_id, "visitor-a")
-
-        response = client.get("/favoritos")
-        html = response.get_data(as_text=True)
-
-        assert 'data-src="poster2.jpg"' in html
-        assert "posterObserver" in html
-        assert "IntersectionObserver" in html
+        assert "Todos os filmes" in html
 
     def test_toggle_then_favoritos_then_untoggle_round_trip(
         self, client, setup_cinemas
@@ -1208,3 +1153,127 @@ class TestFavoritos:
         )
         assert "active" not in home_link.group(1).split()
         assert "active" in favoritos_link.group(1).split()
+
+    def test_splits_movies_into_em_exibicao_and_todos_sections(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            showing_id = _create_screening(
+                movie_title="Filme Em Cartaz",
+                screening_date=date.today() + timedelta(days=2),
+            )
+            showing_movie_id = db_session.query(Screening).get(showing_id).movie_id
+            stale_id = _create_screening(
+                movie_title="Filme Arquivado",
+                screening_date=date.today() - timedelta(days=30),
+            )
+            stale_movie_id = db_session.query(Screening).get(stale_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(showing_movie_id, "visitor-a")
+            toggle(stale_movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        em_exibicao_index = html.index("Em exibição")
+        todos_index = html.index("Todos os filmes")
+        showing_index = html.index("Filme Em Cartaz")
+        archived_index = html.index("Filme Arquivado")
+        assert em_exibicao_index < showing_index < todos_index < archived_index
+
+    def test_todos_section_sorted_alphabetically(self, client, setup_cinemas):
+        with client.application.app_context():
+            zeta_id = _create_screening(
+                movie_title="Filme Zeta",
+                screening_date=date.today() - timedelta(days=10),
+            )
+            zeta_movie_id = db_session.query(Screening).get(zeta_id).movie_id
+            alfa_id = _create_screening(
+                movie_title="Filme Alfa",
+                screening_date=date.today() - timedelta(days=5),
+            )
+            alfa_movie_id = db_session.query(Screening).get(alfa_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(zeta_movie_id, "visitor-a")
+            toggle(alfa_movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert html.index("Filme Alfa") < html.index("Filme Zeta")
+
+    def test_hides_todos_section_when_everything_is_showing(
+        self, client, setup_cinemas
+    ):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Único",
+                screening_date=date.today() + timedelta(days=1),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert "Todos os filmes" not in html
+
+    def test_shows_no_screenings_message_when_none_showing(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening(
+                movie_title="Filme Parado",
+                screening_date=date.today() - timedelta(days=15),
+            )
+            movie_id = db_session.query(Screening).get(screening_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert "Nenhum dos seus filmes está em cartaz agora." in html
+
+    def test_tiles_never_show_a_date_badge(self, client, setup_cinemas):
+        # favoritos tiles are poster-only (poster + want-to-watch star): the
+        # section split (Em exibição / Todos os filmes) already signals
+        # whether a movie has upcoming sessions, so no per-tile date badge.
+        with client.application.app_context():
+            showing_id = _create_screening(
+                movie_title="Filme Com Data",
+                screening_date=date.today() + timedelta(days=3),
+            )
+            showing_movie_id = db_session.query(Screening).get(showing_id).movie_id
+            stale_id = _create_screening(
+                movie_title="Filme Sem Data",
+                screening_date=date.today() - timedelta(days=20),
+            )
+            stale_movie_id = db_session.query(Screening).get(stale_id).movie_id
+
+        client.set_cookie("visitor_id", "visitor-a")
+        with client.application.app_context():
+            from flask_backend.repository.want_to_watch import toggle
+
+            toggle(showing_movie_id, "visitor-a")
+            toggle(stale_movie_id, "visitor-a")
+
+        response = client.get("/favoritos")
+        html = response.get_data(as_text=True)
+
+        assert "poster-tile-badge" not in html

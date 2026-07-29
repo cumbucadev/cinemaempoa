@@ -1,0 +1,25 @@
+<div class="poster-tile favorites-tile">
+    <a class="favorites-tile-link"
+       href="{{ url_for('screening.index', screening=card.screening_id) }}">
+        {% if card.image %}
+            {# djlint:off #}
+      <img class="poster-tile-img" src="{{ card.image }}" loading="lazy"
+           alt="{{ card.image_alt or card.movie_title }}">
+            {# djlint:on #}
+        {% else %}
+            <span class="poster-tile-placeholder" aria-hidden="true">{{ card.movie_title[0] }}</span>
+        {% endif %}
+        <span class="poster-tile-scrim">
+            <span class="poster-tile-title">{{ card.movie_title }}</span>
+        </span>
+    </a>
+    <button type="button"
+            class="favorites-tile-star"
+            data-function="want-to-watch"
+            data-movie-id="{{ card.movie_id }}"
+            data-wanted="true"
+            aria-pressed="true"
+            aria-label="Remover dos meus filmes">
+        <span aria-hidden="true">★</span>
+    </button>
+</div>
