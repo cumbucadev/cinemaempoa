@@ -65,7 +65,7 @@
         <div id="tmdb-results" class="row row-cols-2 row-cols-md-4 g-3"></div>
     </div>
     <script>
-        const movieId = {{ movie.id }};
+        const movieId = parseInt("{{ movie.id }}", 10);
 
         function createCandidateCard(candidate) {
             const col = document.createElement("div");
