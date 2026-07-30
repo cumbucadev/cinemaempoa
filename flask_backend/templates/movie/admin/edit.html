@@ -62,10 +62,30 @@
                    value="{{ movie.title }}"
                    oninput="fetchTmdbCandidates()">
         </div>
+        <div id="tmdb-error" class="alert alert-danger d-none" role="alert"></div>
         <div id="tmdb-results" class="row row-cols-2 row-cols-md-4 g-3"></div>
     </div>
     <script>
         const movieId = parseInt("{{ movie.id }}", 10);
+
+        function showError(message) {
+            const errorDiv = document.getElementById("tmdb-error");
+            errorDiv.textContent = message;
+            errorDiv.classList.remove("d-none");
+        }
+
+        function clearError() {
+            const errorDiv = document.getElementById("tmdb-error");
+            errorDiv.textContent = "";
+            errorDiv.classList.add("d-none");
+        }
+
+        function parseJsonResponse(response) {
+            return response.json().then((data) => ({
+                ok: response.ok,
+                data: data
+            }));
+        }
 
         function createCandidateCard(candidate) {
             const col = document.createElement("div");
@@ -118,16 +138,27 @@
             }
 
             fetch(`/admin/movies/${movieId}/tmdb-search?q=${encodeURIComponent(query)}`)
-                .then((response) => response.json())
-                .then((candidates) => {
+                .then(parseJsonResponse)
+                .then(({
+                    ok,
+                    data
+                }) => {
+                    if (!ok) {
+                        showError(data.error || "Erro ao buscar no TMDB.");
+                        return;
+                    }
+                    clearError();
                     resultsDiv.innerHTML = "";
-                    if (candidates.length === 0) {
+                    if (data.length === 0) {
                         resultsDiv.textContent = "Nenhum resultado encontrado.";
                         return;
                     }
-                    candidates.forEach((candidate) => {
+                    data.forEach((candidate) => {
                         resultsDiv.appendChild(createCandidateCard(candidate));
                     });
+                })
+                .catch(() => {
+                    showError("Falha de conexão ao buscar no TMDB. Tente novamente.");
                 });
         }
 
@@ -153,10 +184,21 @@
                         tmdb_id: tmdbId
                     }),
                 })
-                .then((response) => response.json())
-                .then((movie) => {
-                    updateMetadataDisplay(movie);
+                .then(parseJsonResponse)
+                .then(({
+                    ok,
+                    data
+                }) => {
+                    if (!ok) {
+                        showError(data.error || "Erro ao vincular filme ao TMDB.");
+                        return;
+                    }
+                    clearError();
+                    updateMetadataDisplay(data);
                     document.getElementById("tmdb-results").innerHTML = "";
+                })
+                .catch(() => {
+                    showError("Falha de conexão ao vincular filme. Tente novamente.");
                 });
         }
 
@@ -166,10 +208,21 @@
                 fetch(`/admin/movies/${movieId}/tmdb-unlink`, {
                         method: "POST"
                     })
-                    .then((response) => response.json())
-                    .then((movie) => {
-                        updateMetadataDisplay(movie);
+                    .then(parseJsonResponse)
+                    .then(({
+                        ok,
+                        data
+                    }) => {
+                        if (!ok) {
+                            showError(data.error || "Erro ao remover vínculo com o TMDB.");
+                            return;
+                        }
+                        clearError();
+                        updateMetadataDisplay(data);
                         unlinkBtn.remove();
+                    })
+                    .catch(() => {
+                        showError("Falha de conexão ao remover vínculo. Tente novamente.");
                     });
             });
         }

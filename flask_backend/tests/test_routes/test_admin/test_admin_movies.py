@@ -139,6 +139,54 @@ class TestAdminMoviesTmdbLink:
             assert updated.tmdb_id == 555
             assert [d.name for d in updated.directors] == ["Jane Director"]
 
+    def test_relinking_to_different_tmdb_id_replaces_relations(
+        self, client, auth_headers
+    ):
+        with client.application.app_context():
+            movie_id = _create_movie().id
+
+        details_a = {
+            "genres": [{"id": 28, "name": "Ação"}],
+            "directors": [{"id": 1, "name": "Director A"}],
+            "countries": [],
+            "original_title": "Title A",
+            "release_year": 2001,
+            "original_language": "en",
+        }
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = details_a
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 111}
+            )
+        assert response.status_code == 200
+        assert response.json["directors"] == ["Director A"]
+        assert response.json["genres"] == ["Ação"]
+
+        details_b = {
+            "genres": [{"id": 35, "name": "Comédia"}],
+            "directors": [{"id": 2, "name": "Director B"}],
+            "countries": [],
+            "original_title": "Title B",
+            "release_year": 2002,
+            "original_language": "fr",
+        }
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = details_b
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 222}
+            )
+
+        assert response.status_code == 200
+        assert response.json["tmdb_id"] == 222
+        assert response.json["directors"] == ["Director B"]
+        assert response.json["genres"] == ["Comédia"]
+
+        with client.application.app_context():
+            updated = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert updated.tmdb_id == 222
+            assert [d.name for d in updated.directors] == ["Director B"]
+            assert [g.name for g in updated.genres] == ["Comédia"]
+
     def test_returns_400_when_tmdb_id_missing(self, client, auth_headers):
         with client.application.app_context():
             movie_id = _create_movie().id
