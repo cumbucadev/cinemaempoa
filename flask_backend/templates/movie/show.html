@@ -13,6 +13,11 @@
             {{ movie['title'] }}
         {% endblock title %}
     </h1>
+    {% if g.user %}
+        <p>
+            <a href="{{ url_for('admin_movies.edit', movie_id=movie['id']) }}">Editar metadados</a>
+        </p>
+    {% endif %}
     {% if movie['original_title'] and movie['original_title'] != movie['title'] %}
         <p class="text-muted">{{ movie['original_title'] }}</p>
     {% endif %}

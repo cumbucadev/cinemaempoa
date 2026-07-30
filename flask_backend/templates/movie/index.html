@@ -62,6 +62,9 @@
                             <div class="card-body">
                                 {# djlint:off #}
                                 <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
+                                {% if show_drafts %}
+                                    <a href="{{ url_for('admin_movies.edit', movie_id=movie.id) }}">Editar metadados</a>
+                                {% endif %}
                                 {# djlint:on #}
                                 <p class="card-text">
                                     {% for screening in movie.screenings %}
