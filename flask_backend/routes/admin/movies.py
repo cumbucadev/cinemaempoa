@@ -86,11 +86,16 @@ def tmdb_link(movie_id):
         return jsonify({"error": "tmdb_id é obrigatório."}), 400
 
     try:
-        details = TMDBClient().get_movie_details(int(tmdb_id))
+        tmdb_id = int(tmdb_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "tmdb_id é obrigatório."}), 400
+
+    try:
+        details = TMDBClient().get_movie_details(tmdb_id)
     except requests.RequestException as exc:
         return jsonify({"error": str(exc)}), 502
 
-    apply_tmdb_details(movie, int(tmdb_id), details)
+    apply_tmdb_details(movie, tmdb_id, details)
     db_session.add(movie)
     db_session.commit()
 

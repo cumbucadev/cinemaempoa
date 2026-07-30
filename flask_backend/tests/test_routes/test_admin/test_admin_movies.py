@@ -146,6 +146,15 @@ class TestAdminMoviesTmdbLink:
         response = auth_headers.post(f"/admin/movies/{movie_id}/tmdb-link", json={})
         assert response.status_code == 400
 
+    def test_returns_400_when_tmdb_id_not_numeric(self, client, auth_headers):
+        with client.application.app_context():
+            movie_id = _create_movie().id
+
+        response = auth_headers.post(
+            f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": "abc"}
+        )
+        assert response.status_code == 400
+
     def test_returns_502_and_does_not_write_on_tmdb_failure(self, client, auth_headers):
         with client.application.app_context():
             movie_id = _create_movie().id
