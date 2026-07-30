@@ -81,6 +81,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(admin_cinemas.bp)
 
+    from .routes.admin import movies as admin_movies
+
+    app.register_blueprint(admin_movies.bp)
+
     from .routes import page
 
     app.register_blueprint(page.bp)

@@ -73,6 +73,7 @@
                         </div>
                     </div>
                 </a>
+                {% if show_drafts %}<a href="{{ url_for('admin_movies.edit', movie_id=movie.id) }}">Editar metadados</a>{% endif %}
             </li>
         {% else %}
             <li>

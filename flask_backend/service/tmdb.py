@@ -65,6 +65,34 @@ class TMDBClient:
 
         return None
 
+    def search_movies(
+        self, title: str, language: str = "pt-BR", limit: int = 5
+    ) -> list[dict]:
+        """Search TMDB for a movie by title, returning up to `limit` candidates.
+
+        Same pt-BR -> en-US fallback as search_movie, but returns the raw
+        result list instead of just the first match.
+        """
+        for lang in [language, "en-US"]:
+            url = f"{TMDB_API_BASE_URL}/search/movie"
+            params = {"query": title, "language": lang}
+            try:
+                response = requests.get(
+                    url, headers=self.headers, params=params, timeout=10
+                )
+                response.raise_for_status()
+            except requests.RequestException as exc:
+                logger.warning(
+                    "TMDB search failed for '%s' (lang=%s): %s", title, lang, exc
+                )
+                raise
+
+            results = response.json().get("results", [])
+            if results:
+                return results[:limit]
+
+        return []
+
     def get_poster_url(
         self, title: str, size: str = DEFAULT_POSTER_SIZE
     ) -> Optional[str]:

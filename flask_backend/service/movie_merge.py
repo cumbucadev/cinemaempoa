@@ -26,7 +26,7 @@ from flask_backend.repository.screenings import (
     merge_title_cleaning_rules,
 )
 
-_SCALAR_FIELDS = ("original_title", "release_year", "original_language")
+_SCALAR_FIELDS = ("original_title", "release_year", "original_language", "tmdb_id")
 _SCREENING_BACKFILL_FIELDS = (
     "image",
     "image_alt",
@@ -47,6 +47,7 @@ def _completeness_score(movie: Movie) -> tuple:
         bool(movie.original_title),
         movie.release_year is not None,
         bool(movie.original_language),
+        movie.tmdb_id is not None,
         has_image,
     )
 

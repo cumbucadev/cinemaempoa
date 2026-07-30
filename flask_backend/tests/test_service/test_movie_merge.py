@@ -64,6 +64,16 @@ class TestPickSurvivor:
             survivor = pick_survivor([older, newer])
             assert survivor.id == newer.id
 
+    def test_movie_with_pinned_tmdb_id_wins_over_older_id(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            older = _create_movie("Filme", "filme")
+            newer = _create_movie("Cinema | Filme", "cinema-filme", tmdb_id=555)
+
+            survivor = pick_survivor([older, newer])
+            assert survivor.id == newer.id
+
     def test_tie_breaks_to_lowest_id(self, client, app, setup_cinemas):
         with client.application.app_context():
             first = _create_movie("A", "a")
@@ -94,6 +104,17 @@ class TestMergeMovies:
             assert merged.original_title == "Original"
             assert merged.release_year == 2020
             assert merged.original_language == "en"
+
+    def test_backfills_tmdb_id_from_losing_movie(self, client, app, setup_cinemas):
+        with client.application.app_context():
+            survivor = _create_movie("Filme", "filme")
+            duplicate = _create_movie("Cinema | Filme", "cinema-filme", tmdb_id=555)
+
+            merge_movies(survivor, [duplicate])
+            db_session.commit()
+
+            merged = db_session.query(Movie).filter_by(id=survivor.id).one()
+            assert merged.tmdb_id == 555
 
     def test_does_not_overwrite_existing_scalar_fields(
         self, client, app, setup_cinemas
