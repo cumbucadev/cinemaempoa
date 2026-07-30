@@ -149,3 +149,57 @@ class TestGetMovieDetails:
             details = tmdb_client.get_movie_details(123)
 
         assert details["collection"] is None
+
+
+class TestSearchMovies:
+    def test_returns_multiple_results_respecting_limit(self, tmdb_client):
+        response = Mock()
+        response.json.return_value = {
+            "results": [
+                {"id": 1, "title": "Um"},
+                {"id": 2, "title": "Dois"},
+                {"id": 3, "title": "Três"},
+            ]
+        }
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            results = tmdb_client.search_movies("filme", limit=2)
+
+        assert results == [
+            {"id": 1, "title": "Um"},
+            {"id": 2, "title": "Dois"},
+        ]
+
+    def test_falls_back_to_en_us_when_pt_br_has_no_results(self, tmdb_client):
+        empty_response = Mock()
+        empty_response.json.return_value = {"results": []}
+        results_response = Mock()
+        results_response.json.return_value = {"results": [{"id": 9, "title": "Movie"}]}
+
+        with patch(
+            "flask_backend.service.tmdb.requests.get",
+            side_effect=[empty_response, results_response],
+        ) as mock_get:
+            results = tmdb_client.search_movies("filme obscuro")
+
+        assert results == [{"id": 9, "title": "Movie"}]
+        assert mock_get.call_count == 2
+        assert mock_get.call_args_list[0].kwargs["params"]["language"] == "pt-BR"
+        assert mock_get.call_args_list[1].kwargs["params"]["language"] == "en-US"
+
+    def test_returns_empty_list_when_nothing_found(self, tmdb_client):
+        response = Mock()
+        response.json.return_value = {"results": []}
+        with patch("flask_backend.service.tmdb.requests.get", return_value=response):
+            results = tmdb_client.search_movies("inexistente")
+
+        assert results == []
+
+    def test_raises_on_request_exception(self, tmdb_client):
+        with (
+            patch(
+                "flask_backend.service.tmdb.requests.get",
+                side_effect=requests.RequestException("boom"),
+            ),
+            pytest.raises(requests.RequestException),
+        ):
+            tmdb_client.search_movies("qualquer coisa")
