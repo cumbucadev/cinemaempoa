@@ -95,14 +95,16 @@ def tmdb_link(movie_id):
     except requests.RequestException as exc:
         return jsonify({"error": str(exc)}), 502
 
-    if movie.tmdb_id is not None and movie.tmdb_id != tmdb_id:
-        # Re-linking to a different TMDB entry: apply_tmdb_details only
-        # appends (it's designed for the automatic pipeline's progressive
-        # discovery), so clear the old match's relations first to avoid
-        # ending up with a union of the wrong and right director/genres.
+    if movie.tmdb_id != tmdb_id:
+        # Linking to a new TMDB entry (including the first-ever link):
+        # apply_tmdb_details only appends (it's designed for the automatic
+        # pipeline's progressive discovery), so clear the old match's
+        # relations first to avoid ending up with a union of the wrong and
+        # right director/genres/collection.
         movie.directors = []
         movie.genres = []
         movie.countries = []
+        movie.collection_id = None
 
     apply_tmdb_details(movie, tmdb_id, details)
     db_session.add(movie)

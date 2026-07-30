@@ -7,7 +7,7 @@ from unittest.mock import patch
 import requests
 
 from flask_backend.db import db_session
-from flask_backend.models import Director, Movie
+from flask_backend.models import Director, Genre, Movie
 
 
 def _create_movie(title="Filme de Teste", slug="filme-de-teste", tmdb_id=None):
@@ -186,6 +186,93 @@ class TestAdminMoviesTmdbLink:
             assert updated.tmdb_id == 222
             assert [d.name for d in updated.directors] == ["Director B"]
             assert [g.name for g in updated.genres] == ["Comédia"]
+
+    def test_first_time_link_replaces_preexisting_relations(self, client, auth_headers):
+        """A movie can already have directors/genres (e.g. from a merge or
+        prior manual edit) before ever being linked to TMDB. Linking it to
+        TMDB for the first time must replace those relations, not append
+        to them."""
+        with client.application.app_context():
+            movie = _create_movie()
+            stale_director = Director(tmdb_id=999, name="Stale Director")
+            stale_genre = Genre(tmdb_id=999, name="Stale Genre")
+            db_session.add_all([stale_director, stale_genre])
+            db_session.commit()
+            movie.directors.append(stale_director)
+            movie.genres.append(stale_genre)
+            db_session.add(movie)
+            db_session.commit()
+            movie_id = movie.id
+
+        details = {
+            "genres": [{"id": 28, "name": "Ação"}],
+            "directors": [{"id": 42, "name": "Jane Director"}],
+            "countries": [],
+            "original_title": "Original",
+            "release_year": 2021,
+            "original_language": "en",
+        }
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = details
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 555}
+            )
+
+        assert response.status_code == 200
+        assert response.json["directors"] == ["Jane Director"]
+        assert response.json["genres"] == ["Ação"]
+
+        with client.application.app_context():
+            updated = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert [d.name for d in updated.directors] == ["Jane Director"]
+            assert [g.name for g in updated.genres] == ["Ação"]
+
+    def test_relinking_clears_collection_when_new_match_has_none(
+        self, client, auth_headers
+    ):
+        with client.application.app_context():
+            movie_id = _create_movie().id
+
+        details_with_collection = {
+            "genres": [],
+            "directors": [],
+            "countries": [],
+            "collection": {"id": 10, "name": "Some Collection"},
+            "original_title": "Title A",
+            "release_year": 2001,
+            "original_language": "en",
+        }
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = (
+                details_with_collection
+            )
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 111}
+            )
+        assert response.json["collection"] == "Some Collection"
+
+        details_without_collection = {
+            "genres": [],
+            "directors": [],
+            "countries": [],
+            "original_title": "Title B",
+            "release_year": 2002,
+            "original_language": "fr",
+        }
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = (
+                details_without_collection
+            )
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 222}
+            )
+
+        assert response.status_code == 200
+        assert response.json["collection"] is None
+
+        with client.application.app_context():
+            updated = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert updated.collection_id is None
 
     def test_returns_400_when_tmdb_id_missing(self, client, auth_headers):
         with client.application.app_context():
