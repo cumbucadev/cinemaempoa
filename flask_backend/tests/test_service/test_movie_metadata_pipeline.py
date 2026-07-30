@@ -10,7 +10,10 @@ from flask_backend.models import (
     Movie,
     MovieMetadataFetchAttempt,
 )
-from flask_backend.service.movie_metadata_pipeline import run_pipeline
+from flask_backend.service.movie_metadata_pipeline import (
+    apply_tmdb_details,
+    run_pipeline,
+)
 
 
 def _create_movie(title, slug):
@@ -29,6 +32,37 @@ def _tmdb_client(search_result=None, details=None, raise_on_details=None):
     else:
         client.get_movie_details.return_value = details
     return client
+
+
+class TestApplyTmdbDetails:
+    def test_upserts_relations_and_sets_tmdb_id(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Aplicação Direta", "aplicacao-direta")
+            movie_id = movie.id
+
+            apply_tmdb_details(
+                movie,
+                777,
+                {
+                    "genres": [{"id": 28, "name": "Ação"}],
+                    "directors": [{"id": 42, "name": "Jane Director"}],
+                    "countries": [{"iso_3166_1": "BR", "name": "Brazil"}],
+                    "original_title": "Direct Application",
+                    "release_year": 2024,
+                    "original_language": "en",
+                },
+            )
+            db_session.add(movie)
+            db_session.commit()
+
+            movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert movie.tmdb_id == 777
+            assert [d.name for d in movie.directors] == ["Jane Director"]
+            assert [g.name for g in movie.genres] == ["Ação"]
+            assert [c.name for c in movie.countries] == ["Brazil"]
+            assert movie.original_title == "Direct Application"
+            assert movie.release_year == 2024
+            assert movie.original_language == "en"
 
 
 class TestRunPipeline:
@@ -289,3 +323,26 @@ class TestRunPipeline:
                 .one()
             )
             assert attempt.pipeline_run_id == 42
+
+    def test_uses_tmdb_id_directly_when_movie_already_linked(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Já Vinculado", "ja-vinculado")
+            movie.tmdb_id = 555
+            db_session.add(movie)
+            db_session.commit()
+            movie_id = movie.id
+
+            tmdb_client = _tmdb_client(
+                details={"genres": [], "directors": [], "countries": []}
+            )
+            with patch(
+                "flask_backend.service.movie_metadata_pipeline.TMDBClient",
+                return_value=tmdb_client,
+            ):
+                run_pipeline()
+
+            tmdb_client.get_movie_details.assert_called_once_with(555)
+            tmdb_client.search_movie.assert_not_called()
+
+            movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert movie.tmdb_id == 555

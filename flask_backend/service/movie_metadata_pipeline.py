@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from flask_backend.db import db_session
-from flask_backend.models import MOVIE_METADATA_SOURCES
+from flask_backend.models import MOVIE_METADATA_SOURCES, Movie
 from flask_backend.repository.collections import (
     get_or_create_by_tmdb_id as get_or_create_collection,
 )
@@ -46,25 +46,73 @@ class PipelineResult:
     skipped_all_sources_tried: int = 0
 
 
-def _try_tmdb(movie_title: str) -> Optional[dict]:
+def _try_tmdb(
+    movie_title: str, tmdb_id: Optional[int] = None
+) -> Optional[tuple[int, dict]]:
     """Attempt to find movie metadata using the TMDB API.
 
-    Returns a dict with "genres" and "directors" on success, None if the
-    movie can't be found on TMDB. Raises on network / API errors so the
-    caller can record them.
+    If tmdb_id is given, fetch that entry directly (the movie is already
+    linked - never re-search by title once a link exists). Otherwise search
+    by title. Returns (tmdb_id, details) on success, None if title search
+    finds nothing. Raises on network / API errors so the caller can record
+    them.
     """
     client = TMDBClient()
+    if tmdb_id is not None:
+        return tmdb_id, client.get_movie_details(tmdb_id)
+
     search_result = client.search_movie(movie_title)
     if search_result is None:
         return None
-    return client.get_movie_details(search_result["id"])
+    return search_result["id"], client.get_movie_details(search_result["id"])
 
 
 # Maps source name -> callable that receives (movie_title, **kwargs) and
-# returns a {"genres": [...], "directors": [...]} dict or None.
+# returns an (tmdb_id, {"genres": [...], "directors": [...], ...}) tuple or
+# None.
 _SOURCE_HANDLERS = {
-    "tmdb": lambda title, **_kw: _try_tmdb(title),
+    "tmdb": lambda title, **kw: _try_tmdb(title, kw.get("tmdb_id")),
 }
+
+
+def apply_tmdb_details(movie: Movie, tmdb_id: int, details: dict) -> None:
+    """Apply TMDB metadata to a movie in-memory: upserts directors, genres,
+    countries and collection, sets original_title/release_year/
+    original_language, and records the tmdb_id link.
+
+    Does not commit - caller is responsible for db_session.add(movie) +
+    db_session.commit().
+    """
+    for d in details.get("directors", []):
+        director = get_or_create_director(d["id"], d["name"])
+        if director not in movie.directors:
+            movie.directors.append(director)
+
+    for g in details.get("genres", []):
+        genre = get_or_create_genre(g["id"], g["name"])
+        if genre not in movie.genres:
+            movie.genres.append(genre)
+
+    for c in details.get("countries", []):
+        country = get_or_create_country(c["iso_3166_1"], c["name"])
+        if country not in movie.countries:
+            movie.countries.append(country)
+
+    collection_data = details.get("collection")
+    if (
+        collection_data
+        and collection_data.get("id") is not None
+        and collection_data.get("name")
+    ):
+        collection = get_or_create_collection(
+            collection_data["id"], collection_data["name"]
+        )
+        movie.collection_id = collection.id
+
+    movie.original_title = details.get("original_title")
+    movie.release_year = details.get("release_year")
+    movie.original_language = details.get("original_language")
+    movie.tmdb_id = tmdb_id
 
 
 def run_pipeline(
@@ -123,7 +171,7 @@ def run_pipeline(
             continue
 
         try:
-            details = handler(movie.title)
+            outcome = handler(movie.title, tmdb_id=movie.tmdb_id)
         except Exception as exc:
             logger.warning(
                 "Filme %d ('%s') – erro na fonte '%s': %s",
@@ -143,7 +191,7 @@ def run_pipeline(
             result.processed += 1
             continue
 
-        if details is None:
+        if outcome is None:
             logger.info(
                 "Filme %d ('%s') – fonte '%s': não encontrado",
                 movie.id,
@@ -160,36 +208,8 @@ def run_pipeline(
             result.processed += 1
             continue
 
-        for d in details.get("directors", []):
-            director = get_or_create_director(d["id"], d["name"])
-            if director not in movie.directors:
-                movie.directors.append(director)
-
-        for g in details.get("genres", []):
-            genre = get_or_create_genre(g["id"], g["name"])
-            if genre not in movie.genres:
-                movie.genres.append(genre)
-
-        for c in details.get("countries", []):
-            country = get_or_create_country(c["iso_3166_1"], c["name"])
-            if country not in movie.countries:
-                movie.countries.append(country)
-
-        collection_data = details.get("collection")
-        if (
-            collection_data
-            and collection_data.get("id") is not None
-            and collection_data.get("name")
-        ):
-            collection = get_or_create_collection(
-                collection_data["id"], collection_data["name"]
-            )
-            movie.collection_id = collection.id
-
-        movie.original_title = details.get("original_title")
-        movie.release_year = details.get("release_year")
-        movie.original_language = details.get("original_language")
-
+        resolved_tmdb_id, details = outcome
+        apply_tmdb_details(movie, resolved_tmdb_id, details)
         db_session.add(movie)
         db_session.commit()
 
