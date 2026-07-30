@@ -115,6 +115,7 @@ class Movie(Base):
     original_title = Column(String, nullable=True)
     release_year = Column(Integer, nullable=True)
     original_language = Column(String, nullable=True)  # ISO 639-1, e.g. "pt"
+    tmdb_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     collection_id = Column(
         Integer, ForeignKey("collections.id"), nullable=True, index=True
