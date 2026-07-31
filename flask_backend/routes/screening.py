@@ -36,6 +36,7 @@ from flask_backend.repository.screenings import (
     get_screening_dates_for_movies,
     get_screenings_in_date_range,
     get_weekend_screening_dates,
+    reattach_movie,
     update as update_screening,
     update_screening_dates,
 )
@@ -439,6 +440,35 @@ def update(id):
         current_movie_poster=image or screening.image,
         screening=screening,
         max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
+
+
+@bp.route("/screening/<int:id>/movie", methods=["POST"])
+@login_required
+def change_movie(id):
+    screening = get_screening_by_id(id)
+    if not screening:
+        abort(404)
+
+    payload = request.get_json(silent=True) or {}
+    movie_id = payload.get("movie_id")
+    new_title = payload.get("new_title")
+
+    if bool(movie_id) == bool(new_title):
+        return jsonify({"error": "Envie exatamente um de movie_id ou new_title."}), 400
+
+    if movie_id:
+        movie = get_movie_by_id(movie_id)
+        if not movie:
+            abort(404)
+    else:
+        movie, _ = get_movie_by_title_or_create(new_title)
+
+    if movie.id != screening.movie_id:
+        reattach_movie(screening, movie.id)
+
+    return jsonify(
+        {"movie": {"id": movie.id, "title": movie.title, "slug": movie.slug}}
     )
 
 
