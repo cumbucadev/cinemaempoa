@@ -269,6 +269,12 @@ def update(
     db_session.commit()
 
 
+def reattach_movie(screening: Screening, movie_id: int) -> None:
+    screening.movie_id = movie_id
+    db_session.add(screening)
+    db_session.commit()
+
+
 def delete(
     screening: Screening,
 ) -> None:

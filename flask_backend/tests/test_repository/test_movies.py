@@ -1,7 +1,11 @@
 from flask_backend.db import db_session
 from flask_backend.models import Movie
 from flask_backend.repository import pipeline_runs
-from flask_backend.repository.movies import create, get_by_title_or_create
+from flask_backend.repository.movies import (
+    create,
+    get_by_title_or_create,
+    get_movies_with_similar_titles,
+)
 
 
 class TestGetByTitleOrCreate:
@@ -58,3 +62,28 @@ class TestCreate:
             run = pipeline_runs.start("import-json")
             movie = create(title="Filme Manual 2", pipeline_run_id=run.id)
             assert movie.pipeline_run_id == run.id
+
+
+class TestGetMoviesWithSimilarTitles:
+    def test_matches_partial_title_case_insensitively(self, app):
+        with app.app_context():
+            movie = Movie(title="Duna Parte Dois", slug="duna-parte-dois")
+            db_session.add(movie)
+            db_session.commit()
+
+            results = get_movies_with_similar_titles("duna")
+
+            assert [m.title for m in results] == ["Duna Parte Dois"]
+
+    def test_excludes_given_movie_id(self, app):
+        with app.app_context():
+            keep = Movie(title="Duna Parte Um", slug="duna-parte-um")
+            exclude = Movie(title="Duna Parte Dois", slug="duna-parte-dois-2")
+            db_session.add_all([keep, exclude])
+            db_session.commit()
+
+            results = get_movies_with_similar_titles(
+                "duna", exclude_movie_id=exclude.id
+            )
+
+            assert [m.id for m in results] == [keep.id]
