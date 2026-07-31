@@ -13,7 +13,7 @@
             {{ movie['title'] }}
         {% endblock title %}
     </h1>
-    {% if g.user %}
+    {% if g.user and not movie['screenings'] %}
         <p>
             <a href="{{ url_for('admin_movies.edit', movie_id=movie['id']) }}">Editar metadados</a>
         </p>
@@ -140,6 +140,7 @@
         {% for screening in movie['screenings'] %}
             <p>
                 <strong>{{ screening['cinema']['name'] }}</strong>
+                {% if g.user %}<a href="{{ url_for('screening.update', id=screening['id']) }}">Editar exibição</a>{% endif %}
             </p>
             <ul>
                 <p>Exibido {{ screening['dates']|length }} {{ 'vezes' if screening['dates']|length > 1 else 'vez' }}.</p>
