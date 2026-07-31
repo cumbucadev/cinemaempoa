@@ -14,9 +14,7 @@
     <h1>Editar metadados</h1>
 {% endblock header %}
 {% block content %}
-    <div class="container">
-        {% include "movie/admin/_metadata_panel.html" %}
-    </div>
+    <div class="container">{% include "movie/admin/_metadata_panel.html" %}</div>
     <script>
         const movieId = parseInt("{{ movie.id }}", 10);
     </script>
