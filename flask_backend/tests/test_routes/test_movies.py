@@ -400,6 +400,37 @@ class TestMoviesSearch:
         titles = [item["title"] for item in response.get_json()]
         assert target_title in titles
 
+    def test_returns_id_and_release_year(
+        self, auth_headers, app, sample_movies_with_screenings
+    ):
+        with app.app_context():
+            movie = db_session.query(Movie).first()
+            movie.release_year = 2021
+            db_session.commit()
+            target_title = movie.title
+            movie_id = movie.id
+
+        response = auth_headers.get(f"/movies/search?title={target_title}")
+        assert response.status_code == 200
+        results = response.get_json()
+        match = next(item for item in results if item["id"] == movie_id)
+        assert match["release_year"] == 2021
+
+    def test_excludes_movie_id_when_given(
+        self, auth_headers, app, sample_movies_with_screenings
+    ):
+        with app.app_context():
+            movie = db_session.query(Movie).first()
+            target_title = movie.title
+            movie_id = movie.id
+
+        response = auth_headers.get(
+            f"/movies/search?title={target_title}&exclude_movie_id={movie_id}"
+        )
+        assert response.status_code == 200
+        ids = [item["id"] for item in response.get_json()]
+        assert movie_id not in ids
+
 
 class TestMovieShow:
     def test_unknown_slug_returns_400(self, client):

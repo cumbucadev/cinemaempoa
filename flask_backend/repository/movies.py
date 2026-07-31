@@ -111,10 +111,13 @@ def get_by_title_or_create(
     return movie, True
 
 
-def get_movies_with_similar_titles(title: str) -> List[Movie]:
-    return (
-        db_session.query(Movie).filter(Movie.title.ilike(f"%{title}%")).limit(3).all()
-    )
+def get_movies_with_similar_titles(
+    title: str, exclude_movie_id: Optional[int] = None
+) -> List[Movie]:
+    query = db_session.query(Movie).filter(Movie.title.ilike(f"%{title}%"))
+    if exclude_movie_id is not None:
+        query = query.filter(Movie.id != exclude_movie_id)
+    return query.limit(3).all()
 
 
 def delete(movie: Movie) -> None:

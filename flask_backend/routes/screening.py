@@ -36,6 +36,7 @@ from flask_backend.repository.screenings import (
     get_screening_dates_for_movies,
     get_screenings_in_date_range,
     get_weekend_screening_dates,
+    reattach_movie,
     update as update_screening,
     update_screening_dates,
 )
@@ -379,15 +380,12 @@ def update(id):
         abort(404)
 
     if request.method == "POST":
-        movie_title = request.form.get("movie_title")
         description = request.form.get("description")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
         image_alt = request.form.get("image_alt")
         error = None
 
-        if not movie_title:
-            error = "O título do filme é obrigatório."
         if not description:
             error = "O campo descrição é obrigatório."
         if not screening_dates:
@@ -420,10 +418,9 @@ def update(id):
         else:
             update_screening_dates(screening, parsed_screening_dates)
 
-            movie, _ = get_movie_by_title_or_create(movie_title)
             update_screening(
                 screening,
-                movie.id,
+                screening.movie_id,
                 description,
                 image,
                 image_width,
@@ -431,14 +428,50 @@ def update(id):
                 status == "draft",
                 image_alt,
             )
-            flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
-            return redirect(url_for("screening.index"))
+            flash(
+                f"Sessão «{screening.movie.title}» atualizada com sucesso!", "success"
+            )
+            return redirect(url_for("screening.update", id=id))
+
+    sibling_screenings = {}
+    for sibling in screening.movie.screenings:
+        sibling_screenings.setdefault(sibling.cinema_id, sibling)
 
     return render_template(
         "screening/update.html",
         current_movie_poster=image or screening.image,
         screening=screening,
+        sibling_screenings=sibling_screenings.values(),
         max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
+    )
+
+
+@bp.route("/screening/<int:id>/movie", methods=["POST"])
+@login_required
+def change_movie(id):
+    screening = get_screening_by_id(id)
+    if not screening:
+        abort(404)
+
+    payload = request.get_json(silent=True) or {}
+    movie_id = payload.get("movie_id")
+    new_title = payload.get("new_title")
+
+    if bool(movie_id) == bool(new_title):
+        return jsonify({"error": "Envie exatamente um de movie_id ou new_title."}), 400
+
+    if movie_id:
+        movie = get_movie_by_id(movie_id)
+        if not movie:
+            abort(404)
+    else:
+        movie, _ = get_movie_by_title_or_create(new_title)
+
+    if movie.id != screening.movie_id:
+        reattach_movie(screening, movie.id)
+
+    return jsonify(
+        {"movie": {"id": movie.id, "title": movie.title, "slug": movie.slug}}
     )
 
 

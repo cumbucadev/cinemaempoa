@@ -29,27 +29,17 @@
             <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
         </div>
         <div class="mb-3">
-            <label class="form-label" for="title">Title</label>
-            <input class="form-control"
-                   name="movie_title"
-                   id="title"
-                   value="{{ request.form['movie_title'] or screening.movie['title'] }}"
-                   required />
-        </div>
-        <div class="mb-3">
-            <div class="d-flex mb-2 align-items-center">
-                <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
-                <button type="button"
-                        id="gen-alt-btn"
-                        class="btn btn-secondary"
-                        onclick="fetchImageAltText(event)">
-                    <span id="gen-alt-spinner"
-                          class="spinner-border spinner-border-sm d-none"
-                          role="status"
-                          aria-hidden="true"></span>
-                    <span id="gen-alt-btn-label">Gerar alt text</span>
-                </button>
-            </div>
+            {# djlint:off #}
+            <label for="movie_poster" class="form-label" style="display: block;">Imagem do filme</label>
+            {# djlint:on #}
+            <img id="movie-poster-preview"
+                 class="img-fluid rounded mb-2 {{ "" if current_movie_poster else "d-none" }}"
+                 style="max-height: 200px;
+                        width: auto"
+                 {% if screening.image_width %}width="{{ screening.image_width }}"{% endif %}
+                 {% if screening.image_height %}height="{{ screening.image_height }}"{% endif %}
+                 src="{{ current_movie_poster }}"
+                 alt="{{ request.form['image_alt'] or screening['image_alt'] or screening.movie.title }}" />
             <input class="form-control"
                    name="movie_poster"
                    type="file"
@@ -67,11 +57,23 @@
             </p>
         </div>
         <div class="mb-3">
-            <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
+            <div class="d-flex mb-2 align-items-center">
+                <label for="image_alt" class="form-label mb-0 me-3">Descrição do poster (texto alternativo)</label>
+                <button type="button"
+                        id="gen-alt-btn"
+                        class="btn btn-secondary"
+                        onclick="fetchImageAltText(event)">
+                    <span id="gen-alt-spinner"
+                          class="spinner-border spinner-border-sm d-none"
+                          role="status"
+                          aria-hidden="true"></span>
+                    <span id="gen-alt-btn-label">Gerar alt text</span>
+                </button>
+            </div>
             <textarea placeholder="Descreva a imagem adicionada acima"
                       class="form-control"
                       name="image_alt"
-                      id="image_alt">{{ request.form['image_alt'] or screening['image_alt'] }}</textarea>
+                      id="image_alt">{{ request.form['image_alt'] or screening['image_alt'] or '' }}</textarea>
         </div>
         <div class="mb-3">
             <label class="form-label">Status do cadastro</label>
@@ -102,6 +104,59 @@
                        href="{{ url_for("screening.index") }}">Voltar</a>
                 </div>
             </form>
+            <hr class="my-4">
+            <section class="mb-4"
+                     id="movie-section"
+                     data-movie-id="{{ screening.movie_id }}"
+                     data-movie-title="{{ screening.movie.title }}">
+                <h2 class="h5">Filme</h2>
+                <p>
+                    <strong id="movie-title-display">{{ screening.movie.title }}</strong>
+                    <button type="button"
+                            id="trocar-filme-btn"
+                            class="btn btn-sm btn-outline-secondary">Trocar filme</button>
+                </p>
+                {% set movie_screenings = screening.movie.screenings %}
+                {% if movie_screenings|length > 1 %}
+                    <p class="text-muted small">
+                        Este filme tem {{ movie_screenings|length }} sessões em:
+                        {%- for sibling in sibling_screenings %}
+                            {% if sibling.id == screening.id %}
+                                <strong>{{ sibling.cinema.name }} (atual)</strong>
+                            {%- else %}
+                                <a href="{{ url_for('screening.update', id=sibling.id) }}"
+                                   class="switch-screening-link">{{ sibling.cinema.name }}</a>
+                            {%- endif -%}
+                            {{ "," if not loop.last }}
+                        {%- endfor %}
+                        — alterações no filme afetam todas.
+                    </p>
+                {% endif %}
+                <div id="trocar-filme-panel" class="d-none">
+                    <input autocomplete="off"
+                           class="form-control mb-2"
+                           id="trocar-filme-query"
+                           placeholder="Buscar filme por título"
+                           oninput="fetchMovieCandidates()">
+                    <ul class="list-unstyled" id="trocar-filme-results">
+                    </ul>
+                    <div id="trocar-filme-confirm" class="alert alert-warning d-none">
+                        <p id="trocar-filme-confirm-text"></p>
+                        <button type="button"
+                                class="btn btn-sm btn-secondary"
+                                id="trocar-filme-cancel">Cancelar</button>
+                        <button type="button"
+                                class="btn btn-sm btn-warning"
+                                id="trocar-filme-confirm-btn">Confirmar</button>
+                    </div>
+                </div>
+            </section>
+            <section class="mb-4" id="tmdb-section">
+                <h2 class="h5">Metadados TMDB</h2>
+                {% with movie = screening.movie %}
+                    {% include "movie/admin/_metadata_panel.html" %}
+                {% endwith %}
+            </section>
             <script>
                 function removeScreening(e) {
                     const screeningWrapper = document.getElementById("screenings");
@@ -124,6 +179,20 @@
                             e.preventDefault();
                             return;
                         }
+                    });
+
+                    // Prevents accidental navigation to a sibling screening
+                    // when there are unsaved changes
+                    document.querySelectorAll(".switch-screening-link").forEach((link) => {
+                        link.addEventListener("click", (e) => {
+                            const proceed = confirm(
+                                "Alterações não salvas serão perdidas. Prosseguir?"
+                            );
+                            if (!proceed) {
+                                e.preventDefault();
+                                return;
+                            }
+                        });
                     });
 
                     // Duplicates latest screening by clicking on the "Outra exibição" button
@@ -157,6 +226,24 @@
                         errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
                     } else {
                         errorMessage.innerHTML = '';
+                    }
+                    updatePosterPreview(input);
+                }
+
+                function updatePosterPreview(input) {
+                    const preview = document.getElementById("movie-poster-preview");
+                    const currentPoster = document.getElementById("current_movie_poster").value;
+
+                    if (input.files && input.files[0]) {
+                        preview.src = URL.createObjectURL(input.files[0]);
+                        preview.removeAttribute("width");
+                        preview.removeAttribute("height");
+                        preview.classList.remove("d-none");
+                    } else if (currentPoster) {
+                        preview.src = currentPoster;
+                        preview.classList.remove("d-none");
+                    } else {
+                        preview.classList.add("d-none");
                     }
                 }
 
@@ -223,5 +310,118 @@
                         label.textContent = "Gerar alt text";
                     }
                 }
+
+                const movieSectionEl = document.getElementById("movie-section");
+                const currentMovieId = parseInt(movieSectionEl.dataset.movieId, 10);
+                const currentMovieTitle = movieSectionEl.dataset.movieTitle;
+                let pendingMovieChange = null;
+                let trocarFilmeDebounce;
+
+                document.getElementById("trocar-filme-btn").addEventListener("click", () => {
+                    document.getElementById("trocar-filme-panel").classList.remove("d-none");
+                    document.getElementById("trocar-filme-query").focus();
+                });
+
+                document.getElementById("trocar-filme-cancel").addEventListener("click", () => {
+                    document.getElementById("trocar-filme-confirm").classList.add("d-none");
+                    pendingMovieChange = null;
+                });
+
+                function fetchMovieCandidates() {
+                    clearTimeout(trocarFilmeDebounce);
+                    const query = document.getElementById("trocar-filme-query").value.trim();
+                    const resultsEl = document.getElementById("trocar-filme-results");
+                    resultsEl.innerHTML = "";
+                    if (query.length < 2) {
+                        return;
+                    }
+
+                    trocarFilmeDebounce = setTimeout(() => {
+                        fetch(`/movies/search?title=${encodeURIComponent(query)}&exclude_movie_id=${currentMovieId}`)
+                            .then((response) => response.json())
+                            .then((movies) => {
+                                resultsEl.innerHTML = "";
+                                movies.forEach((movie) => {
+                                    resultsEl.appendChild(createMovieResultItem(movie));
+                                });
+                                const hasExactMatch = movies.some(
+                                    (movie) => movie.title.trim().toLowerCase() === query.toLowerCase()
+                                );
+                                if (!hasExactMatch) {
+                                    resultsEl.appendChild(createCreateNewItem(query));
+                                }
+                            });
+                    }, 300);
+                }
+
+                function createMovieResultItem(movie) {
+                    const li = document.createElement("li");
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "btn btn-link";
+                    btn.textContent = movie.release_year ? `${movie.title} (${movie.release_year})` : movie.title;
+                    btn.addEventListener("click", () => showMovieChangeConfirm({
+                        movie_id: movie.id
+                    }, movie.title, false));
+                    li.appendChild(btn);
+                    return li;
+                }
+
+                function createCreateNewItem(query) {
+                    const li = document.createElement("li");
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "btn btn-link";
+                    btn.textContent = `Criar novo filme "${query}"`;
+                    btn.addEventListener("click", () => showMovieChangeConfirm({
+                        new_title: query
+                    }, query, true));
+                    li.appendChild(btn);
+                    return li;
+                }
+
+                function showMovieChangeConfirm(change, targetTitle, isNew) {
+                    pendingMovieChange = change;
+                    const text = isNew ?
+                        `Nenhum filme encontrado — será criado um novo filme "${targetTitle}".` :
+                        `Esta sessão será desvinculada de "${currentMovieTitle}" e associada a "${targetTitle}". Outras sessões de "${currentMovieTitle}" não são afetadas.`;
+                    document.getElementById("trocar-filme-confirm-text").textContent = text;
+                    document.getElementById("trocar-filme-confirm").classList.remove("d-none");
+                }
+
+                document.getElementById("trocar-filme-confirm-btn").addEventListener("click", () => {
+                    if (!pendingMovieChange) {
+                        return;
+                    }
+                    const proceed = confirm(
+                        "Alterações não salvas serão perdidas. Prosseguir?"
+                    );
+                    if (!proceed) {
+                        return;
+                    }
+                    fetch("{{ url_for('screening.change_movie', id=screening.id) }}", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(pendingMovieChange),
+                        })
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error("failed");
+                            }
+                            return response.json();
+                        })
+                        .then(() => {
+                            window.location.reload();
+                        })
+                        .catch(() => {
+                            alert("Não foi possível trocar o filme. Tente novamente.");
+                        });
+                });
             </script>
+            <script>
+                const movieId = parseInt("{{ screening.movie_id }}", 10);
+            </script>
+            <script src="{{ url_for('static', filename='js/movie-tmdb-metadata.js') }}"></script>
         {% endblock content %}

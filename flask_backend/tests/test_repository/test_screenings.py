@@ -11,6 +11,7 @@ from flask_backend.repository.screenings import (
     get_screenings_for_movies_with_dates_in_range,
     get_screenings_in_date_range,
     get_screenings_with_upcoming_dates,
+    reattach_movie,
 )
 
 
@@ -40,6 +41,58 @@ def _create_screening(
             )
         db_session.commit()
         return screening.id, movie_id
+
+
+class TestReattachMovie:
+    def test_changes_screening_movie_id(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            original_movie = Movie(title="Filme Original", slug="filme-original")
+            target_movie = Movie(title="Filme Destino", slug="filme-destino")
+            db_session.add_all([original_movie, target_movie])
+            db_session.commit()
+
+            screening = Screening(
+                movie_id=original_movie.id,
+                cinema_id=cinema.id,
+                description="desc",
+                draft=False,
+                dates=[ScreeningDate(date=date.today(), time="20:00")],
+            )
+            db_session.add(screening)
+            db_session.commit()
+            screening_id = screening.id
+            target_movie_id = target_movie.id
+
+            reattach_movie(screening, target_movie_id)
+
+            updated = db_session.get(Screening, screening_id)
+            assert updated.movie_id == target_movie_id
+
+    def test_does_not_touch_other_screening_fields(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_cinema_by_slug("capitolio")
+            original_movie = Movie(title="Filme Original 2", slug="filme-original-2")
+            target_movie = Movie(title="Filme Destino 2", slug="filme-destino-2")
+            db_session.add_all([original_movie, target_movie])
+            db_session.commit()
+
+            screening = Screening(
+                movie_id=original_movie.id,
+                cinema_id=cinema.id,
+                description="descrição original",
+                draft=True,
+                dates=[ScreeningDate(date=date.today(), time="20:00")],
+            )
+            db_session.add(screening)
+            db_session.commit()
+            screening_id = screening.id
+
+            reattach_movie(screening, target_movie.id)
+
+            updated = db_session.get(Screening, screening_id)
+            assert updated.description == "descrição original"
+            assert updated.draft is True
 
 
 class TestGetScreeningsWithUpcomingDates:

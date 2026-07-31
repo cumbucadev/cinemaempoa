@@ -128,8 +128,14 @@ def poster_images_urls():
 @login_required
 def search_movies():
     title = request.args.get("title")
-    movies = get_movies_with_similar_titles(title)
-    return jsonify([{"title": movie.title} for movie in movies])
+    exclude_movie_id = request.args.get("exclude_movie_id", type=int)
+    movies = get_movies_with_similar_titles(title, exclude_movie_id=exclude_movie_id)
+    return jsonify(
+        [
+            {"id": movie.id, "title": movie.title, "release_year": movie.release_year}
+            for movie in movies
+        ]
+    )
 
 
 @bp.route("/movies/<slug>", methods=["GET"])

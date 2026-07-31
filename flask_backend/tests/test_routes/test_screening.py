@@ -367,14 +367,6 @@ class TestScreeningUpdate:
         response = auth_headers.get(f"/screening/{screening_id}/update")
         assert response.status_code == 200
 
-    def test_update_post_missing_title_shows_error(self, auth_headers, setup_cinemas):
-        with auth_headers.application.app_context():
-            screening_id = _create_screening()
-        form = _valid_create_form(movie_title="")
-        response = auth_headers.post(f"/screening/{screening_id}/update", data=form)
-        assert response.status_code == 200
-        assert "obrigatório" in response.get_data(as_text=True)
-
     def test_update_post_missing_description_shows_error(
         self, auth_headers, setup_cinemas
     ):
@@ -410,17 +402,38 @@ class TestScreeningUpdate:
         assert response.status_code == 200
         assert "Data de exibição inválida" in response.get_data(as_text=True)
 
-    def test_update_post_success_updates_screening(self, auth_headers, setup_cinemas):
+    def test_update_post_success_updates_description(self, auth_headers, setup_cinemas):
         with auth_headers.application.app_context():
-            screening_id = _create_screening(movie_title="Titulo Antigo")
-        form = _valid_create_form(movie_title="Titulo Novo")
+            screening_id = _create_screening()
+        form = _valid_create_form(description="Nova descrição de teste.")
         response = auth_headers.post(
             f"/screening/{screening_id}/update", data=form, follow_redirects=True
         )
         assert response.status_code == 200
         with auth_headers.application.app_context():
             screening = db_session.get(Screening, screening_id)
-            assert screening.movie.title == "Titulo Novo"
+            assert screening.description == "Nova descrição de teste."
+
+    def test_update_post_ignores_movie_title_field(self, auth_headers, setup_cinemas):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Titulo Original")
+        form = _valid_create_form(movie_title="Titulo Que Deveria Ser Ignorado")
+        auth_headers.post(f"/screening/{screening_id}/update", data=form)
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie.title == "Titulo Original"
+
+    def test_update_post_success_redirects_to_update_page(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening()
+        form = _valid_create_form()
+        response = auth_headers.post(
+            f"/screening/{screening_id}/update", data=form, follow_redirects=False
+        )
+        assert response.status_code == 302
+        assert response.location == f"/screening/{screening_id}/update"
 
     def test_update_post_with_valid_image_replaces_image(
         self, auth_headers, setup_cinemas
@@ -471,6 +484,115 @@ class TestScreeningUpdate:
             )
         assert response.status_code == 200
         assert "Arquivo corrompido ou inválido" in response.get_data(as_text=True)
+
+
+class TestScreeningChangeMovie:
+    def test_requires_login(self, client, setup_cinemas):
+        with client.application.app_context():
+            screening_id = _create_screening()
+        response = client.post(f"/screening/{screening_id}/movie", json={"movie_id": 1})
+        assert response.status_code == 302
+        assert b"/auth/login" in response.data
+
+    def test_returns_404_for_missing_screening(self, auth_headers):
+        response = auth_headers.post("/screening/999999/movie", json={"movie_id": 1})
+        assert response.status_code == 404
+
+    def test_returns_400_when_neither_field_given(self, auth_headers, setup_cinemas):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening()
+        response = auth_headers.post(f"/screening/{screening_id}/movie", json={})
+        assert response.status_code == 400
+
+    def test_returns_400_when_both_fields_given(self, auth_headers, setup_cinemas):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening()
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"movie_id": 1, "new_title": "X"},
+        )
+        assert response.status_code == 400
+
+    def test_returns_404_when_movie_id_does_not_exist(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening()
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie", json={"movie_id": 999999}
+        )
+        assert response.status_code == 404
+
+    def test_reattaches_to_existing_movie_by_id(self, auth_headers, setup_cinemas):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo")
+            target = Movie(title="Filme Novo", slug="filme-novo-alvo")
+            db_session.add(target)
+            db_session.commit()
+            target_id = target.id
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie", json={"movie_id": target_id}
+        )
+        assert response.status_code == 200
+        assert response.get_json()["movie"]["id"] == target_id
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie_id == target_id
+
+    def test_creates_new_movie_when_new_title_has_no_match(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo 2")
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Filme Totalmente Novo"},
+        )
+        assert response.status_code == 200
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie.title == "Filme Totalmente Novo"
+
+    def test_reattaches_to_existing_movie_when_new_title_matches_by_slug(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo 3")
+            existing = Movie(title="Filme Existente", slug="filme-existente")
+            db_session.add(existing)
+            db_session.commit()
+            existing_id = existing.id
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Filme Existente"},
+        )
+        assert response.status_code == 200
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie_id == existing_id
+            assert (
+                db_session.query(Movie).filter_by(slug="filme-existente").count() == 1
+            )
+
+    def test_is_a_noop_when_target_equals_current_movie(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Mesmo")
+            screening = db_session.get(Screening, screening_id)
+            current_movie_id = screening.movie_id
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"movie_id": current_movie_id},
+        )
+        assert response.status_code == 200
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie_id == current_movie_id
 
 
 class TestScreeningDelete:

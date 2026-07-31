@@ -1,0 +1,49 @@
+<div id="movie-metadata" class="mb-4">
+    <p>
+        <strong>Título:</strong> {{ movie.title }}
+    </p>
+    <p>
+        <strong>Título original:</strong> <span id="field-original_title">{{ movie.original_title or "—" }}</span>
+    </p>
+    <p>
+        <strong>Ano:</strong> <span id="field-release_year">{{ movie.release_year or "—" }}</span>
+    </p>
+    <p>
+        <strong>Idioma original:</strong> <span id="field-original_language">{{ movie.original_language or "—" }}</span>
+    </p>
+    <p>
+        <strong>Diretor(es):</strong>
+        <span id="field-directors">{{ movie.directors|map(attribute='name') |join(', ') or "—" }}</span>
+    </p>
+    <p>
+        <strong>Gêneros:</strong>
+        <span id="field-genres">{{ movie.genres|map(attribute='name') |join(', ') or "—" }}</span>
+    </p>
+    <p>
+        <strong>Coleção:</strong>
+        <span id="field-collection">{{ movie.collection.name if movie.collection else "—" }}</span>
+    </p>
+    <p>
+        <strong>TMDB:</strong>
+        <span id="field-tmdb-status">
+            {% if movie.tmdb_id %}
+                Vinculado ao TMDB #{{ movie.tmdb_id }}
+            {% else %}
+                Não vinculado
+            {% endif %}
+        </span>
+        {% if movie.tmdb_id %}
+            <button type="button" id="unlink-btn" class="btn btn-sm btn-outline-danger">Remover vínculo</button>
+        {% endif %}
+    </p>
+</div>
+<div class="mb-3">
+    <label for="tmdb-query" class="form-label">Buscar no TMDB</label>
+    <input autocomplete="off"
+           class="form-control"
+           id="tmdb-query"
+           value="{{ movie.title }}"
+           oninput="fetchTmdbCandidates()">
+</div>
+<div id="tmdb-error" class="alert alert-danger d-none" role="alert"></div>
+<div id="tmdb-results" class="row row-cols-2 row-cols-md-4 g-3"></div>
