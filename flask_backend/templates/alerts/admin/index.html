@@ -144,6 +144,8 @@
                                                 onclick="navigator.clipboard.writeText(document.getElementById('alert-text-{{ row.screening.id }}').value)">
                                             Copiar
                                         </button>
+                                        <a href="{{ url_for('screening.update', id=row.screening.id) }}"
+                                           class="btn btn-outline-secondary">Editar</a>
                                     </div>
                                 </td>
                                 <td>{{ pending_actions(row, status) }}</td>
@@ -179,6 +181,8 @@
                                         onclick="navigator.clipboard.writeText(document.getElementById('alert-text-mobile-{{ row.screening.id }}').value)">
                                     Copiar
                                 </button>
+                                <a href="{{ url_for('screening.update', id=row.screening.id) }}"
+                                   class="btn btn-outline-secondary">Editar</a>
                             </div>
                             {{ pending_actions(row, status, stacked=true) }}
                         </div>

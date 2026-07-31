@@ -160,6 +160,13 @@ class TestAdminAlertsPendingView:
         assert "⏳ Duna\n\n".encode() in response.data
 
 
+    def test_shows_edit_link(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.get("/admin/alerts")
+        assert response.status_code == 200
+        assert f"/screening/{screening_id}/update".encode() in response.data
+
 class TestAdminAlertsMarkPosted:
     def test_requires_login(self, app, client, setup_cinemas):
         screening_id = _create_screening_with_future_date(app)
