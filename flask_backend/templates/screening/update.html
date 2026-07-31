@@ -29,22 +29,11 @@
             <button type="button" id="add-screening-btn" class="btn btn-secondary">Outra exibição</button>
         </div>
         <div class="mb-3">
-            <div class="d-flex mb-2 align-items-center">
-                <label for="movie_poster" class="form-label mb-0 me-3">Imagem do filme</label>
-                <button type="button"
-                        id="gen-alt-btn"
-                        class="btn btn-secondary"
-                        onclick="fetchImageAltText(event)">
-                    <span id="gen-alt-spinner"
-                          class="spinner-border spinner-border-sm d-none"
-                          role="status"
-                          aria-hidden="true"></span>
-                    <span id="gen-alt-btn-label">Gerar alt text</span>
-                </button>
-            </div>
+            <label for="movie_poster" class="form-label">Imagem do filme</label>
             <img id="movie-poster-preview"
                  class="img-fluid rounded mb-2 {{ "" if current_movie_poster else "d-none" }}"
-                 style="max-height: 200px; width: auto;"
+                 style="max-height: 200px;
+                        width: auto"
                  {% if screening.image_width %}width="{{ screening.image_width }}"{% endif %}
                  {% if screening.image_height %}height="{{ screening.image_height }}"{% endif %}
                  src="{{ current_movie_poster }}"
@@ -66,7 +55,19 @@
             </p>
         </div>
         <div class="mb-3">
-            <label class="form-label" for="image_alt">Descrição do poster (texto alternativo)</label>
+            <div class="d-flex mb-2 align-items-center">
+                <label for="image_alt" class="form-label mb-0 me-3">Descrição do poster (texto alternativo)</label>
+                <button type="button"
+                        id="gen-alt-btn"
+                        class="btn btn-secondary"
+                        onclick="fetchImageAltText(event)">
+                    <span id="gen-alt-spinner"
+                          class="spinner-border spinner-border-sm d-none"
+                          role="status"
+                          aria-hidden="true"></span>
+                    <span id="gen-alt-btn-label">Gerar alt text</span>
+                </button>
+            </div>
             <textarea placeholder="Descreva a imagem adicionada acima"
                       class="form-control"
                       name="image_alt"
