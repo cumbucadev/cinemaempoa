@@ -42,6 +42,13 @@
                     <span id="gen-alt-btn-label">Gerar alt text</span>
                 </button>
             </div>
+            <img id="movie-poster-preview"
+                 class="img-fluid rounded mb-2 {{ "" if current_movie_poster else "d-none" }}"
+                 style="max-height: 200px"
+                 {% if screening.image_width %}width="{{ screening.image_width }}"{% endif %}
+                 {% if screening.image_height %}height="{{ screening.image_height }}"{% endif %}
+                 src="{{ current_movie_poster }}"
+                 alt="{{ request.form['image_alt'] or screening['image_alt'] or screening.movie.title }}" />
             <input class="form-control"
                    name="movie_poster"
                    type="file"
@@ -110,8 +117,16 @@
                 {% if movie_screenings|length > 1 %}
                     <p class="text-muted small">
                         Este filme tem {{ movie_screenings|length }} sessões em:
-                        {{ movie_screenings|map(attribute='cinema.name') |unique|join(', ') }} —
-                        alterações no filme afetam todas.
+                        {%- for sibling in sibling_screenings %}
+                            {% if sibling.id == screening.id %}
+                                <strong>{{ sibling.cinema.name }} (atual)</strong>
+                            {%- else %}
+                                <a href="{{ url_for('screening.update', id=sibling.id) }}"
+                                   class="switch-screening-link">{{ sibling.cinema.name }}</a>
+                            {%- endif -%}
+                            {{ "," if not loop.last }}
+                        {%- endfor %}
+                        — alterações no filme afetam todas.
                     </p>
                 {% endif %}
                 <div id="trocar-filme-panel" class="d-none">
@@ -163,6 +178,20 @@
                         }
                     });
 
+                    // Prevents accidental navigation to a sibling screening
+                    // when there are unsaved changes
+                    document.querySelectorAll(".switch-screening-link").forEach((link) => {
+                        link.addEventListener("click", (e) => {
+                            const proceed = confirm(
+                                "Alterações não salvas serão perdidas. Prosseguir?"
+                            );
+                            if (!proceed) {
+                                e.preventDefault();
+                                return;
+                            }
+                        });
+                    });
+
                     // Duplicates latest screening by clicking on the "Outra exibição" button
                     const addScreeningBtn = document.getElementById("add-screening-btn");
                     addScreeningBtn.addEventListener("click", (e) => {
@@ -194,6 +223,24 @@
                         errorMessage.innerHTML = `O tamanho máximo permitido é ${getMaxFileSize(true)}MB. Por favor, selecione um arquivo menor.`;
                     } else {
                         errorMessage.innerHTML = '';
+                    }
+                    updatePosterPreview(input);
+                }
+
+                function updatePosterPreview(input) {
+                    const preview = document.getElementById("movie-poster-preview");
+                    const currentPoster = document.getElementById("current_movie_poster").value;
+
+                    if (input.files && input.files[0]) {
+                        preview.src = URL.createObjectURL(input.files[0]);
+                        preview.removeAttribute("width");
+                        preview.removeAttribute("height");
+                        preview.classList.remove("d-none");
+                    } else if (currentPoster) {
+                        preview.src = currentPoster;
+                        preview.classList.remove("d-none");
+                    } else {
+                        preview.classList.add("d-none");
                     }
                 }
 

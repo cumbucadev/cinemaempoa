@@ -433,10 +433,15 @@ def update(id):
             )
             return redirect(url_for("screening.update", id=id))
 
+    sibling_screenings = {}
+    for sibling in screening.movie.screenings:
+        sibling_screenings.setdefault(sibling.cinema_id, sibling)
+
     return render_template(
         "screening/update.html",
         current_movie_poster=image or screening.image,
         screening=screening,
+        sibling_screenings=sibling_screenings.values(),
         max_file_size=current_app.config["MAX_CONTENT_LENGTH"],
     )
 
