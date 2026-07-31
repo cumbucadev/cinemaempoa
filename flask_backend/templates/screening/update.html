@@ -44,7 +44,7 @@
             </div>
             <img id="movie-poster-preview"
                  class="img-fluid rounded mb-2 {{ "" if current_movie_poster else "d-none" }}"
-                 style="max-height: 200px"
+                 style="max-height: 200px; width: auto;"
                  {% if screening.image_width %}width="{{ screening.image_width }}"{% endif %}
                  {% if screening.image_height %}height="{{ screening.image_height }}"{% endif %}
                  src="{{ current_movie_poster }}"
