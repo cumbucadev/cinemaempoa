@@ -70,7 +70,7 @@
             <textarea placeholder="Descreva a imagem adicionada acima"
                       class="form-control"
                       name="image_alt"
-                      id="image_alt">{{ request.form['image_alt'] or screening['image_alt'] }}</textarea>
+                      id="image_alt">{{ request.form['image_alt'] or screening['image_alt'] or '' }}</textarea>
         </div>
         <div class="mb-3">
             <label class="form-label">Status do cadastro</label>
