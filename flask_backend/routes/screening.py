@@ -380,15 +380,12 @@ def update(id):
         abort(404)
 
     if request.method == "POST":
-        movie_title = request.form.get("movie_title")
         description = request.form.get("description")
         screening_dates = request.form.getlist("screening_dates")
         status = request.form.get("status")
         image_alt = request.form.get("image_alt")
         error = None
 
-        if not movie_title:
-            error = "O título do filme é obrigatório."
         if not description:
             error = "O campo descrição é obrigatório."
         if not screening_dates:
@@ -421,10 +418,9 @@ def update(id):
         else:
             update_screening_dates(screening, parsed_screening_dates)
 
-            movie, _ = get_movie_by_title_or_create(movie_title)
             update_screening(
                 screening,
-                movie.id,
+                screening.movie_id,
                 description,
                 image,
                 image_width,
@@ -432,8 +428,10 @@ def update(id):
                 status == "draft",
                 image_alt,
             )
-            flash(f"Sessão «{movie_title}» atualizada com sucesso!", "success")
-            return redirect(url_for("screening.index"))
+            flash(
+                f"Sessão «{screening.movie.title}» atualizada com sucesso!", "success"
+            )
+            return redirect(url_for("screening.update", id=id))
 
     return render_template(
         "screening/update.html",

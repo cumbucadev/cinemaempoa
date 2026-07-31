@@ -367,14 +367,6 @@ class TestScreeningUpdate:
         response = auth_headers.get(f"/screening/{screening_id}/update")
         assert response.status_code == 200
 
-    def test_update_post_missing_title_shows_error(self, auth_headers, setup_cinemas):
-        with auth_headers.application.app_context():
-            screening_id = _create_screening()
-        form = _valid_create_form(movie_title="")
-        response = auth_headers.post(f"/screening/{screening_id}/update", data=form)
-        assert response.status_code == 200
-        assert "obrigatório" in response.get_data(as_text=True)
-
     def test_update_post_missing_description_shows_error(
         self, auth_headers, setup_cinemas
     ):
@@ -410,17 +402,38 @@ class TestScreeningUpdate:
         assert response.status_code == 200
         assert "Data de exibição inválida" in response.get_data(as_text=True)
 
-    def test_update_post_success_updates_screening(self, auth_headers, setup_cinemas):
+    def test_update_post_success_updates_description(self, auth_headers, setup_cinemas):
         with auth_headers.application.app_context():
-            screening_id = _create_screening(movie_title="Titulo Antigo")
-        form = _valid_create_form(movie_title="Titulo Novo")
+            screening_id = _create_screening()
+        form = _valid_create_form(description="Nova descrição de teste.")
         response = auth_headers.post(
             f"/screening/{screening_id}/update", data=form, follow_redirects=True
         )
         assert response.status_code == 200
         with auth_headers.application.app_context():
             screening = db_session.get(Screening, screening_id)
-            assert screening.movie.title == "Titulo Novo"
+            assert screening.description == "Nova descrição de teste."
+
+    def test_update_post_ignores_movie_title_field(self, auth_headers, setup_cinemas):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Titulo Original")
+        form = _valid_create_form(movie_title="Titulo Que Deveria Ser Ignorado")
+        auth_headers.post(f"/screening/{screening_id}/update", data=form)
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie.title == "Titulo Original"
+
+    def test_update_post_success_redirects_to_update_page(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening()
+        form = _valid_create_form()
+        response = auth_headers.post(
+            f"/screening/{screening_id}/update", data=form, follow_redirects=False
+        )
+        assert response.status_code == 302
+        assert response.location == f"/screening/{screening_id}/update"
 
     def test_update_post_with_valid_image_replaces_image(
         self, auth_headers, setup_cinemas
