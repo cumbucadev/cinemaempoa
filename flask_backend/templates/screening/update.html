@@ -294,7 +294,12 @@
                                 movies.forEach((movie) => {
                                     resultsEl.appendChild(createMovieResultItem(movie));
                                 });
-                                resultsEl.appendChild(createCreateNewItem(query));
+                                const hasExactMatch = movies.some(
+                                    (movie) => movie.title.trim().toLowerCase() === query.toLowerCase()
+                                );
+                                if (!hasExactMatch) {
+                                    resultsEl.appendChild(createCreateNewItem(query));
+                                }
                             });
                     }, 300);
                 }
@@ -336,6 +341,12 @@
 
                 document.getElementById("trocar-filme-confirm-btn").addEventListener("click", () => {
                     if (!pendingMovieChange) {
+                        return;
+                    }
+                    const proceed = confirm(
+                        "Alterações não salvas serão perdidas. Prosseguir?"
+                    );
+                    if (!proceed) {
                         return;
                     }
                     fetch("{{ url_for('screening.change_movie', id=screening.id) }}", {
