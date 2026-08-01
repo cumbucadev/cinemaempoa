@@ -64,6 +64,41 @@ class TestApplyTmdbDetails:
             assert movie.release_year == 2024
             assert movie.original_language == "en"
 
+    def test_relinking_replaces_stale_relations_instead_of_appending(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Relink Direto", "relink-direto")
+            movie_id = movie.id
+
+            apply_tmdb_details(
+                movie,
+                111,
+                {
+                    "genres": [{"id": 1, "name": "Gênero Antigo"}],
+                    "directors": [{"id": 1, "name": "Diretor Antigo"}],
+                    "countries": [{"iso_3166_1": "BR", "name": "Brazil"}],
+                },
+            )
+            db_session.add(movie)
+            db_session.commit()
+
+            apply_tmdb_details(
+                movie,
+                222,
+                {
+                    "genres": [{"id": 2, "name": "Gênero Novo"}],
+                    "directors": [{"id": 2, "name": "Diretor Novo"}],
+                    "countries": [],
+                },
+            )
+            db_session.add(movie)
+            db_session.commit()
+
+            movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert movie.tmdb_id == 222
+            assert [d.name for d in movie.directors] == ["Diretor Novo"]
+            assert [g.name for g in movie.genres] == ["Gênero Novo"]
+            assert movie.countries == []
+
 
 class TestRunPipeline:
     def test_happy_path_persists_directors_and_genres(self, client, app):
@@ -245,7 +280,7 @@ class TestRunPipeline:
             assert attempts[0].status == "error"
             assert "boom" in attempts[0].error_message
 
-    def test_skips_movie_with_all_sources_exhausted(self, client, app):
+    def test_skips_movie_already_attempted(self, client, app):
         with client.application.app_context():
             movie = _create_movie("Já Tentado", "ja-tentado")
             db_session.add(
@@ -341,25 +376,20 @@ class TestRunPipeline:
             assert result.processed == 0
             tmdb_client.search_movie.assert_not_called()
 
-    def test_uses_tmdb_id_directly_when_movie_already_linked(self, client, app):
+    def test_skips_movie_already_linked_to_tmdb(self, client, app):
         with client.application.app_context():
             movie = _create_movie("Já Vinculado", "ja-vinculado")
             movie.tmdb_id = 555
             db_session.add(movie)
             db_session.commit()
-            movie_id = movie.id
 
-            tmdb_client = _tmdb_client(
-                details={"genres": [], "directors": [], "countries": []}
-            )
+            tmdb_client = Mock()
             with patch(
                 "flask_backend.service.movie_metadata_pipeline.TMDBClient",
                 return_value=tmdb_client,
             ):
-                run_pipeline()
+                result = run_pipeline()
 
-            tmdb_client.get_movie_details.assert_called_once_with(555)
+            assert result.processed == 0
             tmdb_client.search_movie.assert_not_called()
-
-            movie = db_session.query(Movie).filter(Movie.id == movie_id).first()
-            assert movie.tmdb_id == 555
+            tmdb_client.get_movie_details.assert_not_called()

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from flask_backend.db import db_session
-from flask_backend.models import MOVIE_METADATA_SOURCES, Movie
+from flask_backend.models import Movie
 from flask_backend.repository.collections import (
     get_or_create_by_tmdb_id as get_or_create_collection,
 )
@@ -27,8 +27,8 @@ from flask_backend.repository.genres import (
 )
 from flask_backend.repository.movie_metadata_fetch_attempts import (
     create as create_attempt,
-    get_movies_without_metadata,
-    get_next_source,
+    get_movies_needing_enrichment,
+    has_attempt,
 )
 from flask_backend.service.tmdb import TMDBClient
 
@@ -46,44 +46,51 @@ class PipelineResult:
     skipped_all_sources_tried: int = 0
 
 
-def _try_tmdb(
-    movie_title: str, tmdb_id: Optional[int] = None
-) -> Optional[tuple[int, dict]]:
-    """Attempt to find movie metadata using the TMDB API.
+def _try_tmdb(movie_title: str) -> Optional[tuple[int, dict]]:
+    """Attempt to find movie metadata on TMDB by searching for `movie_title`.
 
-    If tmdb_id is given, fetch that entry directly (the movie is already
-    linked - never re-search by title once a link exists). Otherwise search
-    by title. Returns (tmdb_id, details) on success, None if title search
-    finds nothing. Raises on network / API errors so the caller can record
-    them.
+    Returns (tmdb_id, details) on success, None if nothing is found. Raises
+    on network / API errors so the caller can record them.
     """
     client = TMDBClient()
-    if tmdb_id is not None:
-        return tmdb_id, client.get_movie_details(tmdb_id)
-
     search_result = client.search_movie(movie_title)
     if search_result is None:
         return None
     return search_result["id"], client.get_movie_details(search_result["id"])
 
 
-# Maps source name -> callable that receives (movie_title, **kwargs) and
-# returns an (tmdb_id, {"genres": [...], "directors": [...], ...}) tuple or
-# None.
-_SOURCE_HANDLERS = {
-    "tmdb": lambda title, **kw: _try_tmdb(title, kw.get("tmdb_id")),
-}
-
-
-def apply_tmdb_details(movie: Movie, tmdb_id: int, details: dict) -> None:
-    """Apply TMDB metadata to a movie in-memory: upserts directors, genres,
-    countries and collection, sets original_title/release_year/
-    original_language, records the tmdb_id link, and clears any prior
-    manual tmdb_excluded flag.
+def clear_tmdb_metadata(movie: Movie) -> None:
+    """Clears all TMDB-derived data from a movie in-memory: directors,
+    genres, countries, collection, and the derived scalar fields. Does not
+    touch tmdb_id/tmdb_excluded - callers set those explicitly.
 
     Does not commit - caller is responsible for db_session.add(movie) +
     db_session.commit().
     """
+    movie.directors = []
+    movie.genres = []
+    movie.countries = []
+    movie.collection_id = None
+    movie.original_title = None
+    movie.release_year = None
+    movie.original_language = None
+
+
+def apply_tmdb_details(movie: Movie, tmdb_id: int, details: dict) -> None:
+    """Replaces a movie's TMDB-derived metadata in-memory with `details`:
+    upserts directors, genres, countries and collection, sets
+    original_title/release_year/original_language, records the tmdb_id
+    link, and clears any prior manual tmdb_excluded flag.
+
+    Any metadata from a previous link is cleared first, so this is safe to
+    call whether the movie was previously unlinked or linked to a different
+    TMDB entry.
+
+    Does not commit - caller is responsible for db_session.add(movie) +
+    db_session.commit().
+    """
+    clear_tmdb_metadata(movie)
+
     for d in details.get("directors", []):
         director = get_or_create_director(d["id"], d["name"])
         if director not in movie.directors:
@@ -124,9 +131,10 @@ def run_pipeline(
 ) -> PipelineResult:
     """Main entry point for the movie metadata pipeline.
 
-    For each movie without a director:
-    1. Determine the next untried source (following MOVIE_METADATA_SOURCES order).
-    2. Attempt to fetch metadata from that source.
+    For each movie not yet linked to a TMDB entry:
+    1. Skip it if a TMDB fetch was already attempted for it (it needs
+       manual review instead).
+    2. Otherwise fetch metadata from TMDB.
     3. Record the attempt (success / not_found / error).
     4. If successful, upsert and attach genres/directors to the movie.
 
@@ -139,18 +147,16 @@ def run_pipeline(
         A PipelineResult summarising the run.
     """
     result = PipelineResult()
-    movies = get_movies_without_metadata()
+    movies = get_movies_needing_enrichment()
 
     if limit is not None:
         movies = movies[:limit]
 
     for movie in movies:
-        next_source = get_next_source(movie.id)
-
-        if next_source is None:
+        if has_attempt(movie.id):
             result.skipped_all_sources_tried += 1
             logger.debug(
-                "Filme %d ('%s'): todas as fontes já tentadas – requer revisão manual",
+                "Filme %d ('%s'): TMDB já tentado sem sucesso – requer revisão manual",
                 movie.id,
                 movie.title,
             )
@@ -158,33 +164,25 @@ def run_pipeline(
 
         if dry_run:
             logger.info(
-                "[dry-run] Filme %d ('%s'): tentaria fonte '%s'",
+                "[dry-run] Filme %d ('%s'): tentaria TMDB",
                 movie.id,
                 movie.title,
-                next_source,
             )
             result.processed += 1
             continue
 
-        handler = _SOURCE_HANDLERS.get(next_source)
-        if handler is None:
-            logger.error("Fonte '%s' não possui handler implementado", next_source)
-            result.errors += 1
-            continue
-
         try:
-            outcome = handler(movie.title, tmdb_id=movie.tmdb_id)
+            outcome = _try_tmdb(movie.title)
         except Exception as exc:
             logger.warning(
-                "Filme %d ('%s') – erro na fonte '%s': %s",
+                "Filme %d ('%s') – erro ao consultar TMDB: %s",
                 movie.id,
                 movie.title,
-                next_source,
                 exc,
             )
             create_attempt(
                 movie_id=movie.id,
-                source=next_source,
+                source="tmdb",
                 status="error",
                 error_message=str(exc)[:500],
                 pipeline_run_id=pipeline_run_id,
@@ -195,14 +193,13 @@ def run_pipeline(
 
         if outcome is None:
             logger.info(
-                "Filme %d ('%s') – fonte '%s': não encontrado",
+                "Filme %d ('%s') – não encontrado no TMDB",
                 movie.id,
                 movie.title,
-                next_source,
             )
             create_attempt(
                 movie_id=movie.id,
-                source=next_source,
+                source="tmdb",
                 status="not_found",
                 pipeline_run_id=pipeline_run_id,
             )
@@ -216,14 +213,13 @@ def run_pipeline(
         db_session.commit()
 
         logger.info(
-            "Filme %d ('%s') – metadados salvos via '%s'",
+            "Filme %d ('%s') – metadados salvos via TMDB",
             movie.id,
             movie.title,
-            next_source,
         )
         create_attempt(
             movie_id=movie.id,
-            source=next_source,
+            source="tmdb",
             status="success",
             pipeline_run_id=pipeline_run_id,
         )
@@ -236,24 +232,24 @@ def run_pipeline(
 def get_manual_review_summary() -> list[dict]:
     """Return a summary of movies that need manual metadata review.
 
-    Each dict contains movie_id, movie_title, and the list of sources
-    already attempted.
+    Each dict contains movie_id, movie_title, and the outcome of the last
+    TMDB fetch attempt (status, error_message).
     """
     from flask_backend.repository.movie_metadata_fetch_attempts import (
-        get_attempted_sources,
+        get_latest_attempt,
         get_movies_needing_manual_review,
     )
 
     movies = get_movies_needing_manual_review()
     summary = []
     for movie in movies:
-        attempted = get_attempted_sources(movie.id)
+        attempt = get_latest_attempt(movie.id)
         summary.append(
             {
                 "movie_id": movie.id,
                 "movie_title": movie.title,
-                "sources_attempted": sorted(attempted),
-                "total_sources": len(MOVIE_METADATA_SOURCES),
+                "status": attempt.status if attempt else None,
+                "error_message": attempt.error_message if attempt else None,
             }
         )
     return summary

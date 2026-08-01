@@ -229,9 +229,8 @@ def poster_review():
     "--verbose", "-v", is_flag=True, default=False, help="Mostra logs detalhados."
 )
 def fetch_movie_metadata(limit, dry_run, verbose):
-    """Busca diretor(es) e gêneros para filmes sem esses dados.
+    """Busca diretor(es) e gêneros no TMDB para filmes ainda não vinculados.
 
-    Tenta fontes na ordem: TMDB.
     Registra cada tentativa para evitar repetição.
     """
     from flask_backend.repository import pipeline_runs
@@ -285,8 +284,8 @@ def fetch_movie_metadata(limit, dry_run, verbose):
 def movie_metadata_review():
     """Lista filmes que precisam de revisão manual de metadados.
 
-    São filmes sem diretor que já tentaram todas as fontes
-    disponíveis (TMDB) sem sucesso.
+    São filmes ainda não vinculados ao TMDB cuja última tentativa de busca
+    não teve sucesso.
     """
     from flask_backend.service.movie_metadata_pipeline import get_manual_review_summary
 
@@ -298,10 +297,10 @@ def movie_metadata_review():
 
     click.echo(f"Filmes que precisam de revisão manual ({len(summary)}):\n")
     for item in summary:
-        click.echo(
-            f'  Movie #{item["movie_id"]} – "{item["movie_title"]}" '
-            f"(fontes tentadas: {', '.join(item['sources_attempted'])})"
-        )
+        detail = item["status"]
+        if item["error_message"]:
+            detail = f"{detail}: {item['error_message']}"
+        click.echo(f'  Movie #{item["movie_id"]} – "{item["movie_title"]}" ({detail})')
 
 
 @click.command("title-cleaning-report")
