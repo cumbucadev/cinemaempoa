@@ -4,7 +4,10 @@ from flask import Blueprint, abort, jsonify, render_template, request
 from flask_backend.db import db_session
 from flask_backend.repository.movies import get_by_id
 from flask_backend.routes.auth import login_required
-from flask_backend.service.movie_metadata_pipeline import apply_tmdb_details
+from flask_backend.service.movie_metadata_pipeline import (
+    apply_tmdb_details,
+    clear_tmdb_metadata,
+)
 from flask_backend.service.tmdb import TMDB_IMAGE_BASE_URL, TMDBClient
 
 bp = Blueprint("admin_movies", __name__)
@@ -18,6 +21,7 @@ def _movie_state(movie):
         "release_year": movie.release_year,
         "original_language": movie.original_language,
         "tmdb_id": movie.tmdb_id,
+        "tmdb_excluded": movie.tmdb_excluded,
         "directors": [d.name for d in movie.directors],
         "genres": [g.name for g in movie.genres],
         "collection": movie.collection.name if movie.collection else None,
@@ -95,17 +99,6 @@ def tmdb_link(movie_id):
     except requests.RequestException as exc:
         return jsonify({"error": str(exc)}), 502
 
-    if movie.tmdb_id != tmdb_id:
-        # Linking to a new TMDB entry (including the first-ever link):
-        # apply_tmdb_details only appends (it's designed for the automatic
-        # pipeline's progressive discovery), so clear the old match's
-        # relations first to avoid ending up with a union of the wrong and
-        # right director/genres/collection.
-        movie.directors = []
-        movie.genres = []
-        movie.countries = []
-        movie.collection_id = None
-
     apply_tmdb_details(movie, tmdb_id, details)
     db_session.add(movie)
     db_session.commit()
@@ -120,7 +113,9 @@ def tmdb_unlink(movie_id):
     if not movie:
         abort(404)
 
+    clear_tmdb_metadata(movie)
     movie.tmdb_id = None
+    movie.tmdb_excluded = True
     db_session.add(movie)
     db_session.commit()
 

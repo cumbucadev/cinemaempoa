@@ -466,7 +466,8 @@ class TestMovieMetadataReviewCommand:
             {
                 "movie_id": 9,
                 "movie_title": "Outro Filme",
-                "sources_attempted": ["tmdb"],
+                "status": "not_found",
+                "error_message": None,
             }
         ]
         with patch(
@@ -475,3 +476,4 @@ class TestMovieMetadataReviewCommand:
         ):
             result = runner.invoke(args=["movie-metadata-review"])
         assert "Outro Filme" in result.output
+        assert "not_found" in result.output

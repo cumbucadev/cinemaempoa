@@ -26,9 +26,6 @@ from flask_backend.db import Base
 # The pipeline tries each source in order and records the result.
 POSTER_SOURCES = ["tmdb", "imdb"]
 
-# Ordered list of sources the movie metadata pipeline will try.
-MOVIE_METADATA_SOURCES = ["tmdb"]
-
 PIPELINE_RUN_STATUSES = ["running", "success", "warning", "error"]
 
 ALERT_ACTIONS = ["posted", "dismissed"]
@@ -116,6 +113,9 @@ class Movie(Base):
     release_year = Column(Integer, nullable=True)
     original_language = Column(String, nullable=True)  # ISO 639-1, e.g. "pt"
     tmdb_id = Column(Integer, nullable=True, index=True)
+    tmdb_excluded = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     collection_id = Column(
         Integer, ForeignKey("collections.id"), nullable=True, index=True
@@ -280,10 +280,10 @@ class PosterFetchAttempt(Base):
 
 class MovieMetadataFetchAttempt(Base):
     """Tracks each attempt to fetch metadata (director, genres) for a movie
-    from an external source.
+    from TMDB.
 
-    A movie that has failed attempts for every source in MOVIE_METADATA_SOURCES
-    is considered as needing manual review.
+    A movie that has a failed attempt and is still not linked to a TMDB
+    entry is considered as needing manual review.
     """
 
     __tablename__ = "movie_metadata_fetch_attempts"
