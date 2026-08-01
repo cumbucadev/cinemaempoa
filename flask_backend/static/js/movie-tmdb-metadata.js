@@ -99,9 +99,13 @@ function updateMetadataDisplay(movie) {
     document.getElementById("field-directors").textContent = movie.directors.join(", ") || "—";
     document.getElementById("field-genres").textContent = movie.genres.join(", ") || "—";
     document.getElementById("field-collection").textContent = movie.collection || "—";
-    document.getElementById("field-tmdb-status").textContent = movie.tmdb_id ?
-        `Vinculado ao TMDB #${movie.tmdb_id}` :
-        "Não vinculado";
+    let tmdbStatus = "Não vinculado";
+    if (movie.tmdb_id) {
+        tmdbStatus = `Vinculado ao TMDB #${movie.tmdb_id}`;
+    } else if (movie.tmdb_excluded) {
+        tmdbStatus = "Não encontrado no TMDB (marcado manualmente)";
+    }
+    document.getElementById("field-tmdb-status").textContent = tmdbStatus;
 }
 
 function linkMovie(tmdbId) {

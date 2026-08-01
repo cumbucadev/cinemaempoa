@@ -324,6 +324,23 @@ class TestRunPipeline:
             )
             assert attempt.pipeline_run_id == 42
 
+    def test_skips_movie_excluded_from_tmdb(self, client, app):
+        with client.application.app_context():
+            movie = _create_movie("Não Consta No Tmdb", "nao-consta-no-tmdb")
+            movie.tmdb_excluded = True
+            db_session.add(movie)
+            db_session.commit()
+
+            tmdb_client = Mock()
+            with patch(
+                "flask_backend.service.movie_metadata_pipeline.TMDBClient",
+                return_value=tmdb_client,
+            ):
+                result = run_pipeline()
+
+            assert result.processed == 0
+            tmdb_client.search_movie.assert_not_called()
+
     def test_uses_tmdb_id_directly_when_movie_already_linked(self, client, app):
         with client.application.app_context():
             movie = _create_movie("Já Vinculado", "ja-vinculado")

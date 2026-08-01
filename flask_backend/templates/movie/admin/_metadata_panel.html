@@ -28,6 +28,8 @@
         <span id="field-tmdb-status">
             {% if movie.tmdb_id %}
                 Vinculado ao TMDB #{{ movie.tmdb_id }}
+            {% elif movie.tmdb_excluded %}
+                Não encontrado no TMDB (marcado manualmente)
             {% else %}
                 Não vinculado
             {% endif %}

@@ -10,6 +10,13 @@ from flask_backend.service.tmdb import TMDB_IMAGE_BASE_URL, TMDBClient
 bp = Blueprint("admin_movies", __name__)
 
 
+def _clear_tmdb_relations(movie):
+    movie.directors = []
+    movie.genres = []
+    movie.countries = []
+    movie.collection_id = None
+
+
 def _movie_state(movie):
     return {
         "id": movie.id,
@@ -18,6 +25,7 @@ def _movie_state(movie):
         "release_year": movie.release_year,
         "original_language": movie.original_language,
         "tmdb_id": movie.tmdb_id,
+        "tmdb_excluded": movie.tmdb_excluded,
         "directors": [d.name for d in movie.directors],
         "genres": [g.name for g in movie.genres],
         "collection": movie.collection.name if movie.collection else None,
@@ -101,10 +109,7 @@ def tmdb_link(movie_id):
         # pipeline's progressive discovery), so clear the old match's
         # relations first to avoid ending up with a union of the wrong and
         # right director/genres/collection.
-        movie.directors = []
-        movie.genres = []
-        movie.countries = []
-        movie.collection_id = None
+        _clear_tmdb_relations(movie)
 
     apply_tmdb_details(movie, tmdb_id, details)
     db_session.add(movie)
@@ -121,6 +126,11 @@ def tmdb_unlink(movie_id):
         abort(404)
 
     movie.tmdb_id = None
+    movie.tmdb_excluded = True
+    _clear_tmdb_relations(movie)
+    movie.original_title = None
+    movie.release_year = None
+    movie.original_language = None
     db_session.add(movie)
     db_session.commit()
 

@@ -50,8 +50,13 @@ def get_next_source(movie_id: int) -> Optional[str]:
 
 
 def get_movies_without_metadata() -> List[Movie]:
-    """Return movies that have no director set."""
-    return db_session.query(Movie).filter(~Movie.directors.any()).all()
+    """Return movies that have no director set and are not excluded from
+    automatic TMDB enrichment."""
+    return (
+        db_session.query(Movie)
+        .filter(~Movie.directors.any(), ~Movie.tmdb_excluded)
+        .all()
+    )
 
 
 def get_movies_needing_manual_review() -> List[Movie]:

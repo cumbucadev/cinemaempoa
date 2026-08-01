@@ -7,7 +7,7 @@ from unittest.mock import patch
 import requests
 
 from flask_backend.db import db_session
-from flask_backend.models import Director, Genre, Movie
+from flask_backend.models import Collection, Country, Director, Genre, Movie
 
 
 def _create_movie(title="Filme de Teste", slug="filme-de-teste", tmdb_id=None):
@@ -317,13 +317,24 @@ class TestAdminMoviesTmdbUnlink:
         assert response.status_code == 302
         assert b"/auth/login" in response.data
 
-    def test_clears_tmdb_id_without_touching_relations(self, client, auth_headers):
+    def test_clears_tmdb_id_and_all_derived_metadata(self, client, auth_headers):
         with client.application.app_context():
             movie = _create_movie(tmdb_id=555)
+            movie.original_title = "Original Title"
+            movie.release_year = 2001
+            movie.original_language = "en"
+
             director = Director(tmdb_id=42, name="Jane Director")
-            db_session.add(director)
+            genre = Genre(tmdb_id=1, name="Drama")
+            country = Country(iso_3166_1="US", name="United States")
+            collection = Collection(tmdb_id=7, name="Some Collection")
+            db_session.add_all([director, genre, country, collection])
             db_session.commit()
+
             movie.directors.append(director)
+            movie.genres.append(genre)
+            movie.countries.append(country)
+            movie.collection_id = collection.id
             db_session.add(movie)
             db_session.commit()
             movie_id = movie.id
@@ -331,8 +342,50 @@ class TestAdminMoviesTmdbUnlink:
         response = auth_headers.post(f"/admin/movies/{movie_id}/tmdb-unlink")
         assert response.status_code == 200
         assert response.json["tmdb_id"] is None
+        assert response.json["tmdb_excluded"] is True
+        assert response.json["directors"] == []
+        assert response.json["genres"] == []
+        assert response.json["collection"] is None
 
         with client.application.app_context():
             updated = db_session.query(Movie).filter(Movie.id == movie_id).first()
             assert updated.tmdb_id is None
-            assert [d.name for d in updated.directors] == ["Jane Director"]
+            assert updated.tmdb_excluded is True
+            assert updated.directors == []
+            assert updated.genres == []
+            assert updated.countries == []
+            assert updated.collection_id is None
+            assert updated.original_title is None
+            assert updated.release_year is None
+            assert updated.original_language is None
+
+    def test_relink_after_unlink_clears_excluded_flag(self, client, auth_headers):
+        with client.application.app_context():
+            movie_id = _create_movie(tmdb_id=555).id
+
+        auth_headers.post(f"/admin/movies/{movie_id}/tmdb-unlink")
+
+        with client.application.app_context():
+            excluded = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert excluded.tmdb_excluded is True
+
+        details = {
+            "genres": [],
+            "directors": [],
+            "countries": [],
+            "original_title": "Title",
+            "release_year": 2020,
+            "original_language": "en",
+        }
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = details
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 999}
+            )
+
+        assert response.status_code == 200
+        assert response.json["tmdb_excluded"] is False
+
+        with client.application.app_context():
+            relinked = db_session.query(Movie).filter(Movie.id == movie_id).first()
+            assert relinked.tmdb_excluded is False

@@ -78,7 +78,8 @@ _SOURCE_HANDLERS = {
 def apply_tmdb_details(movie: Movie, tmdb_id: int, details: dict) -> None:
     """Apply TMDB metadata to a movie in-memory: upserts directors, genres,
     countries and collection, sets original_title/release_year/
-    original_language, and records the tmdb_id link.
+    original_language, records the tmdb_id link, and clears any prior
+    manual tmdb_excluded flag.
 
     Does not commit - caller is responsible for db_session.add(movie) +
     db_session.commit().
@@ -113,6 +114,7 @@ def apply_tmdb_details(movie: Movie, tmdb_id: int, details: dict) -> None:
     movie.release_year = details.get("release_year")
     movie.original_language = details.get("original_language")
     movie.tmdb_id = tmdb_id
+    movie.tmdb_excluded = False
 
 
 def run_pipeline(
