@@ -97,6 +97,27 @@ body.reels-root {
     background: #000;
 }
 
+/* fixed-height dark floor, sized off the viewport rather than the bottom
+   bar's content box: card-to-card the bar's height shifts with title/badge
+   wrapping, which used to leave .reels-when (the first, topmost line in the
+   bar) right at the weak end of a content-sized gradient. this guarantees
+   that row always sits deep inside a genuinely dark zone regardless of
+   content length or how dark the poster art underneath happens to be. */
+.reels-poster-frame::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 46vh;
+    height: 46svh;
+    background: linear-gradient(to top,
+            rgba(0, 0, 0, 0.88) 0%,
+            rgba(0, 0, 0, 0.72) 45%,
+            rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+}
+
 /* the real poster, uncropped: object-fit: cover was slicing into artwork
    (credits, taglines) that portrait one-sheets often carry near the edges.
    contain shows the whole thing; .reels-poster-backdrop below fills the
@@ -138,7 +159,6 @@ body.reels-root {
     align-items: flex-start;
     gap: 0.75rem;
     padding: 1rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
     box-sizing: border-box;
 }
 
@@ -159,13 +179,13 @@ body.reels-root {
 
 .reels-when-day,
 .reels-when-time {
-    /* dark outline so the gold holds up over light/white poster areas,
-       not just the gradient scrim it usually sits on */
+    /* light ambient glow, not a hard rim: .reels-poster-frame::after above
+       is what guarantees legibility now, so this only has to soften the
+       rare bright edge poking through the scrim - a hard directional
+       outline isn't needed and read as a muddy halo on dark art */
     text-shadow:
-        -1px -1px 2px rgba(0, 0, 0, 0.8),
-        1px -1px 2px rgba(0, 0, 0, 0.8),
-        -1px 1px 2px rgba(0, 0, 0, 0.8),
-        1px 1px 2px rgba(0, 0, 0, 0.8);
+        0 0 6px rgba(0, 0, 0, 0.55),
+        0 0 2px rgba(0, 0, 0, 0.75);
 }
 
 .reels-when-day {
