@@ -267,6 +267,7 @@ dependencies = [
     { name = "icalendar" },
     { name = "identify" },
     { name = "idna" },
+    { name = "imap-tools" },
     { name = "iniconfig" },
     { name = "itsdangerous" },
     { name = "jinja2" },
@@ -407,6 +408,7 @@ requires-dist = [
     { name = "icalendar", specifier = "==6.3.1" },
     { name = "identify", specifier = "==2.6.1" },
     { name = "idna", specifier = "==3.4" },
+    { name = "imap-tools", specifier = "==1.13.0" },
     { name = "iniconfig", specifier = "==2.3.0" },
     { name = "itsdangerous", specifier = "==2.1.2" },
     { name = "jinja2", specifier = "==3.1.3" },
@@ -946,6 +948,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8b/e1/43beb3d38dba6cb420cefa297822eac205a277ab43e5ba5d5c46faf96438/idna-3.4.tar.gz", hash = "sha256:814f528e8dead7d329833b91c5faa87d60bf71824cd12a7530b5526063d02cb4", size = 183077, upload-time = "2022-09-14T00:24:27.719Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fc/34/3030de6f1370931b9dbb4dad48f6ab1015ab1d32447850b9fc94e60097be/idna-3.4-py3-none-any.whl", hash = "sha256:90b77e79eaa3eba6de819a0c442c0b4ceefc341a7a2ab77d7562bf49f425c5c2", size = 61538, upload-time = "2022-09-14T00:24:23.22Z" },
+]
+
+[[package]]
+name = "imap-tools"
+version = "1.13.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/cb/76d8697739439be6dd0261db5a27c945fb6a43e054f2d2e90283be502058/imap_tools-1.13.0.tar.gz", hash = "sha256:0da0d72c921a724cba09b959bad9bfaf60bca537a697e69a076fdf607ef5775c", size = 47683, upload-time = "2026-05-12T07:14:54.488Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/a8/0f58c13d2660d5fc8f808ce8b46828d2941752ec21e4015bde99c08b37d7/imap_tools-1.13.0-py3-none-any.whl", hash = "sha256:656c37beba22ab2929b73c07d0ca397ae8805b670d390b1127723e3335244e6d", size = 35849, upload-time = "2026-05-12T07:14:52.669Z" },
 ]
 
 [[package]]

@@ -142,6 +142,51 @@ ser importado pra dentro da plataforma.
 
 Você pode ver a implementação (prompts e regras de negócio) no arquivo [./llms.py](./llms.py).
 
+## Paulo Amorim (newsletter por e-mail)
+
+Além do scraper de HTML (`scrapers/paulo_amorim.py`), existe uma segunda fonte de dados
+para a Cinemateca Paulo Amorim: `scrapers/paulo_amorim_email.py`, que lê a newsletter
+semanal enviada por e-mail e usa uma LLM pra extração das sessões (mesma estratégia do
+CineBancários, ver acima). Essa segunda fonte existe porque a newsletter costuma chegar
+com alguns dias de antecedência em relação à atualização do site, e o site às vezes atrasa
+alguns dias no início de cada semana (ver issue #251).
+
+As duas fontes rodam de forma independente e escrevem sessões pra mesma sala
+(`paulo-amorim`) no banco. Eventuais duplicatas entre elas são resolvidas pelo
+`flask --app flask_backend run-dedupper`, que já existe pra esse propósito.
+
+### Recebendo os e-mails
+
+Uma conta de e-mail dedicada (Gmail, com senha de app) é cadastrada na newsletter e
+consultada via IMAP (biblioteca `imap-tools`) uma vez por dia. Só mensagens não lidas do
+remetente da newsletter são processadas; cada mensagem só é marcada como lida depois que
+a extração via LLM funciona - se a extração falhar, a mensagem continua não lida e é
+reprocessada no próximo dia.
+
+Variáveis de ambiente necessárias (ver `example.env`):
+
+- `PAULO_AMORIM_EMAIL_ADDRESS` / `PAULO_AMORIM_EMAIL_APP_PASSWORD`: credenciais IMAP da
+  conta dedicada.
+- `PAULO_AMORIM_NEWSLETTER_SENDER_EMAIL`: endereço de origem da newsletter, usado pra
+  filtrar quais e-mails da caixa de entrada são processados.
+
+### Formato da newsletter
+
+Ao contrário da página `grade-semanal` do site (organizada por dia, com uma linha por
+sessão), o e-mail é organizado por sala (Sala Paulo Amorim, Sala Eduardo Hirtz, Sala
+Norberto Lubisco), com um bloco de texto por filme contendo um único horário e exceções
+descritas em linguagem natural, por exemplo:
+
+```
+FRANZ (...). Direção de Agnieszka Holland...
+Sinopse: ...
+Sessões: 19h15min (exibições nos dias 25, 26, 28 e 29 – de sábado a quarta-feira)
+```
+
+O prompt em `PauloAmorimEmailExtractorLLM` (`scrapers/llms.py`) é responsável por expandir
+essas exceções (e a exceção global do tipo "SEGUNDA-FEIRA NÃO HÁ SESSÕES") em datas
+concretas.
+
 ## Cine Cinco
 
 O site do projeto é <https://www.pucrs.br/cultura/projetos/cine-cinco/>. Diferente

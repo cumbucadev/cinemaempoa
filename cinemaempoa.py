@@ -7,6 +7,7 @@ from scrapers.capitolio import Capitolio
 from scrapers.cine_cinco import CineCinco
 from scrapers.cinebancarios import CineBancarios
 from scrapers.paulo_amorim import CinematecaPauloAmorim
+from scrapers.paulo_amorim_email import PauloAmorimEmail
 from scrapers.sala_redencao import SalaRedencao
 from utils import dump_utf8_json
 
@@ -21,6 +22,7 @@ if __name__ == "__main__":
         "sala-redencao",
         "cinebancarios",
         "paulo-amorim",
+        "paulo-amorim-email",
         "cine-cinco",
     ]
 
@@ -85,6 +87,15 @@ if __name__ == "__main__":
 
         with open(json_filename, "w") as json_file:
             json_file.write(dump_utf8_json(features))
+    if "paulo-amorim-email" in args.rooms:
+        feature = {
+            "url": "https://www.cinematecapauloamorim.com.br",
+            "cinema": "Cinemateca Paulo Amorim",
+            "slug": "paulo-amorim",
+        }
+        pauloAmorimEmail = PauloAmorimEmail()
+        feature["features"] = pauloAmorimEmail.get_weekly_features_json()
+        features.append(feature)
     if "cine-cinco" in args.rooms:
         feature = {
             "url": "https://www.pucrs.br/cultura/projetos/cine-cinco/",
