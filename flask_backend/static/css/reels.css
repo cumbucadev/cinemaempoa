@@ -51,18 +51,21 @@ body.reels-root {
     position: relative;
 }
 
+/* quiet scroll-orientation cue only ("which day am I on"); the session's
+   actual day + time live in .reels-when at the bottom, right where the
+   title and cinema are - this stays small so it doesn't compete */
 .reels-day-label {
     position: absolute;
-    top: 0.75rem;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 0.65rem;
+    right: 0.65rem;
     z-index: 2;
     margin: 0;
-    padding: 0.25rem 0.75rem;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
+    padding: 0.2rem 0.6rem;
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.85);
     border-radius: 999px;
-    font-size: 0.8rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
 }
 
 .reels-card-panels {
@@ -86,14 +89,57 @@ body.reels-root {
     overflow: hidden;
 }
 
-.reels-poster-img,
-.reels-poster-placeholder {
+.reels-poster-frame {
+    position: relative;
     width: 100%;
     height: 100%;
+    overflow: hidden;
+    background: #000;
+}
+
+/* fixed-height dark floor, sized off the viewport rather than the bottom
+   bar's content box: card-to-card the bar's height shifts with title/badge
+   wrapping, which used to leave .reels-when (the first, topmost line in the
+   bar) right at the weak end of a content-sized gradient. this guarantees
+   that row always sits deep inside a genuinely dark zone regardless of
+   content length or how dark the poster art underneath happens to be. */
+.reels-poster-frame::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 46vh;
+    height: 46svh;
+    background: linear-gradient(to top,
+            rgba(0, 0, 0, 0.88) 0%,
+            rgba(0, 0, 0, 0.72) 45%,
+            rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+}
+
+/* the real poster, uncropped: object-fit: cover was slicing into artwork
+   (credits, taglines) that portrait one-sheets often carry near the edges.
+   contain shows the whole thing; .reels-poster-backdrop below fills the
+   resulting letterbox gaps instead of leaving them black */
+.reels-poster-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.reels-poster-backdrop {
     object-fit: cover;
+    filter: blur(50px) saturate(1.35) brightness(0.55);
+    /* scales past the blur radius so no unblurred edge peeks in */
+    transform: scale(1.25);
 }
 
 .reels-poster-placeholder {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -113,7 +159,6 @@ body.reels-root {
     align-items: flex-start;
     gap: 0.75rem;
     padding: 1rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
     box-sizing: border-box;
 }
 
@@ -122,6 +167,46 @@ body.reels-root {
     min-width: 0;
     max-width: 80%;
     color: #fff;
+}
+
+/* the hero: day + showtime, read before anything else in the overlay */
+.reels-overlay .reels-when {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    margin: 0 0 0.4rem;
+}
+
+.reels-when-day,
+.reels-when-time {
+    /* light ambient glow, not a hard rim: .reels-poster-frame::after above
+       is what guarantees legibility now, so this only has to soften the
+       rare bright edge poking through the scrim - a hard directional
+       outline isn't needed and read as a muddy halo on dark art */
+    text-shadow:
+        0 0 6px rgba(0, 0, 0, 0.55),
+        0 0 2px rgba(0, 0, 0, 0.75);
+}
+
+.reels-when-day {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--reels-accent);
+}
+
+.reels-when-time {
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--reels-accent);
+    line-height: 1;
+}
+
+.reels-when-date {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .reels-empty {

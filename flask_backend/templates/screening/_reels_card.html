@@ -1,21 +1,35 @@
 {% from "macros/cinema_badge.html" import cinema_badge %}
+{% set day_word, day_date = card.day_label.split(", ", 1) %}
 <section class="reels-card" id="reels-card-{{ card.screening_id }}">
-    <p class="reels-day-label">{{ card.day_label }}</p>
+    <p class="reels-day-label">{{ day_word }}</p>
     <div class="reels-card-panels">
         <div class="reels-panel reels-panel-poster">
             {% if card.image %}
-                {# djlint:off H006 #}
-                {# current_loop (not loop) because Jinja's `loop` doesn't cross an {% include %} boundary #}
-                {% if current_loop.index0 < 2 %}
-                    <img class="reels-poster-img"
-                         src="{{ card.image }}"
-                         alt="{{ card.image_alt or card.movie_title }}" />
-                {% else %}
-                    <img class="reels-poster-img"
-                         data-src="{{ card.image }}"
-                         alt="{{ card.image_alt or card.movie_title }}" />
-                {% endif %}
-                {# djlint:on #}
+                <div class="reels-poster-frame">
+                    {# djlint:off H006 #}
+                    {# current_loop (not loop) because Jinja's `loop` doesn't cross an {% include %} boundary #}
+                    {# the backdrop is a blurred duplicate filling the letterbox gaps left by
+                       object-fit: contain on the real poster below - same URL, so the browser
+                       serves it from cache instead of a second request #}
+                    {% if current_loop.index0 < 2 %}
+                        <img class="reels-poster-img reels-poster-backdrop"
+                             src="{{ card.image }}"
+                             alt=""
+                             aria-hidden="true" />
+                        <img class="reels-poster-img"
+                             src="{{ card.image }}"
+                             alt="{{ card.image_alt or card.movie_title }}" />
+                    {% else %}
+                        <img class="reels-poster-img reels-poster-backdrop"
+                             data-src="{{ card.image }}"
+                             alt=""
+                             aria-hidden="true" />
+                        <img class="reels-poster-img"
+                             data-src="{{ card.image }}"
+                             alt="{{ card.image_alt or card.movie_title }}" />
+                    {% endif %}
+                    {# djlint:on #}
+                </div>
             {% else %}
                 <div class="reels-poster-placeholder"
                      style="background-color: {{ card.cinema_color }}">
@@ -24,11 +38,17 @@
             {% endif %}
             <div class="reels-bottom-bar">
                 <div class="reels-overlay">
+                    {% if card.soonest_time %}
+                        <p class="reels-when">
+                            <span class="reels-when-day">{{ day_word }}</span>
+                            <span class="reels-when-time">{{ card.soonest_time }}</span>
+                            <span class="reels-when-date">{{ day_date }}</span>
+                        </p>
+                    {% endif %}
                     {{ cinema_badge(card.cinema_slug, card.cinema_name, card.cinema_color) }}
                     <h2>{{ card.movie_title }}</h2>
                     <p>
-                        {% if card.soonest_time %}{{ card.soonest_time }}{% endif %}
-                        {% if card.directors %}· {{ card.directors|join(", ") }}{% endif %}
+                        {% if card.directors %}{{ card.directors|join(", ") }}{% endif %}
                         {% if card.release_year %}· {{ card.release_year }}{% endif %}
                     </p>
                     {% if card.draft %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
