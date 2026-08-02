@@ -51,18 +51,21 @@ body.reels-root {
     position: relative;
 }
 
+/* quiet scroll-orientation cue only ("which day am I on"); the session's
+   actual day + time live in .reels-when at the bottom, right where the
+   title and cinema are - this stays small so it doesn't compete */
 .reels-day-label {
     position: absolute;
-    top: 0.75rem;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 0.65rem;
+    right: 0.65rem;
     z-index: 2;
     margin: 0;
-    padding: 0.25rem 0.75rem;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
+    padding: 0.2rem 0.6rem;
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.85);
     border-radius: 999px;
-    font-size: 0.8rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
 }
 
 .reels-card-panels {
@@ -86,14 +89,36 @@ body.reels-root {
     overflow: hidden;
 }
 
-.reels-poster-img,
-.reels-poster-placeholder {
+.reels-poster-frame {
+    position: relative;
     width: 100%;
     height: 100%;
+    overflow: hidden;
+    background: #000;
+}
+
+/* the real poster, uncropped: object-fit: cover was slicing into artwork
+   (credits, taglines) that portrait one-sheets often carry near the edges.
+   contain shows the whole thing; .reels-poster-backdrop below fills the
+   resulting letterbox gaps instead of leaving them black */
+.reels-poster-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.reels-poster-backdrop {
     object-fit: cover;
+    filter: blur(50px) saturate(1.35) brightness(0.55);
+    /* scales past the blur radius so no unblurred edge peeks in */
+    transform: scale(1.25);
 }
 
 .reels-poster-placeholder {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -122,6 +147,42 @@ body.reels-root {
     min-width: 0;
     max-width: 80%;
     color: #fff;
+}
+
+/* the hero: day + showtime, read before anything else in the overlay */
+.reels-overlay .reels-when {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    margin: 0 0 0.4rem;
+}
+
+.reels-when-day {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--reels-accent);
+}
+
+.reels-when-time {
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--reels-accent);
+    line-height: 1;
+}
+
+.reels-when-date {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* the pill + color + tap target already say "this is a link"; the
+   inherited underline (badges are normally <span>s, this one's an <a>)
+   was an oversight, not a choice */
+.reels-overlay .badge {
+    text-decoration: none;
 }
 
 .reels-empty {
