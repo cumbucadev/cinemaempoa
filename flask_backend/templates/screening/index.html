@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros/alt_badge.html" import alt_badge %}
+{% from "macros/cinema_badge.html" import cinema_badge %}
 {% block meta_tags %}
     {% set cinemas_list = cinemas_with_screenings | map(attribute='name') | join(', ') %}
     <meta name="description"
@@ -18,6 +19,7 @@
 {% endblock header %}
 {% block content %}
     {% for cinema in cinemas_with_screenings %}
+        {% set cinema_badge_html = cinema_badge(cinema.slug, cinema.short_name, cinema.color, extra_class="mb-3") %}
         <article>
             <header>
                 <h2 id="{{ cinema.slug }}">{{ cinema.name }}</h2>
@@ -74,8 +76,7 @@
                                                 {% for time in screening_date['times'] %}<li class="list-group-item px-2 py-1">{{ time }}</li>{% endfor %}
                                             </ul>
                                         </div>
-                                        <span class="mb-3 badge rounded-pill"
-                                              style="background-color: {{ cinema.color }}">{{ cinema.short_name }}</span>
+                                        {{ cinema_badge_html }}
                                     {% endif %}
                                     {# djlint:off #}
                                         <p style="white-space: break-spaces;">{{ screening_date['description']|safe }}</p>

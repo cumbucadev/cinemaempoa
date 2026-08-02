@@ -204,6 +204,7 @@ def build_reels_feed(
                 "image_alt": screening.image_alt,
                 "cinema_name": screening.cinema.short_name,
                 "cinema_color": screening.cinema.color,
+                "cinema_slug": screening.cinema.slug,
                 "soonest_date": soonest.date,
                 "soonest_time": soonest.time,
                 "next_dates": [
@@ -299,6 +300,7 @@ def build_favorites_feed(
                 "image_alt": stale_screening.image_alt,
                 "cinema_name": stale_screening.cinema.short_name,
                 "cinema_color": stale_screening.cinema.color,
+                "cinema_slug": stale_screening.cinema.slug,
                 "soonest_date": None,
                 "soonest_time": None,
                 "next_dates": [],

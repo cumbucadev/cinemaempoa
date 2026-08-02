@@ -1,3 +1,4 @@
+{% from "macros/cinema_badge.html" import cinema_badge %}
 <section class="reels-card" id="reels-card-{{ card.screening_id }}">
     <p class="reels-day-label">{{ card.day_label }}</p>
     <div class="reels-card-panels">
@@ -23,8 +24,7 @@
             {% endif %}
             <div class="reels-bottom-bar">
                 <div class="reels-overlay">
-                    <span class="badge rounded-pill"
-                          style="background-color: {{ card.cinema_color }}">{{ card.cinema_name }}</span>
+                    {{ cinema_badge(card.cinema_slug, card.cinema_name, card.cinema_color) }}
                     <h2>{{ card.movie_title }}</h2>
                     <p>
                         {% if card.soonest_time %}{{ card.soonest_time }}{% endif %}

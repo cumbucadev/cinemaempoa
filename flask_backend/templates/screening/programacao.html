@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/cinema_badge.html" import cinema_badge %}
 {% block meta_tags %}
     <meta name="description"
           content="Programação mensal para as salas de cinema alternativo em Porto Alegre. Atualizada diariamente com novas sessões.">
@@ -33,14 +34,13 @@
                 <strong class="mb-2 fs-5">{{ date.strftime("%d/%m/%Y") }}</strong>
                 <ul class="list-unstyled mb-3">
                     {% for screening in screenings %}
+                        {% set cinema_badge_html = cinema_badge(screening.screening.cinema.slug, screening.screening.cinema.short_name, screening.screening.cinema.color) %}
                         <li class="mb-1">
                             {% if not g.user %}
                                 {{ screening.time.replace(':', 'h') }}:<a href="{{ url_for('movie.show', slug=screening.screening.movie.slug) }}">{{ screening.screening.movie.title }}</a>
-                                <span class="badge rounded-pill"
-                                      style="background-color: {{ screening.screening.cinema.color }}">{{ screening.screening.cinema.short_name }}</span>
+                                {{ cinema_badge_html }}
                             {% else %}
-                                {{ screening.time.replace(':', 'h') }}: <a href="{{ url_for('screening.update', id=screening.screening_id) }}">{{ screening.screening.movie.title }}</a> <span class="badge rounded-pill"
-       style="background-color: {{ screening.screening.cinema.color }}">{{ screening.screening.cinema.short_name }}</span>
+                                {{ screening.time.replace(':', 'h') }}: <a href="{{ url_for('screening.update', id=screening.screening_id) }}">{{ screening.screening.movie.title }}</a> {{ cinema_badge_html }}
                                 {% if screening.screening.draft %}
                                     <button class="badge text-bg-warning ms-3"
                                             data-bs-toggle="tooltip"
