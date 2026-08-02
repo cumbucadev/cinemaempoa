@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/cinema_badge.html" import cinema_badge %}
 {% block meta_tags %}
     <meta name="description"
           content="Confira a listagem em ordem alfabética de todos os filmes registrados no site.">
@@ -35,11 +36,12 @@
         <div class="container">
             <ul class="list-group list-group-flush">
                 {% for movie in movies %}
+                    {% set movie_url = url_for('movie.show', slug=movie.slug) %}
                     <li class="list-group-item d-flex justify-content-between align-items-start mb-3 pb-3">
-                        <a href="{{ url_for('movie.show', slug=movie.slug) }}">
-                            <div class="d-flex">
-                                {# djlint:off #}
-                                <div class="me-3" style="width: 50px;">
+                        <div class="d-flex">
+                            {# djlint:off #}
+                            <div class="me-3" style="width: 50px;">
+                                <a href="{{ movie_url }}">
                                 {% if movie.screenings[0].image %}
                                     <img loading="lazy"
                                          src="{{ movie.screenings[0].image }}"
@@ -55,76 +57,77 @@
                                          src="{{ url_for('static', filename='cinema-white.png') }}"
                                          class="img-fluid rounded logo-white"
                                          alt="Logo">
-                                {# djlint:on #}
-                            {% endif %}
-                        </div>
-                        <div>
-                            <div class="card-body">
-                                {# djlint:off #}
-                                <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
-                                {# djlint:on #}
-                                <p class="card-text">
-                                    {% for screening in movie.screenings %}
-                                        <span class="badge rounded-pill"
-                                              style="background-color: {{ screening.cinema.color }}">{{ screening.cinema.short_name }}</span>
-                                    {% endfor %}
-                                </p>
-                            </div>
-                        </div>
+                            {# djlint:on #}
+                        {% endif %}
+                    </a>
+                </div>
+                <div>
+                    <div class="card-body">
+                        <a href="{{ movie_url }}" class="text-reset text-decoration-none">
+                            {# djlint:off #}
+                            <p class="mb-0" style="font-size: 1rem; font-weight: 500;">{{ movie.title }}</p>
+                            {# djlint:on #}
+                        </a>
+                        <p class="card-text">
+                            {% for screening in movie.screenings %}
+                                {{ cinema_badge(screening.cinema.slug, screening.cinema.short_name, screening.cinema.color) }}
+                            {% endfor %}
+                        </p>
                     </div>
-                </a>
-                {% if show_drafts %}<a href="{{ url_for('admin_movies.edit', movie_id=movie.id) }}">Editar metadados</a>{% endif %}
-            </li>
-        {% else %}
-            <li>
-                <p>Nenhum filme registrado. Volte em breve!</p>
-            </li>
+                </div>
+            </div>
+            {% if show_drafts %}<a href="{{ url_for('admin_movies.edit', movie_id=movie.id) }}">Editar metadados</a>{% endif %}
+        </li>
+    {% else %}
+        <li>
+            <p>Nenhum filme registrado. Volte em breve!</p>
+        </li>
+    {% endfor %}
+</ul>
+<nav aria-label="Navegação das páginas de filmes">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {{ '' if prev_page else 'disabled' }}">
+            <a class="page-link"
+               href="?{{ 'movie={}&'.format(movie) if movie }}page={{ prev_page }}&limit={{ limit }}">
+                <span class="d-none d-sm-inline">Anterior</span>
+                <span class="d-inline d-sm-none">«</span>
+            </a>
+        </li>
+        {% for page in range(1, pages + 1) %}
+            {% if page == 1 or page == pages %}
+                <li class="page-item {{ 'active' if curr_page == page }}">
+                    <a class="page-link"
+                       href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                </li>
+            {% elif page == curr_page - 1 or page == curr_page + 1 %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                </li>
+            {% elif page == curr_page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page }}</span>
+                </li>
+            {% elif page == curr_page - 2 or page == curr_page + 2 %}
+                <li class="page-item d-none d-sm-inline-block">
+                    <a class="page-link"
+                       href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
+                </li>
+            {% elif page == curr_page - 3 or page == curr_page + 3 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
         {% endfor %}
+        <li class="page-item {{ '' if next_page else 'disabled' }}">
+            <a class="page-link"
+               href="?{{ 'movie={}&'.format(movie) if movie }}page={{ next_page }}&limit={{ limit }}">
+                <span class="d-none d-sm-inline">Próximo</span>
+                <span class="d-inline d-sm-none">»</span>
+            </a>
+        </li>
     </ul>
-    <nav aria-label="Navegação das páginas de filmes">
-        <ul class="pagination justify-content-center">
-            <li class="page-item {{ '' if prev_page else 'disabled' }}">
-                <a class="page-link"
-                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ prev_page }}&limit={{ limit }}">
-                    <span class="d-none d-sm-inline">Anterior</span>
-                    <span class="d-inline d-sm-none">«</span>
-                </a>
-            </li>
-            {% for page in range(1, pages + 1) %}
-                {% if page == 1 or page == pages %}
-                    <li class="page-item {{ 'active' if curr_page == page }}">
-                        <a class="page-link"
-                           href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
-                    </li>
-                {% elif page == curr_page - 1 or page == curr_page + 1 %}
-                    <li class="page-item">
-                        <a class="page-link"
-                           href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
-                    </li>
-                {% elif page == curr_page %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ page }}</span>
-                    </li>
-                {% elif page == curr_page - 2 or page == curr_page + 2 %}
-                    <li class="page-item d-none d-sm-inline-block">
-                        <a class="page-link"
-                           href="?{{ 'movie={}&'.format(movie) if movie }}page={{ page }}&limit={{ limit }}">{{ page }}</a>
-                    </li>
-                {% elif page == curr_page - 3 or page == curr_page + 3 %}
-                    <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                    </li>
-                {% endif %}
-            {% endfor %}
-            <li class="page-item {{ '' if next_page else 'disabled' }}">
-                <a class="page-link"
-                   href="?{{ 'movie={}&'.format(movie) if movie }}page={{ next_page }}&limit={{ limit }}">
-                    <span class="d-none d-sm-inline">Próximo</span>
-                    <span class="d-inline d-sm-none">»</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
+</nav>
 </div>
 </div>
 <script>

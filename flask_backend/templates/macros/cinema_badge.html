@@ -1,0 +1,5 @@
+{% macro cinema_badge(slug, name, color, extra_class=None) %}
+    <a class="badge rounded-pill{{ ' ' + extra_class if extra_class }}"
+       href="{{ url_for('cinema.show', slug=slug) }}"
+       style="background-color: {{ color }}">{{ name }}</a>
+{% endmacro %}
