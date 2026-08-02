@@ -178,13 +178,6 @@ body.reels-root {
     color: rgba(255, 255, 255, 0.7);
 }
 
-/* the pill + color + tap target already say "this is a link"; the
-   inherited underline (badges are normally <span>s, this one's an <a>)
-   was an oversight, not a choice */
-.reels-overlay .badge {
-    text-decoration: none;
-}
-
 .reels-empty {
     display: flex;
     align-items: center;
