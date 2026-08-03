@@ -341,6 +341,22 @@ class TestScreeningsSinceRelease:
                 )
             ]
             db_session.add(movie)
+
+            # A second movie with its own screening, so the assertion below
+            # proves the movie_slug filter actually excludes it, rather than
+            # the result happening to match because only one movie exists.
+            other_movie = Movie(title="Outro Filme", slug="outro-filme")
+            other_movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("sala-redencao").id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(date=date(2026, 8, 1), time="20:00"),
+                    ],
+                )
+            ]
+            db_session.add(other_movie)
             db_session.commit()
 
             db_path = str(tmp_path / "graph.db")
