@@ -32,6 +32,7 @@ def register_commands(app):
     app.cli.add_command(title_cleaning_report_command)
     app.cli.add_command(title_cleaning_backfill_command)
     app.cli.add_command(delete_movie_command)
+    app.cli.add_command(sync_graph_command)
 
 
 def _run_import_json(run, json_path):
@@ -106,6 +107,23 @@ def import_json(json_path):
 @click.command("dupe-check")
 def dupe_check():
     dupe_checker()
+
+
+@click.command("sync-graph")
+def sync_graph_command():
+    """Reconstrói o grafo de conhecimento (movies, cinemas, sessões, gêneros,
+    diretores, países) a partir do SQLite.
+
+    Apaga e recria o grafo inteiro a cada execução - comando manual, não
+    faz parte de nenhum pipeline automatizado.
+    """
+    from flask_backend.service.graph_sync import sync_graph
+
+    result = sync_graph()
+    click.echo(
+        f"Grafo sincronizado: {result.nodes_created} nós, "
+        f"{result.edges_created} arestas."
+    )
 
 
 @click.command("run-dedupper")
