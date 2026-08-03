@@ -20,6 +20,7 @@ from flask_backend.service.graph_queries import (
     directors_currently_showing,
     genres_at_cinema,
     movies_by_director,
+    screenings_since_release,
 )
 from flask_backend.service.graph_sync import sync_graph
 
@@ -320,3 +321,55 @@ class TestGenresAtCinema:
             sync_graph(db_path=db_path)
 
             assert genres_at_cinema("capitolio", 2025, db_path=db_path) == []
+
+
+class TestScreeningsSinceRelease:
+    def test_returns_every_screening_date_for_the_movie_in_order(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            movie = Movie(title="Alice nas Cidades", slug="alice-nas-cidades")
+            movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(date=date(2026, 8, 10), time="21:00"),
+                        ScreeningDate(date=date(2026, 8, 5), time="19:00"),
+                    ],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            results = screenings_since_release("alice-nas-cidades", db_path=db_path)
+
+            assert results == [
+                {
+                    "date": "2026-08-05",
+                    "time": "19:00",
+                    "cinema_name": "Cinemateca Capitólio",
+                },
+                {
+                    "date": "2026-08-10",
+                    "time": "21:00",
+                    "cinema_name": "Cinemateca Capitólio",
+                },
+            ]
+
+    def test_returns_empty_list_for_a_movie_with_no_screenings(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            movie = Movie(title="Sem Sessões", slug="sem-sessoes")
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            assert screenings_since_release("sem-sessoes", db_path=db_path) == []

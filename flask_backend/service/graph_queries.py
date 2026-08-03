@@ -69,3 +69,19 @@ def genres_at_cinema(
         "ORDER BY g.name",
         {"cinema_slug": cinema_slug, "start": start, "end": end},
     )
+
+
+def screenings_since_release(movie_slug: str, db_path: str | None = None) -> list[dict]:
+    """Every recorded screening date for a movie, across all cinemas,
+    ordered chronologically. ("Since its release" simplifies to "all
+    screening dates on record" - Phase 1's Movie node has no exact release
+    date, only release_year.)"""
+    graph = _open(db_path)
+    return graph.query(
+        "MATCH (m:Movie)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
+        "(s)-[:AT_CINEMA]->(ci:Cinema) "
+        "WHERE m.slug = $movie_slug "
+        "RETURN sd.date AS date, sd.time AS time, ci.name AS cinema_name "
+        "ORDER BY sd.date, sd.time",
+        {"movie_slug": movie_slug},
+    )
