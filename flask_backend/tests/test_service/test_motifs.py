@@ -19,6 +19,8 @@ from flask_backend.repository.genres import (
 )
 from flask_backend.service.graph_sync import sync_graph
 from flask_backend.service.motifs import (
+    MOTIF_REGISTRY,
+    AnniversaryMotif,
     CinemaGenreFocusMotif,
     CountryClusterMotif,
     DirectorReturnMotif,
@@ -370,3 +372,77 @@ class TestCinemaGenreFocusMotif:
             graph = Graph(db_path)
 
             assert CinemaGenreFocusMotif().detect(graph) == []
+
+
+class TestAnniversaryMotif:
+    def test_flags_movie_at_a_recognized_anniversary_year(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            anniversary_year = date.today().year - 50
+            movie = Movie(
+                title="Filme Clássico",
+                slug="filme-classico",
+                release_year=anniversary_year,
+            )
+            movie.screenings = [_screening("capitolio", 1)]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            observations = AnniversaryMotif().detect(graph)
+
+            assert len(observations) == 1
+            assert observations[0].motif_name == "anniversary"
+            assert observations[0].metadata["movie"] == "Filme Clássico"
+            assert observations[0].metadata["years"] == 50
+
+    def test_does_not_flag_movie_at_a_non_recognized_anniversary_year(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            movie = Movie(
+                title="Filme Comum",
+                slug="filme-comum",
+                release_year=date.today().year - 13,
+            )
+            movie.screenings = [_screening("capitolio", 1)]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            assert AnniversaryMotif().detect(graph) == []
+
+    def test_does_not_flag_movie_with_no_release_year(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            movie = Movie(title="Sem Ano", slug="sem-ano")
+            movie.screenings = [_screening("capitolio", 1)]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            assert AnniversaryMotif().detect(graph) == []
+
+
+class TestMotifRegistry:
+    def test_contains_one_instance_of_each_motif(self):
+        names = {motif.name for motif in MOTIF_REGISTRY}
+        assert names == {
+            "multiple_movies_same_director",
+            "country_cluster",
+            "director_return",
+            "cinema_genre_focus",
+            "anniversary",
+        }
+        assert len(MOTIF_REGISTRY) == 5

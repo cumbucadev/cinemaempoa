@@ -237,6 +237,8 @@ class DirectorReturnMotif(Motif):
 CINEMA_GENRE_FOCUS_MULTIPLIER = 1.5
 CINEMA_GENRE_FOCUS_MIN_COUNT = 3
 
+ANNIVERSARY_YEARS = {10, 20, 25, 30, 40, 50, 75, 100}
+
 
 class CinemaGenreFocusMotif(Motif):
     name = "cinema_genre_focus"
@@ -343,3 +345,74 @@ class CinemaGenreFocusMotif(Motif):
                 )
             )
         return observations
+
+
+class AnniversaryMotif(Motif):
+    name = "anniversary"
+    description = (
+        "Detects currently-screening movies whose age since release "
+        f"matches a recognized anniversary year: {sorted(ANNIVERSARY_YEARS)}."
+    )
+    version = "1.0"
+
+    def detect(self, graph) -> list[Observation]:
+        today = date.today().isoformat()
+        rows = graph.query(
+            "MATCH (m:Movie)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->"
+            "(sd:ScreeningDate) "
+            "WHERE sd.date >= $today AND s.draft = false "
+            "RETURN m.id AS movie_id, m.title AS title, m.release_year AS "
+            "release_year, sd.date AS date "
+            "ORDER BY m.title, sd.date",
+            {"today": today},
+        )
+
+        by_movie: dict[str, dict] = {}
+        for row in rows:
+            entry = by_movie.setdefault(
+                row["movie_id"],
+                {
+                    "title": row["title"],
+                    "release_year": row["release_year"],
+                    "dates": [],
+                },
+            )
+            entry["dates"].append(row["date"])
+
+        current_year = date.today().year
+        observations = []
+        for movie_id, entry in by_movie.items():
+            if entry["release_year"] is None:
+                continue
+            years = current_year - entry["release_year"]
+            if years not in ANNIVERSARY_YEARS:
+                continue
+
+            observations.append(
+                Observation(
+                    motif_name=self.name,
+                    confidence=1.0,
+                    score=0.0,
+                    headline=f"{entry['title']} completa {years} anos em cartaz",
+                    summary=(
+                        f"{entry['title']}, lançado há {years} anos, está "
+                        "de volta aos cinemas."
+                    ),
+                    evidence=GraphEvidence(nodes=[movie_id], edges=[]),
+                    metadata={
+                        "movie": entry["title"],
+                        "years": years,
+                        "next_screening_date": min(entry["dates"]),
+                    },
+                )
+            )
+        return observations
+
+
+MOTIF_REGISTRY: list[Motif] = [
+    MultipleMoviesSameDirectorMotif(),
+    CountryClusterMotif(),
+    DirectorReturnMotif(),
+    CinemaGenreFocusMotif(),
+    AnniversaryMotif(),
+]
