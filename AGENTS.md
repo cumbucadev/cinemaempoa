@@ -34,7 +34,8 @@ is the Flask app (routes, services, templates, CLI, migrations).
 
 Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-dedupper`,
 `generate-sitemap`, `fetch-posters`, `poster-review`, `fetch-movie-metadata`,
-`movie-metadata-review`, `title-cleaning-report`, `title-cleaning-backfill`, `delete-movie`.
+`movie-metadata-review`, `title-cleaning-report`, `title-cleaning-backfill`, `delete-movie`,
+`sync-graph`, `graph-query`.
 
 ## External References
 

@@ -256,6 +256,7 @@ dependencies = [
     { name = "fsspec" },
     { name = "google-auth" },
     { name = "google-genai" },
+    { name = "graphqlite" },
     { name = "greenlet" },
     { name = "griffe" },
     { name = "gunicorn" },
@@ -396,6 +397,7 @@ requires-dist = [
     { name = "fsspec", specifier = "==2025.12.0" },
     { name = "google-auth", specifier = "==2.43.0" },
     { name = "google-genai", specifier = "==1.53.0" },
+    { name = "graphqlite", specifier = "==0.6.0" },
     { name = "greenlet", specifier = "==3.2.4" },
     { name = "griffe", specifier = "==1.15.0" },
     { name = "gunicorn", specifier = "==23.0.0" },
@@ -819,6 +821,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/de/b3/36fbfde2e21e6d3bc67780b61da33632f495ab1be08076cf0a16af74098f/google_genai-1.53.0.tar.gz", hash = "sha256:938a26d22f3fd32c6eeeb4276ef204ef82884e63af9842ce3eac05ceb39cbd8d", size = 260102, upload-time = "2025-12-03T17:21:23.233Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/f2/97fefdd1ad1f3428321bac819ae7a83ccc59f6439616054736b7819fa56c/google_genai-1.53.0-py3-none-any.whl", hash = "sha256:65a3f99e5c03c372d872cda7419f5940e723374bb12a2f3ffd5e3e56e8eb2094", size = 262015, upload-time = "2025-12-03T17:21:21.934Z" },
+]
+
+[[package]]
+name = "graphqlite"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/51/89e7cdefece0f284139567b4e1f501a5106c06482516d099207c0646dc5d/graphqlite-0.6.0.tar.gz", hash = "sha256:1d255b66fcbac1b190b3f0ec25df4b2ba4fe2748783b72f2cde7aa8f35a3d67b", size = 461740, upload-time = "2026-06-04T12:29:40.003Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/ab/eb4f480f39387e236821aa6f5afd4b07926a82120aa90c2fbf7de8b60564/graphqlite-0.6.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:fcd72e7ffc17e61d8be884f7eb40b6a9941bb0990243d4f080ad0a4504f7439b", size = 281277, upload-time = "2026-06-04T12:29:34.497Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/fd/161f36e91a7ae670e01263217952e6e2370b743a59e4df2bb424e3759b79/graphqlite-0.6.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:3d08d20b075fb857271c76bdd1570037f3ac1d096a58e203af4227b5fbb2cd88", size = 359171, upload-time = "2026-06-04T12:29:36.267Z" },
+    { url = "https://files.pythonhosted.org/packages/38/56/7e4e4b9d25e1767d5e6d09622e1ca4bad387b749045e113059b434a8ecb7/graphqlite-0.6.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:7bca49aa16c273c4dad6129ccde8878aba9b26b8fe502857a144332869839ef7", size = 356006, upload-time = "2026-06-04T12:29:37.372Z" },
+    { url = "https://files.pythonhosted.org/packages/29/d8/18408fbc854ccd62c9212b57963a27d2014016aa9e97f8b4f619fb18f3bb/graphqlite-0.6.0-py3-none-win_amd64.whl", hash = "sha256:9aa0ff9f29487d032d0c74045d79fb2fb80536426e9f6f52d2fd79363e42ad2e", size = 1404470, upload-time = "2026-06-04T12:29:38.492Z" },
 ]
 
 [[package]]

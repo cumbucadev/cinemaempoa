@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 import click
 from flask import current_app
@@ -32,6 +33,8 @@ def register_commands(app):
     app.cli.add_command(title_cleaning_report_command)
     app.cli.add_command(title_cleaning_backfill_command)
     app.cli.add_command(delete_movie_command)
+    app.cli.add_command(sync_graph_command)
+    app.cli.add_command(graph_query_command)
 
 
 def _run_import_json(run, json_path):
@@ -106,6 +109,94 @@ def import_json(json_path):
 @click.command("dupe-check")
 def dupe_check():
     dupe_checker()
+
+
+@click.command("sync-graph")
+def sync_graph_command():
+    """Reconstrói o grafo de conhecimento (movies, cinemas, sessões, gêneros,
+    diretores, países) a partir do SQLite.
+
+    Apaga e recria o grafo inteiro a cada execução - comando manual, não
+    faz parte de nenhum pipeline automatizado.
+    """
+    from flask_backend.service.graph_sync import sync_graph
+
+    result = sync_graph()
+    click.echo(
+        f"Grafo sincronizado: {result.nodes_created} nós, "
+        f"{result.edges_created} arestas."
+    )
+
+
+GRAPH_QUERY_NAMES = [
+    "movies-by-director",
+    "directors-currently-showing",
+    "countries-this-month",
+    "genres-at-cinema",
+    "screenings-since-release",
+]
+
+
+@click.command("graph-query")
+@click.argument("query_name")
+@click.option("--director", default=None, help="Nome do diretor.")
+@click.option("--cinema", default=None, help="Slug da sala.")
+@click.option("--year", type=int, default=None, help="Ano.")
+@click.option("--movie", default=None, help="Slug do filme.")
+def graph_query_command(query_name, director, cinema, year, movie):
+    """Executa uma consulta pré-definida no grafo de conhecimento e imprime
+    os resultados em formato de tabela simples.
+
+    QUERY_NAME: movies-by-director | directors-currently-showing |
+    countries-this-month | genres-at-cinema | screenings-since-release
+    """
+    from flask_backend.service import graph_queries
+
+    if query_name not in GRAPH_QUERY_NAMES:
+        raise click.UsageError(
+            f"Consulta desconhecida: '{query_name}'. Opções: "
+            f"{', '.join(GRAPH_QUERY_NAMES)}"
+        )
+
+    if query_name == "movies-by-director" and not director:
+        raise click.UsageError("--director é obrigatório para movies-by-director")
+    if query_name == "genres-at-cinema" and (not cinema or year is None):
+        raise click.UsageError(
+            "--cinema e --year são obrigatórios para genres-at-cinema"
+        )
+    if query_name == "screenings-since-release" and not movie:
+        raise click.UsageError("--movie é obrigatório para screenings-since-release")
+
+    # Read GRAPH_DB_PATH off the module at call time (not import time) so
+    # tests that monkeypatch it still take effect. Without this check, a
+    # missing graph file silently opens as a fresh empty graph and every
+    # query below just returns [] - "Nenhum resultado." with no hint that
+    # `sync-graph` was never run.
+    if not os.path.exists(graph_queries.GRAPH_DB_PATH):
+        raise click.UsageError(
+            f"Grafo não encontrado em {graph_queries.GRAPH_DB_PATH}. "
+            "Rode `flask --app flask_backend sync-graph` primeiro."
+        )
+
+    if query_name == "movies-by-director":
+        rows = graph_queries.movies_by_director(director)
+    elif query_name == "directors-currently-showing":
+        rows = graph_queries.directors_currently_showing()
+    elif query_name == "countries-this-month":
+        rows = graph_queries.countries_this_month()
+    elif query_name == "genres-at-cinema":
+        rows = graph_queries.genres_at_cinema(cinema, year)
+    else:
+        rows = graph_queries.screenings_since_release(movie)
+
+    if not rows:
+        click.echo("Nenhum resultado.")
+        return
+
+    headers = list(rows[0].keys())
+    click.echo(" | ".join(headers))
+    for row in rows:
+        click.echo(" | ".join(str(row[h]) for h in headers))
 
 
 @click.command("run-dedupper")

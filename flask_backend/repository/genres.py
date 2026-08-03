@@ -1,5 +1,13 @@
+from typing import List
+
+from sqlalchemy import asc
+
 from flask_backend.db import db_session
 from flask_backend.models import Genre
+
+
+def get_all() -> List[Genre]:
+    return db_session.query(Genre).order_by(asc(Genre.name)).all()
 
 
 def get_or_create_by_tmdb_id(tmdb_id: int, name: str) -> Genre:
