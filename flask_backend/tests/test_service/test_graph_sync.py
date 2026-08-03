@@ -4,6 +4,8 @@ Tests flask_backend/service/graph_sync.py.
 
 from datetime import date
 
+from graphqlite import Graph
+
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
@@ -14,7 +16,7 @@ from flask_backend.repository.directors import (
 from flask_backend.repository.genres import (
     get_or_create_by_tmdb_id as get_or_create_genre,
 )
-from flask_backend.service.graph_sync import build_graph_data
+from flask_backend.service.graph_sync import build_graph_data, sync_graph
 
 
 class TestGraphqliteSmokeTest:
@@ -149,3 +151,59 @@ class TestBuildGraphData:
 
             node_ids = {n[0] for n in nodes}
             assert f"movie:{movie.id}" in node_ids
+
+
+class TestSyncGraph:
+    def test_writes_nodes_and_edges_to_the_graph_file(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            movie = Movie(title="Ariabescos", slug="ariabescos")
+            movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=False,
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            result = sync_graph(db_path=db_path)
+
+            assert result.nodes_created > 0
+            assert result.edges_created > 0
+
+            graph = Graph(db_path)
+            rows = graph.query(
+                "MATCH (m:Movie) WHERE m.slug = 'ariabescos' RETURN m.title AS title"
+            )
+            assert rows == [{"title": "Ariabescos"}]
+
+    def test_is_idempotent_and_removes_stale_data_on_rerun(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            db_path = str(tmp_path / "graph.db")
+
+            # Seed a node that has no corresponding SQLite row.
+            stale_graph = Graph(db_path)
+            stale_graph.upsert_node("movie:999999", {"title": "Stale"}, label="Movie")
+
+            movie = Movie(title="Filme Real", slug="filme-real")
+            db_session.add(movie)
+            db_session.commit()
+
+            first = sync_graph(db_path=db_path)
+            second = sync_graph(db_path=db_path)
+
+            assert first.nodes_created == second.nodes_created
+            assert first.edges_created == second.edges_created
+
+            graph = Graph(db_path)
+            rows = graph.query(
+                "MATCH (m:Movie) WHERE m.title = 'Stale' RETURN m.title AS title"
+            )
+            assert rows == []

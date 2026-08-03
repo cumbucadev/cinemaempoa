@@ -1,6 +1,10 @@
+from dataclasses import dataclass
 from typing import List, Tuple
 
+from graphqlite import Graph
+
 from flask_backend.db import db_session
+from flask_backend.env_config import GRAPH_DB_PATH
 from flask_backend.models import Country, Director, Genre, Movie, Screening
 from flask_backend.repository import (
     cinemas as cinemas_repo,
@@ -155,3 +159,27 @@ def build_graph_data() -> Tuple[List[NodeTuple], List[EdgeTuple]]:
             )
 
     return nodes, edges
+
+
+@dataclass
+class SyncResult:
+    nodes_created: int
+    edges_created: int
+
+
+def sync_graph(db_path: str | None = None) -> SyncResult:
+    """Rebuilds the knowledge graph from scratch: wipes every node/edge in
+    the GraphQLite file at db_path (or GRAPH_DB_PATH) and re-inserts a
+    fresh graph from the current SQLite state. Idempotent - safe to run
+    repeatedly, always converges to the same graph for the same SQLite
+    state."""
+    path = db_path or GRAPH_DB_PATH
+    graph = Graph(path)
+    graph.query("MATCH (n) DETACH DELETE n")
+
+    nodes, edges = build_graph_data()
+    result = graph.insert_graph_bulk(nodes, edges)
+
+    return SyncResult(
+        nodes_created=result.nodes_inserted, edges_created=result.edges_inserted
+    )
