@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import logging
 import os
@@ -537,10 +538,16 @@ def detect_motifs_command(limit, as_json):
     """Executa o motor de detecção de motivos editoriais sobre o grafo de
     conhecimento e imprime as observações de maior pontuação.
     """
-    import dataclasses
-
     from flask_backend.service import motif_ranking
 
+    if limit < 0:
+        raise click.UsageError("--limit não pode ser negativo.")
+
+    # Read GRAPH_DB_PATH off the module at call time (not import time) so
+    # tests that monkeypatch it still take effect. Without this check, a
+    # missing graph file silently opens as a fresh empty graph and every
+    # query below just returns [] - no observations, with no hint that
+    # `sync-graph` was never run.
     if not os.path.exists(motif_ranking.GRAPH_DB_PATH):
         raise click.UsageError(
             f"Grafo não encontrado em {motif_ranking.GRAPH_DB_PATH}. "

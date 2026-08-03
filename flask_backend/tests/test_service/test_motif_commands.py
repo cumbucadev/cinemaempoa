@@ -127,3 +127,20 @@ class TestDetectMotifsCommand:
         assert result.exit_code != 0
         assert db_path in result.output
         assert "sync-graph" in result.output
+
+    def test_negative_limit_raises_usage_error(
+        self, app, runner, setup_cinemas, tmp_path, monkeypatch
+    ):
+        db_path = str(tmp_path / "graph.db")
+        monkeypatch.setattr("flask_backend.service.graph_sync.GRAPH_DB_PATH", db_path)
+        monkeypatch.setattr(
+            "flask_backend.service.motif_ranking.GRAPH_DB_PATH", db_path
+        )
+        with app.app_context():
+            self._seed_two_movies_by_same_director()
+            sync_graph()
+
+        result = runner.invoke(args=["detect-motifs", "--limit", "-1"])
+
+        assert result.exit_code != 0
+        assert "--limit" in result.output
