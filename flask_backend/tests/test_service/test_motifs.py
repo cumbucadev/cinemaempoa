@@ -16,6 +16,7 @@ from flask_backend.repository.directors import (
 from flask_backend.service.graph_sync import sync_graph
 from flask_backend.service.motifs import (
     CountryClusterMotif,
+    DirectorReturnMotif,
     MultipleMoviesSameDirectorMotif,
     _dedupe_preserve_order,
 )
@@ -161,3 +162,70 @@ class TestCountryClusterMotif:
             graph = Graph(db_path)
 
             assert CountryClusterMotif().detect(graph) == []
+
+
+class TestDirectorReturnMotif:
+    def test_flags_director_returning_after_a_long_gap(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            director = get_or_create_director(1, "Agnès Varda")
+            old_movie = Movie(title="Filme Antigo", slug="filme-antigo")
+            old_movie.directors = [director]
+            old_movie.screenings = [_screening("capitolio", -200)]
+            new_movie = Movie(title="Filme Novo", slug="filme-novo")
+            new_movie.directors = [director]
+            new_movie.screenings = [_screening("capitolio", 1)]
+            db_session.add_all([old_movie, new_movie])
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            observations = DirectorReturnMotif().detect(graph)
+
+            assert len(observations) == 1
+            obs = observations[0]
+            assert obs.motif_name == "director_return"
+            assert obs.confidence == 0.7
+            assert obs.metadata["director"] == "Agnès Varda"
+            assert obs.metadata["movies"] == ["Filme Novo"]
+            assert obs.metadata["gap_days"] >= 180
+
+    def test_does_not_flag_director_with_a_short_gap(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            director = get_or_create_director(1, "Diretor Recente")
+            old_movie = Movie(title="Filme Antigo", slug="filme-antigo")
+            old_movie.directors = [director]
+            old_movie.screenings = [_screening("capitolio", -30)]
+            new_movie = Movie(title="Filme Novo", slug="filme-novo")
+            new_movie.directors = [director]
+            new_movie.screenings = [_screening("capitolio", 1)]
+            db_session.add_all([old_movie, new_movie])
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            assert DirectorReturnMotif().detect(graph) == []
+
+    def test_does_not_flag_director_with_no_prior_screening_history(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            director = get_or_create_director(1, "Diretor Estreante")
+            movie = Movie(title="Primeiro Filme", slug="primeiro-filme")
+            movie.directors = [director]
+            movie.screenings = [_screening("capitolio", 1)]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            assert DirectorReturnMotif().detect(graph) == []

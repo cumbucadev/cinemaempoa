@@ -150,3 +150,84 @@ class CountryClusterMotif(Motif):
                 )
             )
         return observations
+
+
+DIRECTOR_RETURN_GAP_DAYS = 180
+
+
+class DirectorReturnMotif(Motif):
+    name = "director_return"
+    description = (
+        f"Detects directors whose currently-screening movie follows a gap "
+        f"of {DIRECTOR_RETURN_GAP_DAYS}+ days since their last recorded "
+        "screening. Threshold is deliberately short: the DB only has "
+        "screening history back to Jan 2025, so this cannot yet detect a "
+        "true multi-year gap."
+    )
+    version = "1.0"
+
+    def detect(self, graph) -> list[Observation]:
+        rows = graph.query(
+            "MATCH (d:Director)<-[:DIRECTED_BY]-(m:Movie)-[:HAS_SCREENING]->"
+            "(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
+            "WHERE s.draft = false "
+            "RETURN d.id AS director_id, d.name AS director_name, "
+            "m.id AS movie_id, m.title AS title, sd.date AS date "
+            "ORDER BY director_name",
+        )
+
+        by_director: dict[str, dict] = {}
+        for row in rows:
+            entry = by_director.setdefault(
+                row["director_id"],
+                {"name": row["director_name"], "past": [], "current": []},
+            )
+            bucket = "current" if row["date"] >= date.today().isoformat() else "past"
+            entry[bucket].append((row["movie_id"], row["title"], row["date"]))
+
+        observations = []
+        for director_id, entry in by_director.items():
+            if not entry["past"] or not entry["current"]:
+                continue
+
+            last_past_date = max(d for _, _, d in entry["past"])
+            first_current_date = min(d for _, _, d in entry["current"])
+            gap_days = (
+                date.fromisoformat(first_current_date)
+                - date.fromisoformat(last_past_date)
+            ).days
+            if gap_days <= DIRECTOR_RETURN_GAP_DAYS:
+                continue
+
+            current_movie_ids = _dedupe_preserve_order(
+                [mid for mid, _, _ in entry["current"]]
+            )
+            current_titles = _dedupe_preserve_order(
+                [title for _, title, _ in entry["current"]]
+            )
+            observations.append(
+                Observation(
+                    motif_name=self.name,
+                    confidence=0.7,
+                    score=0.0,
+                    headline=f"{entry['name']} retorna após {gap_days} dias",
+                    summary=(
+                        f"Um filme de {entry['name']} volta a ser exibido "
+                        f"após {gap_days} dias sem sessões registradas."
+                    ),
+                    evidence=GraphEvidence(
+                        nodes=[director_id, *current_movie_ids],
+                        edges=[
+                            (mid, director_id, "DIRECTED_BY")
+                            for mid in current_movie_ids
+                        ],
+                    ),
+                    metadata={
+                        "director": entry["name"],
+                        "movies": current_titles,
+                        "gap_days": gap_days,
+                        "next_screening_date": first_current_date,
+                    },
+                )
+            )
+        return observations
