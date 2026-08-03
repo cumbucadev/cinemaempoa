@@ -4,7 +4,10 @@
 <div class="offcanvas offcanvas-start" tabindex="-1" id="site-menu" aria-labelledby="site-menu-label">
 {# djlint:on #}
 <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="site-menu-label">Cinema em POA</h5>
+    <h5 class="offcanvas-title" id="site-menu-label">
+        <a class="text-reset text-decoration-none"
+           href="{{ url_for("screening.index") }}">Cinema em POA</a>
+    </h5>
     <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
 </div>
 <div class="offcanvas-body">
