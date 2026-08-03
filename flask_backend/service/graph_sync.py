@@ -1,3 +1,12 @@
+"""Builds and (re)writes Phase 1's GraphQLite knowledge graph from the
+current SQLite state: Movie/Cinema/Screening/ScreeningDate/Genre/Director/
+Country nodes and the edges connecting them (HAS_GENRE, DIRECTED_BY,
+PRODUCED_IN, HAS_SCREENING, AT_CINEMA, HAS_DATE). `sync_graph()` is the
+entry point used by the `sync-graph` CLI command; `build_graph_data()` is
+split out separately so tests can inspect the raw node/edge tuples without
+touching a graph file.
+"""
+
 from dataclasses import dataclass
 from typing import List, Tuple
 
@@ -17,18 +26,29 @@ NodeTuple = Tuple[str, dict, str]
 EdgeTuple = Tuple[str, str, dict, str]
 
 
+def _props(**kwargs) -> dict:
+    """Drops None-valued keys before a node's props dict reaches GraphQLite.
+
+    GraphQLite has no concept of a null property value: a key present with
+    value None gets serialized as the literal text "None" instead of an
+    actual null, which then breaks `IS NULL` checks and prints "None" to
+    users. Omitting the key entirely is the only way to get a real null
+    back out on query."""
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
 def _movie_node(movie: Movie) -> NodeTuple:
     return (
         f"movie:{movie.id}",
-        {
-            "sqlite_id": movie.id,
-            "title": movie.title,
-            "slug": movie.slug,
-            "original_title": movie.original_title,
-            "release_year": movie.release_year,
-            "original_language": movie.original_language,
-            "tmdb_id": movie.tmdb_id,
-        },
+        _props(
+            sqlite_id=movie.id,
+            title=movie.title,
+            slug=movie.slug,
+            original_title=movie.original_title,
+            release_year=movie.release_year,
+            original_language=movie.original_language,
+            tmdb_id=movie.tmdb_id,
+        ),
         "Movie",
     )
 
@@ -36,7 +56,7 @@ def _movie_node(movie: Movie) -> NodeTuple:
 def _cinema_node(cinema) -> NodeTuple:
     return (
         f"cinema:{cinema.id}",
-        {"sqlite_id": cinema.id, "slug": cinema.slug, "name": cinema.name},
+        _props(sqlite_id=cinema.id, slug=cinema.slug, name=cinema.name),
         "Cinema",
     )
 
@@ -44,7 +64,7 @@ def _cinema_node(cinema) -> NodeTuple:
 def _screening_node(screening: Screening) -> NodeTuple:
     return (
         f"screening:{screening.id}",
-        {"sqlite_id": screening.id, "url": screening.url, "draft": screening.draft},
+        _props(sqlite_id=screening.id, url=screening.url, draft=screening.draft),
         "Screening",
     )
 
@@ -52,11 +72,11 @@ def _screening_node(screening: Screening) -> NodeTuple:
 def _screening_date_node(screening_date) -> NodeTuple:
     return (
         f"screeningdate:{screening_date.id}",
-        {
-            "sqlite_id": screening_date.id,
-            "date": screening_date.date.isoformat(),
-            "time": screening_date.time,
-        },
+        _props(
+            sqlite_id=screening_date.id,
+            date=screening_date.date.isoformat(),
+            time=screening_date.time,
+        ),
         "ScreeningDate",
     )
 
@@ -64,7 +84,7 @@ def _screening_date_node(screening_date) -> NodeTuple:
 def _genre_node(genre: Genre) -> NodeTuple:
     return (
         f"genre:{genre.id}",
-        {"sqlite_id": genre.id, "tmdb_id": genre.tmdb_id, "name": genre.name},
+        _props(sqlite_id=genre.id, tmdb_id=genre.tmdb_id, name=genre.name),
         "Genre",
     )
 
@@ -72,7 +92,7 @@ def _genre_node(genre: Genre) -> NodeTuple:
 def _director_node(director: Director) -> NodeTuple:
     return (
         f"director:{director.id}",
-        {"sqlite_id": director.id, "tmdb_id": director.tmdb_id, "name": director.name},
+        _props(sqlite_id=director.id, tmdb_id=director.tmdb_id, name=director.name),
         "Director",
     )
 
@@ -80,11 +100,11 @@ def _director_node(director: Director) -> NodeTuple:
 def _country_node(country: Country) -> NodeTuple:
     return (
         f"country:{country.id}",
-        {
-            "sqlite_id": country.id,
-            "iso_3166_1": country.iso_3166_1,
-            "name": country.name,
-        },
+        _props(
+            sqlite_id=country.id,
+            iso_3166_1=country.iso_3166_1,
+            name=country.name,
+        ),
         "Country",
     )
 
@@ -94,10 +114,13 @@ def build_graph_data() -> Tuple[List[NodeTuple], List[EdgeTuple]]:
     returns the full set of graph nodes/edges for a from-scratch rebuild.
 
     Unfiltered by design: the graph is meant to be a faithful mirror of
-    SQLite's explicit facts, not a business-logic view (see graph_sync.py's
-    module docstring reasoning in the implementation plan for why Movie and
-    Screening are queried directly instead of through the repository
-    layer's `get_all()` functions, which apply publish-state filtering).
+    SQLite's explicit facts, not a business-logic view. Movie and Screening
+    are queried directly with `db_session.query(...).all()` instead of
+    through the repository layer's `get_all()` functions, which apply
+    publish-state filtering (e.g. hiding draft screenings) - that filtering
+    is a presentation concern for visitor-facing pages, and belongs in the
+    query layer (`graph_queries.py`) on a per-query basis, not baked into
+    what gets mirrored into the graph itself.
     """
     nodes: List[NodeTuple] = []
     edges: List[EdgeTuple] = []

@@ -152,6 +152,29 @@ class TestBuildGraphData:
             node_ids = {n[0] for n in nodes}
             assert f"movie:{movie.id}" in node_ids
 
+    def test_omits_null_props_instead_of_storing_the_string_none(self, app):
+        """Regression test: nullable columns with no value (slug,
+        original_title, release_year, original_language, tmdb_id are all
+        None here) must be absent from the props dict entirely, not merely
+        present with a None value - GraphQLite has no null support and
+        serializes a present-but-None value as the literal text "None"."""
+        with app.app_context():
+            movie = Movie(title="Sem Metadados")
+            db_session.add(movie)
+            db_session.commit()
+
+            nodes, _edges = build_graph_data()
+
+            movie_node = next(n for n in nodes if n[0] == f"movie:{movie.id}")
+            props = movie_node[1]
+
+            assert props == {"sqlite_id": movie.id, "title": "Sem Metadados"}
+            assert "slug" not in props
+            assert "original_title" not in props
+            assert "release_year" not in props
+            assert "original_language" not in props
+            assert "tmdb_id" not in props
+
 
 class TestSyncGraph:
     def test_writes_nodes_and_edges_to_the_graph_file(
@@ -181,6 +204,34 @@ class TestSyncGraph:
                 "MATCH (m:Movie) WHERE m.slug = 'ariabescos' RETURN m.title AS title"
             )
             assert rows == [{"title": "Ariabescos"}]
+
+    def test_null_props_come_back_as_real_nulls_not_the_string_none(
+        self, app, tmp_path
+    ):
+        """End-to-end regression test for the "None" string bug: syncs a
+        movie with no release_year to a real GraphQLite file and queries it
+        back through the extension itself (not just build_graph_data's
+        in-memory tuples)."""
+        with app.app_context():
+            movie = Movie(title="Sem Ano", slug="sem-ano")
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            graph = Graph(db_path)
+            rows = graph.query(
+                "MATCH (m:Movie) WHERE m.slug = 'sem-ano' "
+                "RETURN m.release_year AS release_year"
+            )
+            assert rows == [{"release_year": None}]
+
+            null_rows = graph.query(
+                "MATCH (m:Movie) WHERE m.slug = 'sem-ano' AND "
+                "m.release_year IS NULL RETURN m.title AS title"
+            )
+            assert null_rows == [{"title": "Sem Ano"}]
 
     def test_is_idempotent_and_removes_stale_data_on_rerun(
         self, app, setup_cinemas, tmp_path

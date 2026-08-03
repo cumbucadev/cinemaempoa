@@ -23,12 +23,12 @@ def movies_by_director(name: str, db_path: str | None = None) -> list[dict]:
 
 
 def directors_currently_showing(db_path: str | None = None) -> list[dict]:
-    """Directors with at least one movie that has a screening today or later."""
+    """Directors with at least one non-draft movie screening today or later."""
     graph = _open(db_path)
     return graph.query(
         "MATCH (d:Director)<-[:DIRECTED_BY]-(:Movie)"
-        "-[:HAS_SCREENING]->(:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
-        "WHERE sd.date >= $today "
+        "-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
+        "WHERE sd.date >= $today AND s.draft = false "
         "RETURN DISTINCT d.name AS name "
         "ORDER BY d.name",
         {"today": date.today().isoformat()},
@@ -36,7 +36,8 @@ def directors_currently_showing(db_path: str | None = None) -> list[dict]:
 
 
 def countries_this_month(db_path: str | None = None) -> list[dict]:
-    """Production countries with at least one screening date this month."""
+    """Production countries with at least one non-draft screening date this
+    month."""
     today = date.today()
     last_day = calendar.monthrange(today.year, today.month)[1]
     start = today.replace(day=1).isoformat()
@@ -46,7 +47,7 @@ def countries_this_month(db_path: str | None = None) -> list[dict]:
     return graph.query(
         "MATCH (c:Country)<-[:PRODUCED_IN]-(m:Movie)-[:HAS_SCREENING]->"
         "(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
-        "WHERE sd.date >= $start AND sd.date <= $end "
+        "WHERE sd.date >= $start AND sd.date <= $end AND s.draft = false "
         "RETURN DISTINCT c.name AS name "
         "ORDER BY c.name",
         {"start": start, "end": end},
@@ -56,7 +57,8 @@ def countries_this_month(db_path: str | None = None) -> list[dict]:
 def genres_at_cinema(
     cinema_slug: str, year: int, db_path: str | None = None
 ) -> list[dict]:
-    """Genres shown at a given cinema during a given calendar year."""
+    """Genres shown in non-draft screenings at a given cinema during a given
+    calendar year."""
     start = f"{year}-01-01"
     end = f"{year}-12-31"
 
@@ -65,6 +67,7 @@ def genres_at_cinema(
         "MATCH (ci:Cinema)<-[:AT_CINEMA]-(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
         "(s)<-[:HAS_SCREENING]-(m:Movie)-[:HAS_GENRE]->(g:Genre) "
         "WHERE ci.slug = $cinema_slug AND sd.date >= $start AND sd.date <= $end "
+        "AND s.draft = false "
         "RETURN DISTINCT g.name AS name "
         "ORDER BY g.name",
         {"cinema_slug": cinema_slug, "start": start, "end": end},

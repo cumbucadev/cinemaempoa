@@ -218,6 +218,27 @@ class TestGraphQueryCommand:
         assert result.exit_code != 0
         assert "--movie" in result.output
 
+    def test_missing_graph_file_raises_usage_error_naming_sync_graph(
+        self, app, runner, tmp_path, monkeypatch
+    ):
+        """Regression test: a graph-query run against a path that was
+        never synced must fail loudly (non-zero exit, message pointing at
+        `sync-graph`) instead of silently opening a fresh empty graph and
+        printing "Nenhum resultado." as if the query legitimately had no
+        matches."""
+        db_path = str(tmp_path / "never-synced.db")
+        monkeypatch.setattr(
+            "flask_backend.service.graph_queries.GRAPH_DB_PATH", db_path
+        )
+
+        result = runner.invoke(
+            args=["graph-query", "movies-by-director", "--director", "X"]
+        )
+
+        assert result.exit_code != 0
+        assert db_path in result.output
+        assert "sync-graph" in result.output
+
     def test_query_with_no_matching_rows_prints_no_results_message(
         self, app, runner, setup_cinemas, tmp_path, monkeypatch
     ):

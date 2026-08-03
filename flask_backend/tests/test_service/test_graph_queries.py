@@ -83,6 +83,54 @@ class TestDirectorsCurrentlyShowing:
 
             assert results == [{"name": "Agnès Varda"}]
 
+    def test_excludes_directors_whose_only_upcoming_screening_is_a_draft(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            director = get_or_create_director(2, "Diretor Rascunho")
+            movie = Movie(title="Filme Rascunho", slug="filme-rascunho")
+            movie.directors = [director]
+            movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=True,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() + timedelta(days=1), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            db_session.add(movie)
+
+            # A published director/movie so the assertion proves the draft
+            # is excluded rather than the query returning empty regardless.
+            published_director = get_or_create_director(3, "Diretor Publicado")
+            published_movie = Movie(title="Filme Publicado", slug="filme-publicado")
+            published_movie.directors = [published_director]
+            published_movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() + timedelta(days=1), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            db_session.add(published_movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            results = directors_currently_showing(db_path=db_path)
+
+            assert results == [{"name": "Diretor Publicado"}]
+
     def test_excludes_directors_whose_movies_have_only_past_screenings(
         self, app, setup_cinemas, tmp_path
     ):
@@ -158,6 +206,47 @@ class TestCountriesThisMonth:
                 {"name": "Japan"},
             ]
 
+    def test_excludes_countries_whose_only_screening_this_month_is_a_draft(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            country = get_or_create_by_iso_code("IT", "Italy")
+            movie = Movie(title="Filme Rascunho", slug="filme-rascunho")
+            movie.countries = [country]
+            today = date.today()
+            last_day = calendar.monthrange(today.year, today.month)[1]
+            mid_month = today.replace(day=min(15, last_day))
+            movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=True,
+                    dates=[ScreeningDate(date=mid_month, time="19:00")],
+                )
+            ]
+            db_session.add(movie)
+
+            # A published country so the assertion proves the draft is
+            # excluded rather than the query returning empty regardless.
+            published_country = get_or_create_by_iso_code("ES", "Spain")
+            published_movie = Movie(title="Filme Publicado", slug="filme-publicado")
+            published_movie.countries = [published_country]
+            published_movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=False,
+                    dates=[ScreeningDate(date=mid_month, time="19:00")],
+                )
+            ]
+            db_session.add(published_movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            assert countries_this_month(db_path=db_path) == [{"name": "Spain"}]
+
     def test_excludes_countries_with_only_next_month_screenings(
         self, app, setup_cinemas, tmp_path
     ):
@@ -213,6 +302,44 @@ class TestGenresAtCinema:
             results = genres_at_cinema("capitolio", 2025, db_path=db_path)
 
             assert results == [{"name": "Documentário"}]
+
+    def test_excludes_draft_screenings(self, app, setup_cinemas, tmp_path):
+        with app.app_context():
+            draft_genre = get_or_create_genre(10, "Rascunho")
+            draft_movie = Movie(title="Filme Rascunho", slug="filme-rascunho")
+            draft_movie.genres = [draft_genre]
+            draft_movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=True,
+                    dates=[ScreeningDate(date=date(2025, 6, 10), time="19:00")],
+                )
+            ]
+            db_session.add(draft_movie)
+
+            # A published movie/genre so the assertion proves the draft is
+            # excluded rather than the query returning empty regardless.
+            published_genre = get_or_create_genre(11, "Publicado")
+            published_movie = Movie(title="Filme Publicado", slug="filme-publicado")
+            published_movie.genres = [published_genre]
+            published_movie.screenings = [
+                Screening(
+                    cinema_id=get_cinema_by_slug("capitolio").id,
+                    description="d",
+                    draft=False,
+                    dates=[ScreeningDate(date=date(2025, 6, 10), time="19:00")],
+                )
+            ]
+            db_session.add(published_movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            assert genres_at_cinema("capitolio", 2025, db_path=db_path) == [
+                {"name": "Publicado"}
+            ]
 
     def test_excludes_screenings_from_other_years_or_cinemas(
         self, app, setup_cinemas, tmp_path
