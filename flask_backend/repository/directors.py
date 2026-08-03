@@ -1,5 +1,13 @@
+from typing import List
+
+from sqlalchemy import asc
+
 from flask_backend.db import db_session
 from flask_backend.models import Director
+
+
+def get_all() -> List[Director]:
+    return db_session.query(Director).order_by(asc(Director.name)).all()
 
 
 def get_or_create_by_tmdb_id(tmdb_id: int, name: str) -> Director:

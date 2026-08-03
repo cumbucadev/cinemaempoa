@@ -1,5 +1,13 @@
+from typing import List
+
+from sqlalchemy import asc
+
 from flask_backend.db import db_session
 from flask_backend.models import Country
+
+
+def get_all() -> List[Country]:
+    return db_session.query(Country).order_by(asc(Country.name)).all()
 
 
 def get_or_create_by_iso_code(iso_3166_1: str, name: str) -> Country:
