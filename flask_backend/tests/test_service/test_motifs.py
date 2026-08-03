@@ -35,7 +35,11 @@ def _screening(cinema_slug, days_from_today, draft=False):
         cinema_id=get_cinema_by_slug(cinema_slug).id,
         description="d",
         draft=draft,
-        dates=[ScreeningDate(date=date.today() + timedelta(days=days_from_today), time="19:00")],
+        dates=[
+            ScreeningDate(
+                date=date.today() + timedelta(days=days_from_today), time="19:00"
+            )
+        ],
     )
 
 
@@ -68,9 +72,10 @@ class TestMultipleMoviesSameDirectorMotif:
                 ["Paris, Texas", "Perfect Days"]
             )
             assert obs.metadata["director"] == "Wim Wenders"
-            assert obs.metadata["next_screening_date"] == (
-                date.today() + timedelta(days=1)
-            ).isoformat()
+            assert (
+                obs.metadata["next_screening_date"]
+                == (date.today() + timedelta(days=1)).isoformat()
+            )
 
     def test_does_not_flag_director_with_only_one_currently_showing_movie(
         self, app, setup_cinemas, tmp_path
@@ -89,7 +94,9 @@ class TestMultipleMoviesSameDirectorMotif:
 
             assert MultipleMoviesSameDirectorMotif().detect(graph) == []
 
-    def test_excludes_draft_screenings_from_the_count(self, app, setup_cinemas, tmp_path):
+    def test_excludes_draft_screenings_from_the_count(
+        self, app, setup_cinemas, tmp_path
+    ):
         with app.app_context():
             director = get_or_create_director(1, "Diretor")
             published = Movie(title="Publicado", slug="publicado")
