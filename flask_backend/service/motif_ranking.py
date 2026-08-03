@@ -19,6 +19,8 @@ TIMELINESS_FULL_SCORE_DAYS = 7
 TIMELINESS_ZERO_SCORE_DAYS = 60
 GRAPH_COMPLEXITY_NODE_CAP = 10
 
+DEDUP_JACCARD_THRESHOLD = 0.5
+
 
 def _open(db_path: str | None = None) -> Graph:
     return Graph(db_path or GRAPH_DB_PATH)
@@ -39,8 +41,8 @@ def _timeliness(observation: Observation) -> float:
     return 1.0 - (days_until - TIMELINESS_FULL_SCORE_DAYS) / span
 
 
-def _score(observation: Observation, sibling_count: int) -> float:
-    rarity = 1 / sibling_count
+def _score(observation: Observation, motif_count: int) -> float:
+    rarity = 1 / motif_count
     timeliness = _timeliness(observation)
     graph_complexity = min(
         len(observation.evidence.nodes) / GRAPH_COMPLEXITY_NODE_CAP, 1.0
@@ -52,32 +54,44 @@ def _score(observation: Observation, sibling_count: int) -> float:
     )
 
 
+def _overlaps(a_nodes: set[str], b_nodes: set[str]) -> bool:
+    """Two observations are considered the same underlying story only when
+    a majority of their combined evidence overlaps (Jaccard similarity) - a
+    bare intersection is too coarse: a CountryCluster observation can carry
+    a dozen+ movie nodes, so it would otherwise "absorb" every unrelated
+    observation that happens to mention any one of those movies."""
+    if not a_nodes or not b_nodes:
+        return False
+    intersection = a_nodes & b_nodes
+    if not intersection:
+        return False
+    union = a_nodes | b_nodes
+    return len(intersection) / len(union) >= DEDUP_JACCARD_THRESHOLD
+
+
 def _deduplicate(observations: list[Observation]) -> list[Observation]:
-    """Merges observations whose evidence node sets overlap: the
-    higher-scored observation survives, the lower-scored one's motif_name
-    is recorded in the survivor's metadata['merged_from'] and it is
-    dropped."""
+    """Merges observations whose evidence overlaps enough (see _overlaps)
+    to represent the same underlying story. Processes observations
+    highest-score-first so a later, lower-scored observation always merges
+    INTO an already-kept entry rather than replacing it - this keeps merge
+    provenance (metadata['merged_from']) from being discarded and makes the
+    result independent of input order."""
+    ordered = sorted(observations, key=lambda o: o.score, reverse=True)
     kept: list[Observation] = []
-    for obs in observations:
+    for obs in ordered:
         obs_nodes = set(obs.evidence.nodes)
-        match_index = next(
+        match = next(
             (
-                i
-                for i, existing in enumerate(kept)
-                if obs_nodes & set(existing.evidence.nodes)
+                existing
+                for existing in kept
+                if _overlaps(obs_nodes, set(existing.evidence.nodes))
             ),
             None,
         )
-        if match_index is None:
+        if match is None:
             kept.append(obs)
             continue
-
-        existing = kept[match_index]
-        if obs.score > existing.score:
-            obs.metadata.setdefault("merged_from", []).append(existing.motif_name)
-            kept[match_index] = obs
-        else:
-            existing.metadata.setdefault("merged_from", []).append(obs.motif_name)
+        match.metadata.setdefault("merged_from", []).append(obs.motif_name)
     return kept
 
 

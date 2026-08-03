@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
+from flask_backend.repository.countries import get_or_create_by_iso_code
 from flask_backend.repository.directors import (
     get_or_create_by_tmdb_id as get_or_create_director,
 )
@@ -125,3 +126,141 @@ class TestRunMotifs:
             assert len(observations) == 1
             assert observations[0].motif_name == "multiple_movies_same_director"
             assert observations[0].score > 0
+
+    def test_country_cluster_does_not_swallow_an_unrelated_anniversary(
+        self, app, setup_cinemas, tmp_path
+    ):
+        """A CountryCluster observation can carry a dozen+ movie nodes; under
+        the old any-intersection dedup rule it would 'absorb' every other
+        observation that happens to mention any one of those movies, even
+        when the stories are unrelated. Here the country cluster has 4
+        evidence nodes (country + 3 movies) and the anniversary has 1
+        (one of those same movies) - intersection=1, union=4, jaccard=0.25,
+        below the 0.5 threshold, so both must survive."""
+        with app.app_context():
+            japan = get_or_create_by_iso_code("JP", "Japan")
+            anniversary_year = date.today().year - 50
+            cinema_id = get_cinema_by_slug("capitolio").id
+
+            movie_a = Movie(
+                title="Filme Japones A",
+                slug="filme-japones-a",
+                release_year=anniversary_year,
+            )
+            movie_a.countries = [japan]
+            movie_a.screenings = [
+                Screening(
+                    cinema_id=cinema_id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() + timedelta(days=1), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            movie_b = Movie(title="Filme Japones B", slug="filme-japones-b")
+            movie_b.countries = [japan]
+            movie_b.screenings = [
+                Screening(
+                    cinema_id=cinema_id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() + timedelta(days=2), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            movie_c = Movie(title="Filme Japones C", slug="filme-japones-c")
+            movie_c.countries = [japan]
+            movie_c.screenings = [
+                Screening(
+                    cinema_id=cinema_id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() + timedelta(days=3), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            db_session.add_all([movie_a, movie_b, movie_c])
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            observations = run_motifs(db_path=db_path)
+
+            motif_names = {o.motif_name for o in observations}
+            assert len(observations) >= 2
+            assert "country_cluster" in motif_names
+            assert "anniversary" in motif_names
+
+    def test_merges_director_return_and_anniversary_for_the_same_movie(
+        self, app, setup_cinemas, tmp_path
+    ):
+        """PRD's canonical dedup example, exercised end-to-end through
+        run_motifs: a DirectorReturnMotif observation (evidence:
+        [director_id, movie_id], 2 nodes) and an AnniversaryMotif
+        observation (evidence: [movie_id], 1 node) about the exact same
+        currently-screening movie should merge - intersection=1, union=2,
+        jaccard=0.5, which meets the >= threshold."""
+        with app.app_context():
+            director = get_or_create_director(1, "Diretor Retorno")
+            anniversary_year = date.today().year - 50
+            cinema_id = get_cinema_by_slug("capitolio").id
+
+            old_movie = Movie(title="Filme Antigo", slug="filme-antigo-ranking")
+            old_movie.directors = [director]
+            old_movie.screenings = [
+                Screening(
+                    cinema_id=cinema_id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() - timedelta(days=200), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            new_movie = Movie(
+                title="Filme Novo",
+                slug="filme-novo-ranking",
+                release_year=anniversary_year,
+            )
+            new_movie.directors = [director]
+            new_movie.screenings = [
+                Screening(
+                    cinema_id=cinema_id,
+                    description="d",
+                    draft=False,
+                    dates=[
+                        ScreeningDate(
+                            date=date.today() + timedelta(days=1), time="19:00"
+                        )
+                    ],
+                )
+            ]
+            db_session.add_all([old_movie, new_movie])
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+
+            observations = run_motifs(db_path=db_path)
+
+            assert len(observations) == 1
+            survivor = observations[0]
+            assert survivor.motif_name in {"director_return", "anniversary"}
+            other_name = (
+                "anniversary"
+                if survivor.motif_name == "director_return"
+                else "director_return"
+            )
+            assert survivor.metadata["merged_from"] == [other_name]
