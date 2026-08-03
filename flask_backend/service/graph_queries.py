@@ -1,3 +1,4 @@
+import calendar
 from datetime import date
 
 from graphqlite import Graph
@@ -31,4 +32,40 @@ def directors_currently_showing(db_path: str | None = None) -> list[dict]:
         "RETURN DISTINCT d.name AS name "
         "ORDER BY d.name",
         {"today": date.today().isoformat()},
+    )
+
+
+def countries_this_month(db_path: str | None = None) -> list[dict]:
+    """Production countries with at least one screening date this month."""
+    today = date.today()
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    start = today.replace(day=1).isoformat()
+    end = today.replace(day=last_day).isoformat()
+
+    graph = _open(db_path)
+    return graph.query(
+        "MATCH (c:Country)<-[:PRODUCED_IN]-(m:Movie)-[:HAS_SCREENING]->"
+        "(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
+        "WHERE sd.date >= $start AND sd.date <= $end "
+        "RETURN DISTINCT c.name AS name "
+        "ORDER BY c.name",
+        {"start": start, "end": end},
+    )
+
+
+def genres_at_cinema(
+    cinema_slug: str, year: int, db_path: str | None = None
+) -> list[dict]:
+    """Genres shown at a given cinema during a given calendar year."""
+    start = f"{year}-01-01"
+    end = f"{year}-12-31"
+
+    graph = _open(db_path)
+    return graph.query(
+        "MATCH (ci:Cinema)<-[:AT_CINEMA]-(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
+        "(s)<-[:HAS_SCREENING]-(m:Movie)-[:HAS_GENRE]->(g:Genre) "
+        "WHERE ci.slug = $cinema_slug AND sd.date >= $start AND sd.date <= $end "
+        "RETURN DISTINCT g.name AS name "
+        "ORDER BY g.name",
+        {"cinema_slug": cinema_slug, "start": start, "end": end},
     )
