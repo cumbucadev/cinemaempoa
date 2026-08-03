@@ -47,6 +47,7 @@ def _dedupe_preserve_order(items: list) -> list:
 
 
 COUNTRY_CLUSTER_THRESHOLD = 2
+MULTIPLE_MOVIES_THRESHOLD = 2
 
 
 class MultipleMoviesSameDirectorMotif(Motif):
@@ -56,17 +57,19 @@ class MultipleMoviesSameDirectorMotif(Motif):
 
     def detect(self, graph) -> list[Observation]:
         today = date.today().isoformat()
-        rows = graph.query(
+        query = (
             "MATCH (d:Director)<-[:DIRECTED_BY]-(m:Movie)-[:HAS_SCREENING]->"
             "(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
             "WHERE sd.date >= $today AND s.draft = false "
             "WITH d, count(DISTINCT m) AS movie_count, collect(m.id) AS movie_ids, "
             "collect(m.title) AS titles, collect(sd.date) AS dates "
-            "WHERE movie_count >= 2 "
+            "WHERE movie_count >= $threshold "
             "RETURN d.id AS director_id, d.name AS director_name, movie_count, "
             "movie_ids, titles, dates "
-            "ORDER BY director_name",
-            {"today": today},
+            "ORDER BY director_name"
+        )
+        rows = graph.query(
+            query, {"today": today, "threshold": MULTIPLE_MOVIES_THRESHOLD}
         )
 
         observations = []
@@ -89,6 +92,7 @@ class MultipleMoviesSameDirectorMotif(Motif):
                             (mid, row["director_id"], "DIRECTED_BY")
                             for mid in movie_ids
                         ],
+                        query=query,
                     ),
                     metadata={
                         "director": row["director_name"],
@@ -110,7 +114,7 @@ class CountryClusterMotif(Motif):
 
     def detect(self, graph) -> list[Observation]:
         today = date.today().isoformat()
-        rows = graph.query(
+        query = (
             "MATCH (m:Movie)-[:PRODUCED_IN]->(c:Country), "
             "(m)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
             "WHERE sd.date >= $today AND s.draft = false "
@@ -119,8 +123,10 @@ class CountryClusterMotif(Motif):
             "WHERE movie_count >= $threshold "
             "RETURN c.id AS country_id, c.name AS country_name, movie_count, "
             "movie_ids, titles, dates "
-            "ORDER BY country_name",
-            {"today": today, "threshold": COUNTRY_CLUSTER_THRESHOLD},
+            "ORDER BY country_name"
+        )
+        rows = graph.query(
+            query, {"today": today, "threshold": COUNTRY_CLUSTER_THRESHOLD}
         )
 
         observations = []
@@ -142,6 +148,7 @@ class CountryClusterMotif(Motif):
                         edges=[
                             (mid, row["country_id"], "PRODUCED_IN") for mid in movie_ids
                         ],
+                        query=query,
                     ),
                     metadata={
                         "country": row["country_name"],
@@ -168,22 +175,24 @@ class DirectorReturnMotif(Motif):
     version = "1.0"
 
     def detect(self, graph) -> list[Observation]:
-        rows = graph.query(
+        query = (
             "MATCH (d:Director)<-[:DIRECTED_BY]-(m:Movie)-[:HAS_SCREENING]->"
             "(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
             "WHERE s.draft = false "
             "RETURN d.id AS director_id, d.name AS director_name, "
             "m.id AS movie_id, m.title AS title, sd.date AS date "
-            "ORDER BY director_name",
+            "ORDER BY director_name"
         )
+        rows = graph.query(query)
 
+        today_iso = date.today().isoformat()
         by_director: dict[str, dict] = {}
         for row in rows:
             entry = by_director.setdefault(
                 row["director_id"],
                 {"name": row["director_name"], "past": [], "current": []},
             )
-            bucket = "current" if row["date"] >= date.today().isoformat() else "past"
+            bucket = "current" if row["date"] >= today_iso else "past"
             entry[bucket].append((row["movie_id"], row["title"], row["date"]))
 
         observations = []
@@ -222,6 +231,7 @@ class DirectorReturnMotif(Motif):
                             (mid, director_id, "DIRECTED_BY")
                             for mid in current_movie_ids
                         ],
+                        query=query,
                     ),
                     metadata={
                         "director": entry["name"],
@@ -260,24 +270,24 @@ class CinemaGenreFocusMotif(Motif):
         start = today.replace(day=1).isoformat()
         end = today.replace(day=last_day).isoformat()
 
-        current_rows = graph.query(
+        current_query = (
             "MATCH (ci:Cinema)<-[:AT_CINEMA]-(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
             "(s)<-[:HAS_SCREENING]-(m:Movie)-[:HAS_GENRE]->(g:Genre) "
             "WHERE sd.date >= $start AND sd.date <= $end AND s.draft = false "
             "WITH ci, g, count(sd) AS screening_count, collect(m.id) AS movie_ids, "
             "collect(sd.date) AS dates "
             "RETURN ci.id AS cinema_id, ci.name AS cinema_name, g.id AS genre_id, "
-            "g.name AS genre_name, screening_count, movie_ids, dates",
-            {"start": start, "end": end},
+            "g.name AS genre_name, screening_count, movie_ids, dates"
         )
-        historical_rows = graph.query(
+        current_rows = graph.query(current_query, {"start": start, "end": end})
+        historical_query = (
             "MATCH (ci:Cinema)<-[:AT_CINEMA]-(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
             "(s)<-[:HAS_SCREENING]-(m:Movie)-[:HAS_GENRE]->(g:Genre) "
             "WHERE sd.date < $start AND s.draft = false "
             "WITH ci, g, count(sd) AS screening_count "
-            "RETURN ci.id AS cinema_id, g.id AS genre_id, screening_count",
-            {"start": start},
+            "RETURN ci.id AS cinema_id, g.id AS genre_id, screening_count"
         )
+        historical_rows = graph.query(historical_query, {"start": start})
 
         historical_by_pair: dict[tuple[str, str], int] = {}
         historical_totals: dict[str, int] = {}
@@ -308,7 +318,7 @@ class CinemaGenreFocusMotif(Motif):
             hist_count = historical_by_pair.get(hist_key, 0)
             hist_total = historical_totals.get(row["cinema_id"], 0)
 
-            if hist_total == 0 or hist_count == 0:
+            if hist_count == 0:
                 qualifies = True
             else:
                 historical_share = hist_count / hist_total
@@ -320,6 +330,16 @@ class CinemaGenreFocusMotif(Motif):
                 continue
 
             movie_ids = _dedupe_preserve_order(row["movie_ids"])
+            # This motif's query window is the whole calendar month (not
+            # "today onward" like the other motifs), so row["dates"] often
+            # contains dates earlier than today - prefer the earliest
+            # future date, falling back to the earliest date overall only
+            # if every date is in the past.
+            today_iso = date.today().isoformat()
+            future_dates = [d for d in row["dates"] if d >= today_iso]
+            next_screening_date = (
+                min(future_dates) if future_dates else min(row["dates"])
+            )
             observations.append(
                 Observation(
                     motif_name=self.name,
@@ -335,12 +355,13 @@ class CinemaGenreFocusMotif(Motif):
                         edges=[
                             (mid, row["genre_id"], "HAS_GENRE") for mid in movie_ids
                         ],
+                        query=current_query,
                     ),
                     metadata={
                         "cinema": row["cinema_name"],
                         "genre": row["genre_name"],
                         "screening_count": row["screening_count"],
-                        "next_screening_date": min(row["dates"]),
+                        "next_screening_date": next_screening_date,
                     },
                 )
             )
@@ -357,15 +378,15 @@ class AnniversaryMotif(Motif):
 
     def detect(self, graph) -> list[Observation]:
         today = date.today().isoformat()
-        rows = graph.query(
+        query = (
             "MATCH (m:Movie)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->"
             "(sd:ScreeningDate) "
             "WHERE sd.date >= $today AND s.draft = false "
             "RETURN m.id AS movie_id, m.title AS title, m.release_year AS "
             "release_year, sd.date AS date "
-            "ORDER BY m.title, sd.date",
-            {"today": today},
+            "ORDER BY m.title, sd.date"
         )
+        rows = graph.query(query, {"today": today})
 
         by_movie: dict[str, dict] = {}
         for row in rows:
@@ -398,7 +419,7 @@ class AnniversaryMotif(Motif):
                         f"{entry['title']}, lançado há {years} anos, está "
                         "de volta aos cinemas."
                     ),
-                    evidence=GraphEvidence(nodes=[movie_id], edges=[]),
+                    evidence=GraphEvidence(nodes=[movie_id], edges=[], query=query),
                     metadata={
                         "movie": entry["title"],
                         "years": years,
