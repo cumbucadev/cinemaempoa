@@ -33,6 +33,7 @@ def register_commands(app):
     app.cli.add_command(title_cleaning_backfill_command)
     app.cli.add_command(delete_movie_command)
     app.cli.add_command(sync_graph_command)
+    app.cli.add_command(graph_query_command)
 
 
 def _run_import_json(run, json_path):
@@ -124,6 +125,67 @@ def sync_graph_command():
         f"Grafo sincronizado: {result.nodes_created} nós, "
         f"{result.edges_created} arestas."
     )
+
+
+GRAPH_QUERY_NAMES = [
+    "movies-by-director",
+    "directors-currently-showing",
+    "countries-this-month",
+    "genres-at-cinema",
+    "screenings-since-release",
+]
+
+
+@click.command("graph-query")
+@click.argument("query_name")
+@click.option("--director", default=None, help="Nome do diretor.")
+@click.option("--cinema", default=None, help="Slug da sala.")
+@click.option("--year", type=int, default=None, help="Ano.")
+@click.option("--movie", default=None, help="Slug do filme.")
+def graph_query_command(query_name, director, cinema, year, movie):
+    """Executa uma consulta pré-definida no grafo de conhecimento e imprime
+    os resultados em formato de tabela simples.
+
+    QUERY_NAME: movies-by-director | directors-currently-showing |
+    countries-this-month | genres-at-cinema | screenings-since-release
+    """
+    from flask_backend.service import graph_queries
+
+    if query_name not in GRAPH_QUERY_NAMES:
+        raise click.UsageError(
+            f"Consulta desconhecida: '{query_name}'. Opções: "
+            f"{', '.join(GRAPH_QUERY_NAMES)}"
+        )
+
+    if query_name == "movies-by-director":
+        if not director:
+            raise click.UsageError("--director é obrigatório para movies-by-director")
+        rows = graph_queries.movies_by_director(director)
+    elif query_name == "directors-currently-showing":
+        rows = graph_queries.directors_currently_showing()
+    elif query_name == "countries-this-month":
+        rows = graph_queries.countries_this_month()
+    elif query_name == "genres-at-cinema":
+        if not cinema or year is None:
+            raise click.UsageError(
+                "--cinema e --year são obrigatórios para genres-at-cinema"
+            )
+        rows = graph_queries.genres_at_cinema(cinema, year)
+    else:
+        if not movie:
+            raise click.UsageError(
+                "--movie é obrigatório para screenings-since-release"
+            )
+        rows = graph_queries.screenings_since_release(movie)
+
+    if not rows:
+        click.echo("Nenhum resultado.")
+        return
+
+    headers = list(rows[0].keys())
+    click.echo(" | ".join(headers))
+    for row in rows:
+        click.echo(" | ".join(str(row[h]) for h in headers))
 
 
 @click.command("run-dedupper")
