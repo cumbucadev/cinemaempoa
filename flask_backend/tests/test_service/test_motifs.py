@@ -9,11 +9,13 @@ from graphqlite import Graph
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
+from flask_backend.repository.countries import get_or_create_by_iso_code
 from flask_backend.repository.directors import (
     get_or_create_by_tmdb_id as get_or_create_director,
 )
 from flask_backend.service.graph_sync import sync_graph
 from flask_backend.service.motifs import (
+    CountryClusterMotif,
     MultipleMoviesSameDirectorMotif,
     _dedupe_preserve_order,
 )
@@ -113,3 +115,49 @@ class TestMultipleMoviesSameDirectorMotif:
             graph = Graph(db_path)
 
             assert MultipleMoviesSameDirectorMotif().detect(graph) == []
+
+
+class TestCountryClusterMotif:
+    def test_flags_country_with_two_currently_showing_movies(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            japan = get_or_create_by_iso_code("JP", "Japan")
+            movie_a = Movie(title="Filme A", slug="filme-a")
+            movie_a.countries = [japan]
+            movie_a.screenings = [_screening("capitolio", 1)]
+            movie_b = Movie(title="Filme B", slug="filme-b")
+            movie_b.countries = [japan]
+            movie_b.screenings = [_screening("capitolio", 2)]
+            db_session.add_all([movie_a, movie_b])
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            observations = CountryClusterMotif().detect(graph)
+
+            assert len(observations) == 1
+            assert observations[0].motif_name == "country_cluster"
+            assert observations[0].metadata["country"] == "Japan"
+            assert sorted(observations[0].metadata["movies"]) == sorted(
+                ["Filme A", "Filme B"]
+            )
+
+    def test_does_not_flag_country_with_only_one_currently_showing_movie(
+        self, app, setup_cinemas, tmp_path
+    ):
+        with app.app_context():
+            france = get_or_create_by_iso_code("FR", "France")
+            movie = Movie(title="Filme Único", slug="filme-unico")
+            movie.countries = [france]
+            movie.screenings = [_screening("capitolio", 1)]
+            db_session.add(movie)
+            db_session.commit()
+
+            db_path = str(tmp_path / "graph.db")
+            sync_graph(db_path=db_path)
+            graph = Graph(db_path)
+
+            assert CountryClusterMotif().detect(graph) == []

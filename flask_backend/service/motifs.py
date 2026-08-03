@@ -45,6 +45,9 @@ def _dedupe_preserve_order(items: list) -> list:
     return list(dict.fromkeys(items))
 
 
+COUNTRY_CLUSTER_THRESHOLD = 2
+
+
 class MultipleMoviesSameDirectorMotif(Motif):
     name = "multiple_movies_same_director"
     description = "Detects directors with 2+ movies currently screening."
@@ -88,6 +91,59 @@ class MultipleMoviesSameDirectorMotif(Motif):
                     ),
                     metadata={
                         "director": row["director_name"],
+                        "movies": titles,
+                        "next_screening_date": min(row["dates"]),
+                    },
+                )
+            )
+        return observations
+
+
+class CountryClusterMotif(Motif):
+    name = "country_cluster"
+    description = (
+        f"Detects production countries with {COUNTRY_CLUSTER_THRESHOLD}+ "
+        "movies currently screening."
+    )
+    version = "1.0"
+
+    def detect(self, graph) -> list[Observation]:
+        today = date.today().isoformat()
+        rows = graph.query(
+            "MATCH (m:Movie)-[:PRODUCED_IN]->(c:Country), "
+            "(m)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
+            "WHERE sd.date >= $today AND s.draft = false "
+            "WITH c, count(DISTINCT m) AS movie_count, collect(m.id) AS movie_ids, "
+            "collect(m.title) AS titles, collect(sd.date) AS dates "
+            "WHERE movie_count >= $threshold "
+            "RETURN c.id AS country_id, c.name AS country_name, movie_count, "
+            "movie_ids, titles, dates "
+            "ORDER BY country_name",
+            {"today": today, "threshold": COUNTRY_CLUSTER_THRESHOLD},
+        )
+
+        observations = []
+        for row in rows:
+            movie_ids = _dedupe_preserve_order(row["movie_ids"])
+            titles = _dedupe_preserve_order(row["titles"])
+            observations.append(
+                Observation(
+                    motif_name=self.name,
+                    confidence=1.0,
+                    score=0.0,
+                    headline=f"Cinema de {row['country_name']} em destaque",
+                    summary=(
+                        f"{len(movie_ids)} filmes de {row['country_name']} "
+                        "estão em cartaz atualmente."
+                    ),
+                    evidence=GraphEvidence(
+                        nodes=[row["country_id"], *movie_ids],
+                        edges=[
+                            (mid, row["country_id"], "PRODUCED_IN") for mid in movie_ids
+                        ],
+                    ),
+                    metadata={
+                        "country": row["country_name"],
                         "movies": titles,
                         "next_screening_date": min(row["dates"]),
                     },
