@@ -4,6 +4,7 @@ year, country), fixing confidently-wrong matches and flagging uncertain
 ones for manual review. See docs/superpowers/specs/2026-08-04-cinema-inspector-agent-design.md.
 """
 
+import json
 import logging
 from dataclasses import dataclass
 from typing import List, Literal, Optional
@@ -19,6 +20,8 @@ from flask_backend.db import db_session
 from flask_backend.env_config import GEMINI_API_KEY
 from flask_backend.models import Movie
 from flask_backend.repository.screenings import get_screening_by_id
+from flask_backend.repository import movie_inspections
+from flask_backend.repository.movies import get_by_id as get_movie_by_id
 from flask_backend.service.gemini_api import Gemini
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
@@ -313,4 +316,84 @@ def inspect_movie(movie: Movie) -> InspectionOutcome:
     return InspectionOutcome(
         status="needs_review",
         reasoning=f"Inspeção inconclusiva após {MAX_TOOL_CALLS} chamadas de ferramenta.",
+    )
+
+
+@dataclass
+class PipelineResult:
+    processed: int = 0
+    consistent: int = 0
+    fixed: int = 0
+    needs_review: int = 0
+    errors: int = 0
+
+
+def run_pipeline(
+    limit: Optional[int] = None, pipeline_run_id: Optional[int] = None
+) -> PipelineResult:
+    result = PipelineResult()
+    movies = movie_inspections.get_movies_needing_inspection()
+    if limit is not None:
+        movies = movies[:limit]
+
+    for movie in movies:
+        try:
+            outcome = inspect_movie(movie)
+        except Exception as exc:
+            logger.warning(
+                "Filme %d ('%s') – erro na inspeção: %s", movie.id, movie.title, exc
+            )
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="error",
+                reasoning=str(exc)[:500],
+                checked_tmdb_id=movie.tmdb_id,
+                pipeline_run_id=pipeline_run_id,
+            )
+            result.errors += 1
+            result.processed += 1
+            continue
+
+        movie_inspections.create(
+            movie_id=movie.id,
+            status=outcome.status,
+            reasoning=outcome.reasoning,
+            checked_tmdb_id=movie.tmdb_id,
+            previous_snapshot=json.dumps(outcome.before_snapshot)
+            if outcome.before_snapshot
+            else None,
+            new_snapshot=json.dumps(outcome.after_snapshot)
+            if outcome.after_snapshot
+            else None,
+            pipeline_run_id=pipeline_run_id,
+        )
+        if outcome.status == "consistent":
+            result.consistent += 1
+        elif outcome.status == "fixed":
+            result.fixed += 1
+        elif outcome.status == "needs_review":
+            result.needs_review += 1
+        result.processed += 1
+
+    return result
+
+
+def revert_inspection(inspection_id: int):
+    inspection = movie_inspections.get_by_id(inspection_id)
+    if inspection is None or inspection.status != "fixed":
+        raise ValueError(f"Inspeção #{inspection_id} não pode ser revertida.")
+
+    previous = json.loads(inspection.previous_snapshot)
+    movie = get_movie_by_id(inspection.movie_id)
+    before = _snapshot(movie)
+    _apply_rematch(movie, previous.get("tmdb_id"))
+    after = _snapshot(movie)
+
+    return movie_inspections.create(
+        movie_id=movie.id,
+        status="reverted",
+        reasoning=f"Revertido manualmente para o estado anterior à inspeção #{inspection_id}.",
+        checked_tmdb_id=movie.tmdb_id,
+        previous_snapshot=json.dumps(before),
+        new_snapshot=json.dumps(after),
     )
