@@ -900,10 +900,10 @@ class TestScreeningIndexMobile:
         assert posters_url in html
 
         home_link = re.search(
-            rf'<a class="([^"]*)"\s+href="{re.escape(home_url)}"', html
+            rf'<a class="(nav-link[^"]*)"\s+href="{re.escape(home_url)}"', html
         )
         favoritos_link = re.search(
-            rf'<a class="([^"]*)"\s+href="{re.escape(favoritos_url)}"', html
+            rf'<a class="(nav-link[^"]*)"\s+href="{re.escape(favoritos_url)}"', html
         )
         assert "active" in home_link.group(1).split()
         assert "active" not in favoritos_link.group(1).split()
@@ -1268,10 +1268,10 @@ class TestFavoritos:
         assert home_url in html
 
         home_link = re.search(
-            rf'<a class="([^"]*)"\s+href="{re.escape(home_url)}"', html
+            rf'<a class="(nav-link[^"]*)"\s+href="{re.escape(home_url)}"', html
         )
         favoritos_link = re.search(
-            rf'<a class="([^"]*)"\s+href="{re.escape(favoritos_url)}"', html
+            rf'<a class="(nav-link[^"]*)"\s+href="{re.escape(favoritos_url)}"', html
         )
         assert "active" not in home_link.group(1).split()
         assert "active" in favoritos_link.group(1).split()
