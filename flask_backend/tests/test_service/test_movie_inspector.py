@@ -17,6 +17,14 @@ def _create_movie(tmdb_id=None):
     return movie
 
 
+@pytest.fixture(autouse=True)
+def tmdb_api_token(monkeypatch):
+    """TMDBClient() is instantiated without an explicit token throughout
+    movie_inspector.py, so it falls back to TMDB_API_TOKEN. That env var
+    isn't set in CI, so stub it here rather than relying on a real .env."""
+    monkeypatch.setattr("flask_backend.service.tmdb.TMDB_API_TOKEN", "fake-token")
+
+
 class TestSnapshot:
     def test_captures_key_fields(self, app):
         with app.app_context():
