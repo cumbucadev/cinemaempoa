@@ -1303,7 +1303,6 @@ class TestRunPipeline:
     def test_respects_limit(self, app):
         with app.app_context():
             for i in range(3):
-                Movie(title=f"Filme {i}", slug=f"filme-{i}", tmdb_id=i + 1).__class__
                 movie = Movie(title=f"Filme {i}", slug=f"filme-{i}", tmdb_id=i + 1)
                 db_session.add(movie)
             db_session.commit()
