@@ -235,3 +235,142 @@ class TestRunFetchScreeningSource:
                 observation = movie_inspector._run_fetch_screening_source(screening.id)
 
             assert "Erro" in observation
+
+
+class TestInspectMovie:
+    def _decision(self, **kwargs):
+        defaults = {
+            "action": "conclude",
+            "search_title": None,
+            "tmdb_id": None,
+            "screening_id": None,
+            "verdict": None,
+        }
+        defaults.update(kwargs)
+        return movie_inspector.OrchestratorDecision(**defaults)
+
+    def _verdict(self, **kwargs):
+        defaults = {
+            "status": "consistent",
+            "reasoning": "Bate tudo.",
+            "new_tmdb_id": None,
+        }
+        defaults.update(kwargs)
+        return movie_inspector.InspectionVerdict(**defaults)
+
+    def test_consistent_verdict_leaves_movie_untouched(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            movie.original_title = "Original"
+            db_session.add(movie)
+            db_session.commit()
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                verdict=self._verdict(status="consistent", reasoning="Tudo ok.")
+            )
+            with patch.object(movie_inspector, "_build_agent", return_value=fake_agent):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "consistent"
+            assert outcome.reasoning == "Tudo ok."
+            assert movie.original_title == "Original"
+
+    def test_fixed_verdict_applies_rematch_and_captures_snapshots(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            details = {
+                "directors": [{"id": 1, "name": "Jean-Michel Tchissoukou"}],
+                "genres": [],
+                "countries": [],
+                "collection": None,
+                "original_title": "A Capela",
+                "release_year": 1979,
+                "original_language": "fr",
+            }
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                verdict=self._verdict(
+                    status="fixed",
+                    reasoning="Diretor e ano batem com o TMDB id 573412.",
+                    new_tmdb_id=573412,
+                )
+            )
+            with (
+                patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
+                patch.object(
+                    movie_inspector.TMDBClient,
+                    "get_movie_details",
+                    return_value=details,
+                ),
+            ):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "fixed"
+            assert movie.tmdb_id == 573412
+            assert outcome.before_snapshot["tmdb_id"] == 1
+            assert outcome.after_snapshot["tmdb_id"] == 573412
+
+    def test_fixed_verdict_without_new_tmdb_id_becomes_needs_review(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                verdict=self._verdict(
+                    status="fixed", reasoning="Sem id.", new_tmdb_id=None
+                )
+            )
+            with patch.object(movie_inspector, "_build_agent", return_value=fake_agent):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "needs_review"
+            assert movie.tmdb_id == 1
+
+    def test_dispatches_search_tool_then_concludes(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.side_effect = [
+                self._decision(
+                    action="search_tmdb_candidates", search_title="A Capela"
+                ),
+                self._decision(
+                    verdict=self._verdict(status="needs_review", reasoning="Incerto.")
+                ),
+            ]
+            with (
+                patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
+                patch.object(
+                    movie_inspector.TMDBClient,
+                    "search_movies",
+                    return_value=[
+                        {"id": 573412, "title": "A Capela", "release_date": "1979"}
+                    ],
+                ),
+            ):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "needs_review"
+            assert fake_agent.run.call_count == 2
+            second_call_input = fake_agent.run.call_args_list[1].args[0]
+            assert any(
+                "573412" in observation
+                for observation in second_call_input.observations
+            )
+
+    def test_stops_after_max_tool_calls_with_needs_review(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                action="fetch_screening_source", screening_id=1
+            )
+            with patch.object(movie_inspector, "_build_agent", return_value=fake_agent):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "needs_review"
+            assert fake_agent.run.call_count == movie_inspector.MAX_TOOL_CALLS
