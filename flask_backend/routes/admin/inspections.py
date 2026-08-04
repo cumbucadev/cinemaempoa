@@ -1,4 +1,12 @@
-from flask import Blueprint, abort, render_template, request
+from flask import (
+    Blueprint,
+    abort,
+    flash,  # noqa: F401 -- used by revert() view in Task 7
+    redirect,  # noqa: F401 -- used by revert() view in Task 7
+    render_template,
+    request,
+    url_for,  # noqa: F401 -- used by revert() view in Task 7
+)
 
 from flask_backend.models import MOVIE_INSPECTION_STATUSES
 from flask_backend.repository import movie_inspections
