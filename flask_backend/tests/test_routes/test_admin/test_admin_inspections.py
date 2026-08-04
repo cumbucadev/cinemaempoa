@@ -40,10 +40,31 @@ class TestAdminInspectionsIndex:
         assert b"Filme de Teste" in response.data
         assert "Diretor não coincide com o TMDB.".encode() in response.data
 
+    def test_renders_revert_button_for_fixed_rows(self, app, auth_headers):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="fixed",
+                reasoning="Rematched.",
+                checked_tmdb_id=42,
+                previous_snapshot='{"tmdb_id": 1, "title": "Original"}',
+                new_snapshot='{"tmdb_id": 42, "title": "Filme de Teste"}',
+            )
+            inspection_id = inspection.id
+
+        response = auth_headers.get("/admin/movies/inspections?status=fixed")
+        assert response.status_code == 200
+        assert (
+            f"/admin/movies/inspections/{inspection_id}/revert".encode()
+            in response.data
+        )
+        assert b"Reverter" in response.data
+
     def test_filters_by_status(self, app, auth_headers):
-        # Deliberately avoids status="fixed" here: that renders a Revert
-        # button pointing at admin_inspections.revert, which isn't added
-        # until Task 7. Fixed-row rendering is covered there instead.
+        # Uses non-"fixed" statuses simply because they're the simplest
+        # rows to build; fixed-row rendering (Revert button included) is
+        # covered by test_renders_revert_button_for_fixed_rows above.
         with app.app_context():
             movie = _create_movie(tmdb_id=42)
             movie_inspections.create(
@@ -126,3 +147,24 @@ class TestAdminInspectionsRevert:
         assert response.headers["Location"].endswith(
             "/admin/movies/inspections?status=fixed"
         )
+
+    def test_returns_400_for_a_stale_fixed_inspection(self, app, auth_headers):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="fixed",
+                reasoning="a",
+                checked_tmdb_id=1,
+                previous_snapshot='{"tmdb_id": 1}',
+                new_snapshot='{"tmdb_id": 42}',
+            )
+            inspection_id = inspection.id
+            movie.tmdb_id = 99
+            db_session.add(movie)
+            db_session.commit()
+
+        response = auth_headers.post(
+            f"/admin/movies/inspections/{inspection_id}/revert"
+        )
+        assert response.status_code == 400

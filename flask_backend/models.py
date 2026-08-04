@@ -316,6 +316,8 @@ class MovieInspection(Base):
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False, index=True)
     status = Column(String, nullable=False)  # see MOVIE_INSPECTION_STATUSES
     reasoning = Column(Text, nullable=False)
+    # The movie's tmdb_id as of just before this check ran - never the
+    # replacement id a "fixed" outcome of this same check applied.
     checked_tmdb_id = Column(Integer, nullable=True)
     previous_snapshot = Column(Text, nullable=True)
     new_snapshot = Column(Text, nullable=True)

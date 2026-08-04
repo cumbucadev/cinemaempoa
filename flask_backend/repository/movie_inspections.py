@@ -45,9 +45,15 @@ def get_by_id(inspection_id: int) -> Optional[MovieInspection]:
 
 
 def _get_latest_checked_tmdb_id(movie_id: int) -> Optional[int]:
+    """Ignores `error` rows: a transient failure (Gemini rate limit, network
+    blip) still records the id it was about to check, and counting it as
+    "already checked" would retire the movie from the queue forever."""
     row = (
         db_session.query(MovieInspection.checked_tmdb_id)
-        .filter(MovieInspection.movie_id == movie_id)
+        .filter(
+            MovieInspection.movie_id == movie_id,
+            MovieInspection.status != "error",
+        )
         .order_by(MovieInspection.id.desc())
         .first()
     )

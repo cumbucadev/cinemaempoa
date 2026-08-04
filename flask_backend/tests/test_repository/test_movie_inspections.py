@@ -76,6 +76,20 @@ class TestGetMoviesNeedingInspection:
 
             assert [m.id for m in result] == [movie.id]
 
+    def test_includes_movie_whose_only_prior_row_is_an_error(self, app):
+        with app.app_context():
+            movie = _create_movie(title="Erro Antes", tmdb_id=42)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="error",
+                reasoning="Gemini indisponível.",
+                checked_tmdb_id=42,
+            )
+
+            result = movie_inspections.get_movies_needing_inspection()
+
+            assert [m.id for m in result] == [movie.id]
+
 
 class TestGetPaginated:
     def test_filters_by_status(self, app):

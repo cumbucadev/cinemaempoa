@@ -37,9 +37,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["pipeline_run_id"], ["pipeline_runs.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_movie_inspections_movie_id", "movie_inspections", ["movie_id"]
-    )
+    op.create_index("ix_movie_inspections_movie_id", "movie_inspections", ["movie_id"])
     op.create_index(
         "ix_movie_inspections_pipeline_run_id",
         "movie_inspections",

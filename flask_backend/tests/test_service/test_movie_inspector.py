@@ -1,8 +1,8 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import requests
 import pytest
+import requests
 
 from flask_backend.db import db_session
 from flask_backend.models import Director, Movie
@@ -89,20 +89,24 @@ class TestRunSearchTmdbCandidates:
             with patch.object(
                 movie_inspector.TMDBClient, "search_movies", return_value=results
             ):
-                observation = movie_inspector._run_search_tmdb_candidates("A Capela")
+                observation, ids = movie_inspector._run_search_tmdb_candidates(
+                    "A Capela"
+                )
 
             assert "tmdb_id=573412" in observation
             assert "ano=1979" in observation
             assert "tmdb_id=999" in observation
+            assert ids == [573412, 999]
 
     def test_reports_no_results(self, app):
         with app.app_context():
             with patch.object(
                 movie_inspector.TMDBClient, "search_movies", return_value=[]
             ):
-                observation = movie_inspector._run_search_tmdb_candidates("Xyz")
+                observation, ids = movie_inspector._run_search_tmdb_candidates("Xyz")
 
             assert "Nenhum resultado" in observation
+            assert ids == []
 
     def test_reports_request_errors(self, app):
         with app.app_context():
@@ -111,9 +115,10 @@ class TestRunSearchTmdbCandidates:
                 "search_movies",
                 side_effect=requests.RequestException("timeout"),
             ):
-                observation = movie_inspector._run_search_tmdb_candidates("Xyz")
+                observation, ids = movie_inspector._run_search_tmdb_candidates("Xyz")
 
             assert "Erro" in observation
+            assert ids == []
 
 
 class TestRunGetTmdbDetails:
@@ -131,11 +136,12 @@ class TestRunGetTmdbDetails:
             with patch.object(
                 movie_inspector.TMDBClient, "get_movie_details", return_value=details
             ):
-                observation = movie_inspector._run_get_tmdb_details(573412)
+                observation, ids = movie_inspector._run_get_tmdb_details(573412)
 
             assert "Jean-Michel Tchissoukou" in observation
             assert "1979" in observation
             assert "Congo" in observation
+            assert ids == [573412]
 
     def test_reports_request_errors(self, app):
         with app.app_context():
@@ -144,9 +150,10 @@ class TestRunGetTmdbDetails:
                 "get_movie_details",
                 side_effect=requests.RequestException("timeout"),
             ):
-                observation = movie_inspector._run_get_tmdb_details(1)
+                observation, ids = movie_inspector._run_get_tmdb_details(1)
 
             assert "Erro" in observation
+            assert ids == []
 
 
 class TestRunFetchScreeningSource:
@@ -292,13 +299,18 @@ class TestInspectMovie:
             }
 
             fake_agent = MagicMock()
-            fake_agent.run.return_value = self._decision(
-                verdict=self._verdict(
-                    status="fixed",
-                    reasoning="Diretor e ano batem com o TMDB id 573412.",
-                    new_tmdb_id=573412,
-                )
-            )
+            fake_agent.run.side_effect = [
+                # The id must be observed via a tool call before a "fixed"
+                # verdict is allowed to apply it.
+                self._decision(action="get_tmdb_details", tmdb_id=573412),
+                self._decision(
+                    verdict=self._verdict(
+                        status="fixed",
+                        reasoning="Diretor e ano batem com o TMDB id 573412.",
+                        new_tmdb_id=573412,
+                    )
+                ),
+            ]
             with (
                 patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
                 patch.object(
@@ -329,6 +341,65 @@ class TestInspectMovie:
 
             assert outcome.status == "needs_review"
             assert movie.tmdb_id == 1
+
+    def test_fixed_verdict_with_unobserved_tmdb_id_becomes_needs_review(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                verdict=self._verdict(
+                    status="fixed",
+                    reasoning="Confio que é o id 999999.",
+                    new_tmdb_id=999999,
+                )
+            )
+            with patch.object(movie_inspector, "_build_agent", return_value=fake_agent):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "needs_review"
+            assert movie.tmdb_id == 1
+
+    def test_rejects_fetch_screening_source_for_a_different_movies_screening(self, app):
+        from flask_backend.models import Cinema, Screening
+
+        with app.app_context():
+            cinema = Cinema(
+                slug="cine-teste", name="Cine Teste", url="https://example.com"
+            )
+            db_session.add(cinema)
+            db_session.commit()
+            movie = _create_movie(tmdb_id=1)
+            other_movie = Movie(title="Outro Filme", slug="outro-filme", tmdb_id=2)
+            db_session.add(other_movie)
+            db_session.commit()
+            other_screening = Screening(
+                movie_id=other_movie.id,
+                cinema_id=cinema.id,
+                description="desc",
+                url="https://example.com/outro",
+            )
+            db_session.add(other_screening)
+            db_session.commit()
+
+            fake_agent = MagicMock()
+            fake_agent.run.side_effect = [
+                self._decision(
+                    action="fetch_screening_source", screening_id=other_screening.id
+                ),
+                self._decision(
+                    verdict=self._verdict(status="needs_review", reasoning="Incerto.")
+                ),
+            ]
+            with patch.object(movie_inspector, "_build_agent", return_value=fake_agent):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "needs_review"
+            second_call_input = fake_agent.run.call_args_list[1].args[0]
+            assert any(
+                "não pertence" in observation
+                for observation in second_call_input.observations
+            )
 
     def test_dispatches_search_tool_then_concludes(self, app):
         with app.app_context():
@@ -434,6 +505,13 @@ class TestInspectMovie:
 
 
 class TestRunPipeline:
+    @pytest.fixture(autouse=True)
+    def _gemini_key(self):
+        # run_pipeline fails fast without a key, and CI has no .env, so
+        # these tests must not depend on the ambient environment.
+        with patch.object(movie_inspector, "GEMINI_API_KEY", "fake-key"):
+            yield
+
     def test_records_one_row_per_movie_and_tallies_result(self, app):
         with app.app_context():
             movie_a = _create_movie(tmdb_id=1)
@@ -462,6 +540,7 @@ class TestRunPipeline:
             assert result.needs_review == 1
 
             from flask_backend.repository import movie_inspections
+
             rows, _, total = movie_inspections.get_paginated(None, 1, 20)
             assert total == 2
 
@@ -493,9 +572,13 @@ class TestRunPipeline:
             def fake_inspect(movie):
                 if movie.id == movie_a.id:
                     raise RuntimeError("gemini indisponível")
-                return movie_inspector.InspectionOutcome(status="consistent", reasoning="ok")
+                return movie_inspector.InspectionOutcome(
+                    status="consistent", reasoning="ok"
+                )
 
-            with patch.object(movie_inspector, "inspect_movie", side_effect=fake_inspect):
+            with patch.object(
+                movie_inspector, "inspect_movie", side_effect=fake_inspect
+            ):
                 result = movie_inspector.run_pipeline()
 
             assert result.errors == 1
@@ -503,13 +586,14 @@ class TestRunPipeline:
             assert result.processed == 2
 
             from flask_backend.repository import movie_inspections
+
             rows, _, _ = movie_inspections.get_paginated("error", 1, 20)
             assert len(rows) == 1
             assert "gemini indisponível" in rows[0].reasoning
 
     def test_tags_rows_with_pipeline_run_id(self, app):
         with app.app_context():
-            movie = _create_movie(tmdb_id=1)
+            _create_movie(tmdb_id=1)
 
             with patch.object(
                 movie_inspector,
@@ -521,8 +605,41 @@ class TestRunPipeline:
                 movie_inspector.run_pipeline(pipeline_run_id=99)
 
             from flask_backend.repository import movie_inspections
+
             rows, _, _ = movie_inspections.get_paginated(None, 1, 20)
             assert rows[0].pipeline_run_id == 99
+
+    def test_fixed_outcome_records_checked_tmdb_id_as_the_pre_fix_value(self, app):
+        with app.app_context():
+            _create_movie(tmdb_id=1)
+
+            def fake_inspect(m):
+                m.tmdb_id = 573412  # simulate inspect_movie having applied a fix
+                return movie_inspector.InspectionOutcome(
+                    status="fixed",
+                    reasoning="ok",
+                    before_snapshot={"tmdb_id": 1},
+                    after_snapshot={"tmdb_id": 573412},
+                )
+
+            with patch.object(
+                movie_inspector, "inspect_movie", side_effect=fake_inspect
+            ):
+                movie_inspector.run_pipeline()
+
+            from flask_backend.repository import movie_inspections
+
+            rows, _, _ = movie_inspections.get_paginated("fixed", 1, 20)
+            assert rows[0].checked_tmdb_id == 1
+
+    def test_raises_immediately_when_gemini_api_key_is_unset(self, app):
+        with app.app_context():
+            _create_movie(tmdb_id=1)
+            with (
+                patch.object(movie_inspector, "GEMINI_API_KEY", None),
+                pytest.raises(ValueError),
+            ):
+                movie_inspector.run_pipeline()
 
 
 class TestRevertInspection:
@@ -532,8 +649,9 @@ class TestRevertInspection:
             movie.original_title = "A Capela"
             db_session.add(movie)
             db_session.commit()
-            
+
             from flask_backend.repository import movie_inspections
+
             inspection = movie_inspections.create(
                 movie_id=movie.id,
                 status="fixed",
@@ -564,8 +682,9 @@ class TestRevertInspection:
     def test_reverting_to_previously_unmatched_clears_tmdb_id(self, app):
         with app.app_context():
             movie = _create_movie(tmdb_id=573412)
-            
+
             from flask_backend.repository import movie_inspections
+
             inspection = movie_inspections.create(
                 movie_id=movie.id,
                 status="fixed",
@@ -582,8 +701,9 @@ class TestRevertInspection:
     def test_raises_for_non_fixed_inspection(self, app):
         with app.app_context():
             movie = _create_movie(tmdb_id=1)
-            
+
             from flask_backend.repository import movie_inspections
+
             inspection = movie_inspections.create(
                 movie_id=movie.id,
                 status="consistent",
@@ -593,3 +713,57 @@ class TestRevertInspection:
 
             with pytest.raises(ValueError):
                 movie_inspector.revert_inspection(inspection.id)
+
+    def test_raises_for_a_stale_fixed_inspection(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+
+            from flask_backend.repository import movie_inspections
+
+            # inspection #1: fixed 1 -> 42
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="fixed",
+                reasoning="Primeira correção.",
+                checked_tmdb_id=1,
+                previous_snapshot=json.dumps({"tmdb_id": 1}),
+                new_snapshot=json.dumps({"tmdb_id": 42}),
+            )
+            # simulate a later, newer fix having moved the movie on again
+            movie.tmdb_id = 99
+            db_session.add(movie)
+            db_session.commit()
+
+            with pytest.raises(ValueError):
+                movie_inspector.revert_inspection(inspection.id)
+
+    def test_reverting_leaves_the_original_row_unchanged(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+
+            from flask_backend.repository import movie_inspections
+
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="fixed",
+                reasoning="Rematched.",
+                checked_tmdb_id=1,
+                previous_snapshot=json.dumps({"tmdb_id": 1}),
+                new_snapshot=json.dumps({"tmdb_id": 42}),
+            )
+            details = {
+                "directors": [],
+                "genres": [],
+                "countries": [],
+                "collection": None,
+                "original_title": None,
+                "release_year": None,
+                "original_language": None,
+            }
+            with patch.object(
+                movie_inspector.TMDBClient, "get_movie_details", return_value=details
+            ):
+                movie_inspector.revert_inspection(inspection.id)
+
+            reloaded = movie_inspections.get_by_id(inspection.id)
+            assert reloaded.status == "fixed"

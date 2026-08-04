@@ -32,35 +32,63 @@
             </li>
         {% endfor %}
     </ul>
-    {% if inspections %}
+    <p class="text-muted">{{ total }} inspeção(ões) encontrada(s).</p>
+    {% if rows %}
         <div class="table-responsive">
             <table class="table table-striped align-middle">
                 <thead>
                     <tr>
                         <th>Quando</th>
                         <th>Filme</th>
+                        <th>Cinema(s)</th>
                         <th>Status</th>
                         <th>Raciocínio</th>
                         <th>Ação</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for inspection in inspections %}
+                    {% for row in rows %}
                         <tr>
                             <td>
-                                <time datetime="{{ inspection.created_at.isoformat() }}">{{ inspection.created_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                                <time datetime="{{ row.inspection.created_at.isoformat() }}">{{ row.inspection.created_at.strftime("%d/%m/%Y %H:%M") }}</time>
                             </td>
                             <td>
-                                <a href="{{ url_for('admin_movies.edit', movie_id=inspection.movie_id) }}">{{ inspection.movie.title }}</a>
+                                <a href="{{ url_for('admin_movies.edit', movie_id=row.inspection.movie_id) }}">{{ row.inspection.movie.title }}</a>
+                            </td>
+                            <td>{{ row.cinemas | join(", ") }}</td>
+                            <td>
+                                <span class="badge {{ status_classes[row.inspection.status] }}">{{ status_labels[row.inspection.status] }}</span>
                             </td>
                             <td>
-                                <span class="badge {{ status_classes[inspection.status] }}">{{ status_labels[inspection.status] }}</span>
+                                {{ row.inspection.reasoning }}
+                                {% if row.previous or row.new %}
+                                    <details class="mt-1">
+                                        <summary class="small">Ver alteração</summary>
+                                        <dl class="small mb-0">
+                                            <dt>Antes</dt>
+                                            <dd>
+                                                {% if row.previous %}
+                                                    {{ row.previous.title }} ({{ row.previous.release_year or "?" }}) — {{ row.previous.directors | default([], true) | join(", ") or "diretor desconhecido" }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </dd>
+                                            <dt>Depois</dt>
+                                            <dd>
+                                                {% if row.new %}
+                                                    {{ row.new.title }} ({{ row.new.release_year or "?" }}) — {{ row.new.directors | default([], true) | join(", ") or "diretor desconhecido" }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </details>
+                                {% endif %}
                             </td>
-                            <td>{{ inspection.reasoning }}</td>
                             <td>
-                                {% if inspection.status == "fixed" %}
+                                {% if row.inspection.status == "fixed" %}
                                     <form method="post"
-                                          action="{{ url_for('admin_inspections.revert', inspection_id=inspection.id) }}">
+                                          action="{{ url_for('admin_inspections.revert', inspection_id=row.inspection.id) }}">
                                         <input type="hidden" name="status" value="{{ status }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Reverter</button>
                                     </form>
