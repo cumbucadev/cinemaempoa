@@ -361,6 +361,61 @@ class TestInspectMovie:
                 for observation in second_call_input.observations
             )
 
+    def test_dispatches_get_tmdb_details_tool_then_concludes(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            details = {
+                "directors": [{"id": 1, "name": "Jean-Michel Tchissoukou"}],
+                "genres": [],
+                "countries": [],
+                "collection": None,
+                "original_title": "A Capela",
+                "release_year": 1979,
+                "original_language": "fr",
+            }
+
+            fake_agent = MagicMock()
+            fake_agent.run.side_effect = [
+                self._decision(action="get_tmdb_details", tmdb_id=573412),
+                self._decision(
+                    verdict=self._verdict(status="needs_review", reasoning="Incerto.")
+                ),
+            ]
+            with (
+                patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
+                patch.object(
+                    movie_inspector.TMDBClient,
+                    "get_movie_details",
+                    return_value=details,
+                ),
+            ):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "needs_review"
+            assert fake_agent.run.call_count == 2
+            second_call_input = fake_agent.run.call_args_list[1].args[0]
+            assert any(
+                "Jean-Michel Tchissoukou" in observation or "573412" in observation
+                for observation in second_call_input.observations
+            )
+
+    def test_conclude_without_verdict_retries_until_valid_verdict(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.side_effect = [
+                self._decision(action="conclude", verdict=None),
+                self._decision(
+                    verdict=self._verdict(status="consistent", reasoning="ok")
+                ),
+            ]
+            with patch.object(movie_inspector, "_build_agent", return_value=fake_agent):
+                outcome = movie_inspector.inspect_movie(movie)
+
+            assert outcome.status == "consistent"
+            assert fake_agent.run.call_count == 2
+
     def test_stops_after_max_tool_calls_with_needs_review(self, app):
         with app.app_context():
             movie = _create_movie(tmdb_id=1)
