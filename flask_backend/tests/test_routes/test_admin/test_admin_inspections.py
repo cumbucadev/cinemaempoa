@@ -1,5 +1,7 @@
 """Tests the basic functionality of /admin/movies/inspections."""
 
+from unittest.mock import patch
+
 from flask_backend.db import db_session
 from flask_backend.models import Movie
 from flask_backend.repository import movie_inspections
@@ -68,3 +70,59 @@ class TestAdminInspectionsIndex:
     def test_invalid_pagination_returns_400(self, auth_headers):
         response = auth_headers.get("/admin/movies/inspections?page=invalid&limit=10")
         assert response.status_code == 400
+
+
+class TestAdminInspectionsRevert:
+    def test_requires_login(self, client, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            inspection = movie_inspections.create(
+                movie_id=movie.id, status="fixed", reasoning="a", checked_tmdb_id=42
+            )
+            inspection_id = inspection.id
+
+        response = client.post(f"/admin/movies/inspections/{inspection_id}/revert")
+        assert response.status_code == 302
+        assert b"/auth/login" in response.data
+
+    def test_returns_404_for_missing_inspection(self, auth_headers):
+        response = auth_headers.post("/admin/movies/inspections/99999/revert")
+        assert response.status_code == 404
+
+    def test_returns_400_for_non_fixed_inspection(self, app, auth_headers):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="consistent",
+                reasoning="ok",
+                checked_tmdb_id=42,
+            )
+            inspection_id = inspection.id
+
+        response = auth_headers.post(
+            f"/admin/movies/inspections/{inspection_id}/revert"
+        )
+        assert response.status_code == 400
+
+    def test_reverts_and_redirects(self, app, auth_headers):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            inspection = movie_inspections.create(
+                movie_id=movie.id, status="fixed", reasoning="a", checked_tmdb_id=42
+            )
+            inspection_id = inspection.id
+
+        with patch(
+            "flask_backend.routes.admin.inspections.revert_inspection"
+        ) as mock_revert:
+            response = auth_headers.post(
+                f"/admin/movies/inspections/{inspection_id}/revert",
+                data={"status": "fixed"},
+            )
+
+        mock_revert.assert_called_once_with(inspection_id)
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(
+            "/admin/movies/inspections?status=fixed"
+        )

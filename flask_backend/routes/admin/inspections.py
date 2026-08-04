@@ -1,16 +1,17 @@
 from flask import (
     Blueprint,
     abort,
-    flash,  # noqa: F401 -- used by revert() view in Task 7
-    redirect,  # noqa: F401 -- used by revert() view in Task 7
+    flash,
+    redirect,
     render_template,
     request,
-    url_for,  # noqa: F401 -- used by revert() view in Task 7
+    url_for,
 )
 
 from flask_backend.models import MOVIE_INSPECTION_STATUSES
 from flask_backend.repository import movie_inspections
 from flask_backend.routes.auth import login_required
+from flask_backend.service.movie_inspector import revert_inspection
 
 bp = Blueprint("admin_inspections", __name__)
 
@@ -48,4 +49,20 @@ def index():
         pages=pages,
         limit=limit,
         total=total,
+    )
+
+
+@bp.route("/admin/movies/inspections/<int:inspection_id>/revert", methods=("POST",))
+@login_required
+def revert(inspection_id):
+    inspection = movie_inspections.get_by_id(inspection_id)
+    if inspection is None:
+        abort(404)
+    if inspection.status != "fixed":
+        abort(400)
+
+    revert_inspection(inspection_id)
+    flash("Correção revertida.", "success")
+    return redirect(
+        url_for("admin_inspections.index", status=request.form.get("status", "all"))
     )
