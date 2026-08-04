@@ -163,8 +163,7 @@ def build_reels_feed(
     flat, cross-cinema list of ScreeningDate rows for every movie present in
     `screenings` within the same window - grouped here per movie for each
     card's "next dates" list. `wanted_movie_ids` marks cards for the
-    current anonymous visitor's want-to-watch picks (see
-    docs/superpowers/specs/2026-07-26-want-to-watch-design.md)."""
+    current anonymous visitor's want-to-watch picks."""
     if earliest_datetime is None:
         earliest_datetime = datetime.combine(today, time.min)
     if wanted_movie_ids is None:

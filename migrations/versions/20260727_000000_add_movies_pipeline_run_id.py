@@ -1,6 +1,7 @@
 """Adds movies.pipeline_run_id so a pipeline run can be credited with
 creating a specific movie, the same way screenings.pipeline_run_id already
-works - see docs/superpowers/specs/2026-07-27-scraper-import-counters-design.md.
+works - see design spec at
+https://github.com/cumbucadev/cinemaempoa/pull/280#issuecomment-5095151759.
 
 Revision ID: 20260727_000000
 Revises: 20260726_000000

@@ -1,7 +1,7 @@
 """Removes the old alerts table and its generation-pipeline bookkeeping
 columns (issue #258). The Alert model/pipeline is fully replaced by
 alert_actions (added in 20260724_000000) plus the live-computed Pendentes
-view - see docs/superpowers/specs/2026-07-24-admin-alerts-usability-design.md.
+view.
 
 Revision ID: 20260724_000001
 Revises: 20260724_000000

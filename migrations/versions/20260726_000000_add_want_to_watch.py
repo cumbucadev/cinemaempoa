@@ -1,6 +1,5 @@
 """Adds want_to_watch: the anonymous per-visitor "want to watch" mark on
-the reels homepage star button - see
-docs/superpowers/specs/2026-07-26-want-to-watch-design.md.
+the reels homepage star button.
 
 Revision ID: 20260726_000000
 Revises: 20260724_000001
