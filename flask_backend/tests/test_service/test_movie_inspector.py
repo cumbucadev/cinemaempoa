@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from flask_backend.db import db_session
 from flask_backend.models import Director, Movie
 from flask_backend.service import movie_inspector
@@ -73,9 +75,6 @@ class TestApplyRematch:
             assert movie.tmdb_id is None
             assert movie.original_title is None
             assert movie.tmdb_excluded is False
-
-
-import requests
 
 
 class TestRunSearchTmdbCandidates:
@@ -198,15 +197,15 @@ class TestRunFetchScreeningSource:
             db_session.commit()
 
             response = MagicMock()
-            response.text = "<html><body><p>Jean-Michel Tchissoukou, 1979</p></body></html>"
+            response.text = (
+                "<html><body><p>Jean-Michel Tchissoukou, 1979</p></body></html>"
+            )
             response.raise_for_status = MagicMock()
             with patch(
                 "flask_backend.service.movie_inspector.requests.get",
                 return_value=response,
             ):
-                observation = movie_inspector._run_fetch_screening_source(
-                    screening.id
-                )
+                observation = movie_inspector._run_fetch_screening_source(screening.id)
 
             assert "Jean-Michel Tchissoukou, 1979" in observation
 
@@ -233,8 +232,6 @@ class TestRunFetchScreeningSource:
                 "flask_backend.service.movie_inspector.requests.get",
                 side_effect=requests.RequestException("timeout"),
             ):
-                observation = movie_inspector._run_fetch_screening_source(
-                    screening.id
-                )
+                observation = movie_inspector._run_fetch_screening_source(screening.id)
 
             assert "Erro" in observation
