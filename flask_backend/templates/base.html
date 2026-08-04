@@ -176,6 +176,10 @@
                                    href="{{ url_for("admin_pipelines.index") }}">Pipelines</a>
                             </li>
                             <li>
+                                <a class="dropdown-item {% if request.path.startswith('/admin/movies/inspections') %}active{% endif %}"
+                                   href="{{ url_for("admin_inspections.index") }}">Inspeções de Filmes</a>
+                            </li>
+                            <li>
                                 <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
                                    href="{{ url_for("screening.create") }}">Nova sessão</a>
                             </li>
