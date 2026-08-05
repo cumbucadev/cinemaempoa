@@ -5,6 +5,7 @@ import pytest
 from google.genai.errors import ClientError
 
 from flask_backend.service.gemini_api import Gemini
+from flask_backend.service.gemini_models import GEMINI_MODEL_PRIORITY
 
 
 class TestGeminiInit:
@@ -48,10 +49,31 @@ class TestPromptImage:
 
         assert result == "Uma bela descrição."
         args, kwargs = gemini.client.models.generate_content.call_args
-        assert kwargs["model"] == Gemini.MODEL
+        assert kwargs["model"] == GEMINI_MODEL_PRIORITY[0]
         assert kwargs["contents"][0] == "describe this"
 
-    def test_rate_limit_error_propagates(self):
+    def test_rate_limit_on_first_model_falls_back_to_second(self):
+        gemini = _make_gemini()
+        mock_response = MagicMock()
+        mock_response.text = "Uma bela descrição."
+        gemini.client.models.generate_content.side_effect = [
+            ClientError(code=429, response_json={}),
+            mock_response,
+        ]
+
+        image = io.BytesIO(b"fake-image-bytes")
+        image.mimetype = "image/jpeg"
+
+        result = gemini.prompt_image(image, "describe this")
+
+        assert result == "Uma bela descrição."
+        calls = gemini.client.models.generate_content.call_args_list
+        assert calls[0].kwargs["model"] == GEMINI_MODEL_PRIORITY[0]
+        assert calls[1].kwargs["model"] == GEMINI_MODEL_PRIORITY[1]
+
+    def test_rate_limit_on_every_model_raises_all_exhausted(self):
+        from flask_backend.service.gemini_models import AllGeminiModelsExhausted
+
         gemini = _make_gemini()
         gemini.client.models.generate_content.side_effect = ClientError(
             code=429, response_json={}
@@ -60,5 +82,21 @@ class TestPromptImage:
         image = io.BytesIO(b"fake-image-bytes")
         image.mimetype = "image/jpeg"
 
-        with pytest.raises(ClientError):
+        with pytest.raises(AllGeminiModelsExhausted):
             gemini.prompt_image(image, "describe this")
+
+        assert gemini.client.models.generate_content.call_count == len(
+            GEMINI_MODEL_PRIORITY
+        )
+
+    def test_non_rate_limit_error_propagates_without_fallback(self):
+        gemini = _make_gemini()
+        gemini.client.models.generate_content.side_effect = ValueError("boom")
+
+        image = io.BytesIO(b"fake-image-bytes")
+        image.mimetype = "image/jpeg"
+
+        with pytest.raises(ValueError, match="boom"):
+            gemini.prompt_image(image, "describe this")
+
+        assert gemini.client.models.generate_content.call_count == 1
