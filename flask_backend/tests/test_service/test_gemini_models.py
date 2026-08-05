@@ -98,45 +98,49 @@ class TestCallWithFallback:
             assert calls == [GEMINI_MODEL_PRIORITY[0]]
 
     def test_pre_check_skips_a_model_already_in_cooldown_without_calling_it(self, app):
-        with app.app_context():
-            with patch(
+        with (
+            app.app_context(),
+            patch(
                 "flask_backend.service.gemini_quota.is_available",
                 side_effect=lambda model_id: model_id != "model-a",
-            ):
-                calls = []
+            ),
+        ):
+            calls = []
 
-                def build_and_call(model_id):
-                    calls.append(model_id)
-                    return "ok"
+            def build_and_call(model_id):
+                calls.append(model_id)
+                return "ok"
 
-                result = call_with_fallback(
+            result = call_with_fallback(
+                build_and_call,
+                lambda _exc: None,
+                models=["model-a", "model-b"],
+            )
+
+            assert result == "ok"
+            assert calls == ["model-b"]
+
+    def test_all_models_pre_check_skipped_raises_without_any_calls(self, app):
+        with (
+            app.app_context(),
+            patch(
+                "flask_backend.service.gemini_quota.is_available", return_value=False
+            ),
+        ):
+            calls = []
+
+            def build_and_call(model_id):
+                calls.append(model_id)
+                return "ok"
+
+            with pytest.raises(AllGeminiModelsExhausted):
+                call_with_fallback(
                     build_and_call,
                     lambda _exc: None,
                     models=["model-a", "model-b"],
                 )
 
-                assert result == "ok"
-                assert calls == ["model-b"]
-
-    def test_all_models_pre_check_skipped_raises_without_any_calls(self, app):
-        with app.app_context():
-            with patch(
-                "flask_backend.service.gemini_quota.is_available", return_value=False
-            ):
-                calls = []
-
-                def build_and_call(model_id):
-                    calls.append(model_id)
-                    return "ok"
-
-                with pytest.raises(AllGeminiModelsExhausted):
-                    call_with_fallback(
-                        build_and_call,
-                        lambda _exc: None,
-                        models=["model-a", "model-b"],
-                    )
-
-                assert calls == []
+            assert calls == []
 
 
 class TestGeminiModelPriority:

@@ -10,21 +10,21 @@ from flask_backend.service.gemini_models import GEMINI_MODEL_PRIORITY
 
 class TestGeminiInit:
     def test_missing_api_key_raises_value_error(self, app):
-        with app.app_context():
-            with (
-                patch("flask_backend.service.gemini_api.GEMINI_API_KEY", None),
-                pytest.raises(ValueError, match="Invalid Gemini API key"),
-            ):
-                Gemini()
+        with (
+            app.app_context(),
+            patch("flask_backend.service.gemini_api.GEMINI_API_KEY", None),
+            pytest.raises(ValueError, match="Invalid Gemini API key"),
+        ):
+            Gemini()
 
     def test_with_api_key_builds_client(self, app):
-        with app.app_context():
-            with (
-                patch("flask_backend.service.gemini_api.GEMINI_API_KEY", "fake-key"),
-                patch("flask_backend.service.gemini_api.genai.Client") as mock_client_cls,
-            ):
-                Gemini()
-            mock_client_cls.assert_called_once_with(api_key="fake-key")
+        with (
+            app.app_context(),
+            patch("flask_backend.service.gemini_api.GEMINI_API_KEY", "fake-key"),
+            patch("flask_backend.service.gemini_api.genai.Client") as mock_client_cls,
+        ):
+            Gemini()
+        mock_client_cls.assert_called_once_with(api_key="fake-key")
 
 
 def _make_gemini():

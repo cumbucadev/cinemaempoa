@@ -19,9 +19,7 @@ class TestCreate:
             )
 
             assert event.id is not None
-            stored = (
-                db_session.query(GeminiUsageEvent).filter_by(id=event.id).one()
-            )
+            stored = db_session.query(GeminiUsageEvent).filter_by(id=event.id).one()
             assert stored.model_id == "gemini-2.5-flash"
             assert stored.occurred_at == now
             assert stored.outcome == "rate_limited"
@@ -44,10 +42,16 @@ class TestCountSince:
     def test_counts_only_matching_model_on_or_after_since(self, app):
         with app.app_context():
             base = datetime(2026, 8, 5, 12, 0, 0)
-            gemini_usage_events.create("model-a", base - timedelta(seconds=1), "success")
+            gemini_usage_events.create(
+                "model-a", base - timedelta(seconds=1), "success"
+            )
             gemini_usage_events.create("model-a", base, "success")
-            gemini_usage_events.create("model-a", base + timedelta(seconds=1), "success")
-            gemini_usage_events.create("model-b", base + timedelta(seconds=1), "success")
+            gemini_usage_events.create(
+                "model-a", base + timedelta(seconds=1), "success"
+            )
+            gemini_usage_events.create(
+                "model-b", base + timedelta(seconds=1), "success"
+            )
 
             assert gemini_usage_events.count_since("model-a", base) == 2
 
@@ -64,7 +68,9 @@ class TestMostRecent:
             latest = gemini_usage_events.create(
                 "model-a", base + timedelta(seconds=1), "rate_limited"
             )
-            gemini_usage_events.create("model-b", base + timedelta(seconds=2), "success")
+            gemini_usage_events.create(
+                "model-b", base + timedelta(seconds=2), "success"
+            )
 
             result = gemini_usage_events.most_recent("model-a")
 
