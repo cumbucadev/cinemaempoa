@@ -30,6 +30,7 @@ def register_commands(app):
     app.cli.add_command(poster_review)
     app.cli.add_command(fetch_movie_metadata)
     app.cli.add_command(movie_metadata_review)
+    app.cli.add_command(inspect_movies)
     app.cli.add_command(title_cleaning_report_command)
     app.cli.add_command(title_cleaning_backfill_command)
     app.cli.add_command(delete_movie_command)
@@ -392,6 +393,66 @@ def movie_metadata_review():
         if item["error_message"]:
             detail = f"{detail}: {item['error_message']}"
         click.echo(f'  Movie #{item["movie_id"]} – "{item["movie_title"]}" ({detail})')
+
+
+@click.command("inspect-movies")
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Número máximo de filmes a inspecionar. Sem limite por padrão.",
+)
+@click.option(
+    "--verbose", "-v", is_flag=True, default=False, help="Mostra logs detalhados."
+)
+def inspect_movies(limit, verbose):
+    """Verifica se o filme vinculado no TMDB é consistente com o que os
+    cinemas publicaram sobre ele, corrigindo vínculos incorretos quando
+    identifica um substituto com confiança e sinalizando os demais para
+    revisão manual em /admin/movies/inspections.
+    """
+    from flask_backend.repository import pipeline_runs
+    from flask_backend.service.movie_inspector import run_pipeline
+
+    log_level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
+
+    run = pipeline_runs.start("inspect-movies")
+    try:
+        result = run_pipeline(limit=limit, pipeline_run_id=run.id)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    status = "warning" if result.errors > 0 else "success"
+    pipeline_runs.finish(
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "processed": result.processed,
+                "consistent": result.consistent,
+                "fixed": result.fixed,
+                "needs_review": result.needs_review,
+                "errors": result.errors,
+            }
+        ),
+    )
+
+    click.echo(f"\n{'=' * 40}")
+    click.echo("Resultado da inspeção de filmes:")
+    click.echo(f"  Processados:          {result.processed}")
+    click.echo(f"  Consistentes:         {result.consistent}")
+    click.echo(f"  Corrigidos:           {result.fixed}")
+    click.echo(f"  Aguardando revisão:   {result.needs_review}")
+    click.echo(f"  Erros:                {result.errors}")
+    click.echo(f"{'=' * 40}")
+
+    if result.needs_review > 0:
+        click.echo(
+            f"\n⚠ {result.needs_review} filme(s) aguardam revisão manual em "
+            "/admin/movies/inspections."
+        )
 
 
 @click.command("title-cleaning-report")

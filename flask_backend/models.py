@@ -30,6 +30,8 @@ PIPELINE_RUN_STATUSES = ["running", "success", "warning", "error"]
 
 ALERT_ACTIONS = ["posted", "dismissed"]
 
+MOVIE_INSPECTION_STATUSES = ["consistent", "fixed", "needs_review", "error", "reverted"]
+
 
 class User(Base):
     __tablename__ = "users"
@@ -297,6 +299,32 @@ class MovieMetadataFetchAttempt(Base):
     pipeline_run_id = Column(
         Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
     )
+
+    movie: Mapped["Movie"] = relationship()
+
+
+class MovieInspection(Base):
+    """One audit row per automated consistency check of a movie's TMDB
+    match against what the cinema itself published about it (see
+    flask_backend/service/movie_inspector.py). Append-only: reverting a
+    "fixed" row creates a new row with status="reverted" instead of
+    mutating history - same log-not-mutate shape as AlertAction."""
+
+    __tablename__ = "movie_inspections"
+
+    id = Column(Integer, primary_key=True)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False, index=True)
+    status = Column(String, nullable=False)  # see MOVIE_INSPECTION_STATUSES
+    reasoning = Column(Text, nullable=False)
+    # The movie's tmdb_id as of just before this check ran - never the
+    # replacement id a "fixed" outcome of this same check applied.
+    checked_tmdb_id = Column(Integer, nullable=True)
+    previous_snapshot = Column(Text, nullable=True)
+    new_snapshot = Column(Text, nullable=True)
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     movie: Mapped["Movie"] = relationship()
 

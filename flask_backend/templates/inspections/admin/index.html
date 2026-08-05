@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}
+    Inspeções de Filmes
+{% endblock title %}
+{% block header %}
+    <div>
+        <h1>Inspeções de Filmes</h1>
+        <p>Verificações automáticas do vínculo TMDB de cada filme contra o que os cinemas publicaram sobre ele.</p>
+    </div>
+{% endblock header %}
+{% block content %}
+    {% set status_labels = {
+        "consistent": "Consistente",
+        "fixed": "Corrigido",
+        "needs_review": "Revisão manual",
+        "error": "Erro",
+        "reverted": "Revertido",
+        "all": "Todos"
+    } %}
+    {% set status_classes = {
+        "consistent": "bg-success",
+        "fixed": "bg-info text-dark",
+        "needs_review": "bg-warning text-dark",
+        "error": "bg-danger",
+        "reverted": "bg-secondary"
+    } %}
+    <ul class="nav nav-tabs mb-3">
+        {% for filter_status in ["all", "needs_review", "fixed", "consistent", "error", "reverted"] %}
+            <li class="nav-item">
+                <a class="nav-link {% if status == filter_status %}active{% endif %}"
+                   href="{{ url_for('admin_inspections.index', status=filter_status) }}">{{ status_labels[filter_status] }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <p class="text-muted">{{ total }} inspeção(ões) encontrada(s).</p>
+    {% if rows %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Quando</th>
+                        <th>Filme</th>
+                        <th>Cinema(s)</th>
+                        <th>Status</th>
+                        <th>Raciocínio</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>
+                                <time datetime="{{ row.inspection.created_at.isoformat() }}">{{ row.inspection.created_at.strftime("%d/%m/%Y %H:%M") }}</time>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin_movies.edit', movie_id=row.inspection.movie_id) }}">{{ row.inspection.movie.title }}</a>
+                            </td>
+                            <td>{{ row.cinemas | join(", ") }}</td>
+                            <td>
+                                <span class="badge {{ status_classes[row.inspection.status] }}">{{ status_labels[row.inspection.status] }}</span>
+                            </td>
+                            <td>
+                                {{ row.inspection.reasoning }}
+                                {% if row.previous or row.new %}
+                                    <details class="mt-1">
+                                        <summary class="small">Ver alteração</summary>
+                                        <dl class="small mb-0">
+                                            <dt>Antes</dt>
+                                            <dd>
+                                                {% if row.previous %}
+                                                    {{ row.previous.title }} ({{ row.previous.release_year or "?" }}) — {{ row.previous.directors | default([], true) | join(", ") or "diretor desconhecido" }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </dd>
+                                            <dt>Depois</dt>
+                                            <dd>
+                                                {% if row.new %}
+                                                    {{ row.new.title }} ({{ row.new.release_year or "?" }}) — {{ row.new.directors | default([], true) | join(", ") or "diretor desconhecido" }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </details>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.inspection.status == "fixed" %}
+                                    <form method="post"
+                                          action="{{ url_for('admin_inspections.revert', inspection_id=row.inspection.id) }}">
+                                        <input type="hidden" name="status" value="{{ status }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Reverter</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if pages > 1 %}
+            <nav aria-label="Navegação do admin">
+                <ul class="pagination justify-content-center">
+                    {% if prev_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('admin_inspections.index', status=status, page=prev_page, limit=limit) }}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    {% for page_num in range(1, pages + 1) %}
+                        <li class="page-item {% if page_num == curr_page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('admin_inspections.index', status=status, page=page_num, limit=limit) }}">{{ page_num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if next_page %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="{{ url_for('admin_inspections.index', status=status, page=next_page, limit=limit) }}">Próximo</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <p>Nenhuma inspeção registrada ainda.</p>
+    {% endif %}
+{% endblock content %}

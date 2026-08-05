@@ -34,8 +34,8 @@ is the Flask app (routes, services, templates, CLI, migrations).
 
 Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-dedupper`,
 `generate-sitemap`, `fetch-posters`, `poster-review`, `fetch-movie-metadata`,
-`movie-metadata-review`, `title-cleaning-report`, `title-cleaning-backfill`, `delete-movie`,
-`sync-graph`, `graph-query`.
+`movie-metadata-review`, `inspect-movies`, `title-cleaning-report`, `title-cleaning-backfill`,
+`delete-movie`, `sync-graph`, `graph-query`.
 
 ## External References
 
@@ -56,6 +56,14 @@ Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-deduppe
 their contents as authoritative or commit changes to them as data.
 - `pre-commit` runs ruff and djlint on commit: install with `pre-commit install`.
 - Run all four lint/format commands above before opening a PR; CI fails on unformatted code.
+- `requests==2.32.3`, `jiter==0.11.1` and `jinja2==3.1.6` are pinned to satisfy
+`atomic-agents==2.9.1` (used by the `inspect-movies` inspector agent) and its
+`instructor`/`openai` dependency tree. Adding it required bumping `requests`
+2.31.0 → 2.32.3 (`atomic-agents` and `instructor` both need `>=2.32.3`) and
+`jinja2` 3.1.3 → 3.1.6 (`instructor` needs `>=3.1.4`), plus — note the
+direction — a **downgrade** of `jiter` 0.12.0 → 0.11.1, because `instructor`
+caps it at `<0.12`. Don't "helpfully" bump `jiter` back up: it breaks
+dependency resolution for `atomic-agents`.
 
 ## Commit Attribution
 

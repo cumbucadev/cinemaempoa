@@ -1,8 +1,12 @@
 import json
+import logging
 from unittest.mock import patch
 
 from flask_backend.db import db_session
 from flask_backend.models import PipelineRun, Screening
+from flask_backend.service.movie_inspector import (
+    PipelineResult as InspectionPipelineResult,
+)
 from flask_backend.service.movie_metadata_pipeline import (
     PipelineResult as MetadataPipelineResult,
 )
@@ -477,3 +481,104 @@ class TestMovieMetadataReviewCommand:
             result = runner.invoke(args=["movie-metadata-review"])
         assert "Outro Filme" in result.output
         assert "not_found" in result.output
+
+
+class TestInspectMoviesCommand:
+    def test_prints_summary(self, runner):
+        result_obj = InspectionPipelineResult(
+            processed=3, consistent=1, fixed=1, needs_review=1
+        )
+        with patch(
+            "flask_backend.service.movie_inspector.run_pipeline",
+            return_value=result_obj,
+        ):
+            result = runner.invoke(args=["inspect-movies"])
+        assert "Processados:          3" in result.output
+
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = InspectionPipelineResult(processed=2, consistent=2, errors=0)
+        with patch(
+            "flask_backend.service.movie_inspector.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["inspect-movies"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="inspect-movies")
+                .one()
+            )
+            assert run.status == "success"
+            assert '"processed": 2' in run.summary
+
+    def test_creates_pipeline_run_with_warning_status_on_errors(self, app, runner):
+        result_obj = InspectionPipelineResult(processed=2, consistent=1, errors=1)
+        with patch(
+            "flask_backend.service.movie_inspector.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["inspect-movies"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="inspect-movies")
+                .one()
+            )
+            assert run.status == "warning"
+
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.movie_inspector.run_pipeline",
+            side_effect=RuntimeError("gemini indisponível"),
+        ):
+            result = runner.invoke(args=["inspect-movies"])
+
+        assert result.exception is not None
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="inspect-movies")
+                .one()
+            )
+            assert run.status == "error"
+            assert "gemini indisponível" in run.error_message
+
+    def test_passes_limit_option_through(self, runner):
+        with patch(
+            "flask_backend.service.movie_inspector.run_pipeline",
+            return_value=InspectionPipelineResult(),
+        ) as mock_run:
+            runner.invoke(args=["inspect-movies", "--limit", "5"])
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args.kwargs["limit"] == 5
+
+    def test_verbose_flag_sets_debug_log_level(self, runner):
+        with (
+            patch(
+                "flask_backend.service.movie_inspector.run_pipeline",
+                return_value=InspectionPipelineResult(),
+            ),
+            patch("flask_backend.commands.logging.basicConfig") as mock_basic_config,
+        ):
+            result = runner.invoke(args=["inspect-movies", "--verbose"])
+
+        assert result.exception is None
+        mock_basic_config.assert_called_once()
+        assert mock_basic_config.call_args.kwargs["level"] == logging.DEBUG
+
+    def test_without_verbose_flag_uses_info_log_level(self, runner):
+        with (
+            patch(
+                "flask_backend.service.movie_inspector.run_pipeline",
+                return_value=InspectionPipelineResult(),
+            ),
+            patch("flask_backend.commands.logging.basicConfig") as mock_basic_config,
+        ):
+            result = runner.invoke(args=["inspect-movies"])
+
+        assert result.exception is None
+        mock_basic_config.assert_called_once()
+        assert mock_basic_config.call_args.kwargs["level"] == logging.INFO
