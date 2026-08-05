@@ -15,7 +15,6 @@ import requests
 from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema
 from atomic_agents.context import ChatHistory, SystemPromptGenerator
 from bs4 import BeautifulSoup
-from google.genai.errors import ClientError
 from instructor.core import InstructorRetryException
 from pydantic import Field
 
@@ -29,6 +28,7 @@ from flask_backend.service.gemini_models import (
     AllGeminiModelsExhausted,
     call_with_fallback,
 )
+from flask_backend.service.gemini_quota import RateLimitInfo, classify_gemini_rate_limit
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
     clear_tmdb_metadata,
@@ -220,10 +220,10 @@ class InspectionOutcome:
     after_snapshot: Optional[dict] = None
 
 
-def _is_rate_limited(exc: Exception) -> bool:
+def _classify_rate_limit(exc: Exception) -> Optional[RateLimitInfo]:
     if isinstance(exc, InstructorRetryException) and exc.args:
         exc = exc.args[0]
-    return isinstance(exc, ClientError) and exc.code == 429
+    return classify_gemini_rate_limit(exc)
 
 
 def _build_agent(model_id: str) -> AtomicAgent[OrchestratorInput, OrchestratorDecision]:
@@ -417,7 +417,7 @@ def inspect_movie(movie: Movie) -> InspectionOutcome:
     def call(model_id):
         return _run_inspection_loop(model_id, movie, allowed_screening_ids)
 
-    return call_with_fallback(call, _is_rate_limited)
+    return call_with_fallback(call, _classify_rate_limit)
 
 
 def _run_inspection_loop(
