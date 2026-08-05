@@ -66,7 +66,7 @@ class CineCinco:
 
     def _extract_features(self, text):
         year = datetime.now().year
-        gemini = CineCincoExtractorLLM("gemini-2.5-flash")
+        gemini = CineCincoExtractorLLM()
         gemini_output_str = gemini.extract_screenings_from_text(year, text)
         if gemini_output_str is None:
             # LLM call failed (rate limit / error) - the llm_cache helper falls
