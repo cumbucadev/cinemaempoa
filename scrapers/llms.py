@@ -6,6 +6,10 @@ from llama_index.core.bridge.pydantic import BaseModel
 from llama_index.core.llms import ChatMessage
 
 from flask_backend.env_config import GEMINI_API_KEY
+from flask_backend.service.gemini_models import (
+    AllGeminiModelsExhausted,
+    call_with_fallback,
+)
 
 
 class Movie(BaseModel):
@@ -22,41 +26,43 @@ class Movies(BaseModel):
     movies: list[Movie]
 
 
-def _build_llm(model_name):
-    if model_name == "gemini-2.5-flash":
-        if GEMINI_API_KEY is None:
-            raise ValueError("GEMINI_API_KEY is not set")
-        from llama_index.llms.google_genai import GoogleGenAI
+def _is_rate_limited(exc: Exception) -> bool:
+    return isinstance(exc, GoogleGenAIClientError) and exc.code == 429
 
-        return GoogleGenAI(model=model_name, api_key=GEMINI_API_KEY)
-    raise ValueError("Invalid model name. Supported models: gemini-2.5-flash")
+
+def _build_llm(model_id):
+    from llama_index.llms.google_genai import GoogleGenAI
+
+    return GoogleGenAI(model=model_id, api_key=GEMINI_API_KEY)
 
 
 class CineBancariosExtractorLLM:
-    def __init__(self, model_name):
-        self.model_name = model_name
-        self.llm = self._get_llm()
-        Settings.llm = self.llm
+    def __init__(self):
+        if GEMINI_API_KEY is None:
+            raise ValueError("GEMINI_API_KEY is not set")
 
     def _get_curr_year(self):
         current_datetime = datetime.now()
         return current_datetime.year
 
-    def _get_llm(self):
-        return _build_llm(self.model_name)
-
     def extract_screenings_from_text(self, strPubDate, text):
         # pubDate is in the format 2010-03-09T18:48:00+00:00
         pubDate = datetime.strptime(strPubDate, "%a, %d %b %Y %H:%M:%S %z")
         year = pubDate.year
+        messages = self._get_prompt(year, text)
+
+        def call(model_id):
+            llm = _build_llm(model_id)
+            Settings.llm = llm
+            return llm.as_structured_llm(Movies).chat(messages)
+
         try:
-            response = self.llm.as_structured_llm(Movies).chat(
-                self._get_prompt(year, text)
-            )
+            response = call_with_fallback(call, _is_rate_limited)
+        except AllGeminiModelsExhausted:
+            print("All Gemini models rate-limited. Exiting...")
+            return
         except Exception as e:
             print(f"Error: {e}")
-            if isinstance(e, GoogleGenAIClientError) and e.code == 429:
-                print("LLM rate limit exceeded. Exiting...")
             return
         return response.raw.model_dump_json()
 
@@ -89,23 +95,25 @@ If no movies are found, return an empty list."""
 
 
 class CineCincoExtractorLLM:
-    def __init__(self, model_name):
-        self.model_name = model_name
-        self.llm = self._get_llm()
-        Settings.llm = self.llm
-
-    def _get_llm(self):
-        return _build_llm(self.model_name)
+    def __init__(self):
+        if GEMINI_API_KEY is None:
+            raise ValueError("GEMINI_API_KEY is not set")
 
     def extract_screenings_from_text(self, year, text):
+        messages = self._get_prompt(year, text)
+
+        def call(model_id):
+            llm = _build_llm(model_id)
+            Settings.llm = llm
+            return llm.as_structured_llm(Movies).chat(messages)
+
         try:
-            response = self.llm.as_structured_llm(Movies).chat(
-                self._get_prompt(year, text)
-            )
+            response = call_with_fallback(call, _is_rate_limited)
+        except AllGeminiModelsExhausted:
+            print("All Gemini models rate-limited. Exiting...")
+            return
         except Exception as e:
             print(f"Error: {e}")
-            if isinstance(e, GoogleGenAIClientError) and e.code == 429:
-                print("LLM rate limit exceeded. Exiting...")
             return
         return response.raw.model_dump_json()
 

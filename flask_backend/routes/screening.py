@@ -46,6 +46,7 @@ from flask_backend.repository.want_to_watch import (
 )
 from flask_backend.routes.auth import login_required
 from flask_backend.service.gemini_api import Gemini
+from flask_backend.service.gemini_models import AllGeminiModelsExhausted
 from flask_backend.service.screening import (
     build_dates,
     build_favorites_feed,
@@ -509,7 +510,7 @@ def describe_image():
     prompt_text = "Descreva essa imagem de forma a auxiliar uma pessoa com dificuldade de visão a entender o seu contexto, em português brasileiro."
     try:
         image_description = gemini.prompt_image(image, prompt_text)
-    except APIError as e:
+    except (APIError, AllGeminiModelsExhausted) as e:
         return jsonify(
             {
                 "details": "Erro ao gerar descrição da imagem. Tente novamente.",

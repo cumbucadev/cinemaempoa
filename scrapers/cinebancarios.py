@@ -56,7 +56,7 @@ class CineBancarios:
         return soup.get_text()
 
     def _extract_features(self, text):
-        gemini = CineBancariosExtractorLLM("gemini-2.5-flash")
+        gemini = CineBancariosExtractorLLM()
         gemini_output_str = gemini.extract_screenings_from_text(self.pubDate, text)
         if gemini_output_str is None:
             return None
