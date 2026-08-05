@@ -50,6 +50,11 @@ def call_with_fallback(
             continue
         gemini_quota.record_attempt(model_id, "success", None)
         return result
+    if last_error is None:
+        raise AllGeminiModelsExhausted(
+            f"All {len(models)} Gemini models are already known to be unavailable "
+            "(quota pre-check skipped every one; none were called)"
+        )
     raise AllGeminiModelsExhausted(
-        f"All {len(models)} Gemini models unavailable (last error: {last_error})"
+        f"All {len(models)} Gemini models rate-limited (last error: {last_error})"
     ) from last_error

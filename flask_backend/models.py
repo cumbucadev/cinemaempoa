@@ -354,11 +354,6 @@ class AlertAction(Base):
     created_by: Mapped[Optional["User"]] = relationship()
 
 
-GEMINI_USAGE_OUTCOMES = ["success", "rate_limited"]
-
-GEMINI_QUOTA_METRICS = ["requests_per_minute", "requests_per_day", "unknown"]
-
-
 class GeminiUsageEvent(Base):
     """One row per model actually attempted inside
     gemini_models.call_with_fallback, whether it succeeded or was

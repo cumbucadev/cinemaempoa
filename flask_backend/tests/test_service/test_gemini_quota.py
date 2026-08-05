@@ -96,6 +96,18 @@ class TestClassifyGeminiRateLimit:
 
         assert result == RateLimitInfo(quota_metric="unknown", retry_delay_seconds=None)
 
+    def test_classifies_as_unknown_when_details_is_not_a_dict(self):
+        # google.genai.errors.ClientError.__init__ itself requires a dict-like
+        # response_json to construct (it calls .get() on it immediately), so a
+        # malformed non-dict body can only reach our code via exc.details
+        # being mutated/malformed after construction - simulate that directly.
+        exc = ClientError(code=429, response_json={})
+        exc.details = "not a dict"
+
+        result = classify_gemini_rate_limit(exc)
+
+        assert result == RateLimitInfo(quota_metric="unknown", retry_delay_seconds=None)
+
 
 FROZEN_NOW = datetime(2026, 8, 5, 18, 0, 0)  # 18:00 UTC = 11:00 Pacific (PDT, UTC-7)
 
@@ -223,6 +235,13 @@ class TestIsAvailable:
             ):
                 assert is_available("gemini-2.5-flash") is True
 
+    def test_is_available_fails_open_on_db_error(self, app):
+        with app.app_context(), patch(
+            "flask_backend.repository.gemini_usage_events.most_recent",
+            side_effect=Exception("db exploded"),
+        ):
+            assert is_available("gemini-2.5-flash") is True
+
 
 class TestRecordAttempt:
     def test_success_writes_a_row_with_no_quota_metric_or_cooldown(self, app):
@@ -298,3 +317,10 @@ class TestRecordAttempt:
 
             event = gemini_usage_events.most_recent("gemini-2.5-flash")
             assert event.unavailable_until == datetime(2026, 8, 6, 7, 0, 0)
+
+    def test_record_attempt_swallows_db_error(self, app):
+        with app.app_context(), patch(
+            "flask_backend.repository.gemini_usage_events.create",
+            side_effect=Exception("db exploded"),
+        ):
+            record_attempt("gemini-2.5-flash", "success", None)  # must not raise

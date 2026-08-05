@@ -1,8 +1,11 @@
 """Tracks Gemini API usage per model so gemini_models.call_with_fallback can
 skip models it already knows are exhausted, instead of discovering that on
-every single call. See docs/superpowers/specs/2026-08-05-gemini-quota-management-design.md.
+every single call. Classifies 429 responses by which quota was hit (per-minute
+vs per-day), and records each attempt's outcome so future availability checks
+can proactively count recent usage or react to an explicit cooldown.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -11,6 +14,8 @@ from google.genai.errors import ClientError
 from zoneinfo import ZoneInfo
 
 from flask_backend.repository import gemini_usage_events
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +29,8 @@ def _details_list(response_json: dict) -> list:
     two shapes depending on the caller: {"details": [...]} directly, or
     nested under {"error": {"details": [...]}}. Mirrors the same defensive
     lookup APIError itself uses for message/status/code."""
+    if not isinstance(response_json, dict):
+        return []
     response_json = response_json or {}
     details = response_json.get("details")
     if details is None:
@@ -105,57 +112,74 @@ def _next_pacific_midnight_utc(now_utc_naive: datetime) -> datetime:
 
 
 def is_available(model_id: str) -> bool:
-    now = _utcnow_naive()
+    try:
+        now = _utcnow_naive()
 
-    last_event = gemini_usage_events.most_recent(model_id)
-    if (
-        last_event is not None
-        and last_event.outcome == "rate_limited"
-        and last_event.unavailable_until is not None
-        and last_event.unavailable_until > now
-    ):
-        return False
-
-    limits = GEMINI_MODEL_LIMITS.get(model_id, {})
-
-    rpm_limit = limits.get("rpm")
-    if rpm_limit is not None:
-        rpm_count = gemini_usage_events.count_since(
-            model_id, now - timedelta(seconds=60)
-        )
-        if rpm_count >= rpm_limit:
+        last_event = gemini_usage_events.most_recent(model_id)
+        if (
+            last_event is not None
+            and last_event.outcome == "rate_limited"
+            and last_event.unavailable_until is not None
+            and last_event.unavailable_until > now
+        ):
             return False
 
-    rpd_limit = limits.get("rpd")
-    if rpd_limit is not None:
-        rpd_count = gemini_usage_events.count_since(
-            model_id, _pacific_day_start_utc(now)
-        )
-        if rpd_count >= rpd_limit:
-            return False
+        limits = GEMINI_MODEL_LIMITS.get(model_id, {})
 
-    return True
+        rpm_limit = limits.get("rpm")
+        if rpm_limit is not None:
+            rpm_count = gemini_usage_events.count_since(
+                model_id, now - timedelta(seconds=60)
+            )
+            if rpm_count >= rpm_limit:
+                return False
+
+        rpd_limit = limits.get("rpd")
+        if rpd_limit is not None:
+            rpd_count = gemini_usage_events.count_since(
+                model_id, _pacific_day_start_utc(now)
+            )
+            if rpd_count >= rpd_limit:
+                return False
+
+        return True
+    except Exception:
+        logger.exception(
+            "gemini_quota.is_available failed for model_id=%s; treating as available",
+            model_id,
+        )
+        return True
 
 
 def record_attempt(
     model_id: str, outcome: str, rate_limit_info: Optional[RateLimitInfo]
 ) -> None:
-    now = _utcnow_naive()
-    quota_metric = None
-    unavailable_until = None
+    try:
+        now = _utcnow_naive()
+        quota_metric = None
+        unavailable_until = None
 
-    if rate_limit_info is not None:
-        quota_metric = rate_limit_info.quota_metric
-        if quota_metric == "requests_per_minute":
-            delay = rate_limit_info.retry_delay_seconds or DEFAULT_RPM_COOLDOWN_SECONDS
-            unavailable_until = now + timedelta(seconds=delay)
-        else:  # "requests_per_day" or "unknown" - treated the same, conservatively
-            unavailable_until = _next_pacific_midnight_utc(now)
+        if rate_limit_info is not None:
+            quota_metric = rate_limit_info.quota_metric
+            if quota_metric == "requests_per_minute":
+                delay = (
+                    rate_limit_info.retry_delay_seconds or DEFAULT_RPM_COOLDOWN_SECONDS
+                )
+                unavailable_until = now + timedelta(seconds=delay)
+            else:  # "requests_per_day" or "unknown" - treated the same, conservatively
+                unavailable_until = _next_pacific_midnight_utc(now)
 
-    gemini_usage_events.create(
-        model_id,
-        now,
-        outcome,
-        quota_metric=quota_metric,
-        unavailable_until=unavailable_until,
-    )
+        gemini_usage_events.create(
+            model_id,
+            now,
+            outcome,
+            quota_metric=quota_metric,
+            unavailable_until=unavailable_until,
+        )
+    except Exception:
+        logger.exception(
+            "gemini_quota.record_attempt failed for model_id=%s outcome=%s; "
+            "usage event not recorded",
+            model_id,
+            outcome,
+        )

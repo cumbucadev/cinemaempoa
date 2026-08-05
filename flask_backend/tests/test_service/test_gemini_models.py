@@ -142,6 +142,57 @@ class TestCallWithFallback:
 
             assert calls == []
 
+    def test_a_real_per_day_429_blocks_the_model_on_the_next_call(self, app):
+        from google.genai.errors import ClientError
+
+        from flask_backend.service.gemini_quota import classify_gemini_rate_limit
+
+        rpd_error_payload = {
+            "error": {
+                "code": 429,
+                "message": "quota exceeded",
+                "status": "RESOURCE_EXHAUSTED",
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                        "violations": [
+                            {
+                                "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+                                "quotaValue": "20",
+                            }
+                        ],
+                    },
+                ],
+            }
+        }
+
+        with app.app_context():
+
+            def always_429(model_id):
+                raise ClientError(code=429, response_json=rpd_error_payload)
+
+            with pytest.raises(AllGeminiModelsExhausted) as exc_info:
+                call_with_fallback(
+                    always_429, classify_gemini_rate_limit, models=["gemini-2.5-flash"]
+                )
+            assert exc_info.value.__cause__ is not None
+
+            # Second, separate call: the model must now be skipped entirely by
+            # the pre-check written from the first call's real 429 - not mocked,
+            # not simulated, the actual is_available()/record_attempt() round trip.
+            calls = []
+
+            def spy(model_id):
+                calls.append(model_id)
+                return "should never be called"
+
+            with pytest.raises(AllGeminiModelsExhausted) as exc_info2:
+                call_with_fallback(
+                    spy, classify_gemini_rate_limit, models=["gemini-2.5-flash"]
+                )
+            assert calls == []
+            assert exc_info2.value.__cause__ is None
+
 
 class TestGeminiModelPriority:
     def test_has_seven_models_newest_flash_before_lite_per_generation(self):

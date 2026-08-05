@@ -1,6 +1,6 @@
 """add gemini_usage_events table
 
-Revision ID: 78333c8ba406
+Revision ID: 20260805_000000
 Revises: 20260804_000000
 Create Date: 2026-08-05 12:22:13.572558
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "78333c8ba406"
+revision: str = "20260805_000000"
 down_revision: Union[str, None] = "20260804_000000"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
