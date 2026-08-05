@@ -427,6 +427,60 @@ class TestInspectMovie:
 
             mock_attach.assert_called_once_with(fake_agent, movie)
 
+    def test_rate_limit_on_first_model_retries_whole_inspection_on_second(self, app):
+        from google.genai.errors import ClientError
+
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+
+            rate_limited_agent = MagicMock()
+            rate_limited_agent.run.side_effect = ClientError(code=429, response_json={})
+            second_agent = MagicMock()
+            second_agent.run.return_value = self._decision(
+                verdict=self._verdict(status="consistent", reasoning="ok")
+            )
+
+            with patch.object(
+                movie_inspector,
+                "_build_agent",
+                side_effect=[rate_limited_agent, second_agent],
+            ) as mock_build_agent:
+                outcome = movie_inspector.inspect_movie(movie)
+
+            from flask_backend.service.gemini_models import GEMINI_MODEL_PRIORITY
+
+            assert outcome.status == "consistent"
+            assert mock_build_agent.call_args_list[0].args == (
+                GEMINI_MODEL_PRIORITY[0],
+            )
+            assert mock_build_agent.call_args_list[1].args == (
+                GEMINI_MODEL_PRIORITY[1],
+            )
+
+    def test_rate_limit_on_every_model_raises_all_exhausted(self, app):
+        from google.genai.errors import ClientError
+
+        from flask_backend.service.gemini_models import (
+            GEMINI_MODEL_PRIORITY,
+            AllGeminiModelsExhausted,
+        )
+
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+
+            rate_limited_agent = MagicMock()
+            rate_limited_agent.run.side_effect = ClientError(code=429, response_json={})
+
+            with (
+                patch.object(
+                    movie_inspector, "_build_agent", return_value=rate_limited_agent
+                ) as mock_build_agent,
+                pytest.raises(AllGeminiModelsExhausted),
+            ):
+                movie_inspector.inspect_movie(movie)
+
+            assert mock_build_agent.call_count == len(GEMINI_MODEL_PRIORITY)
+
     def test_consistent_verdict_leaves_movie_untouched(self, app):
         with app.app_context():
             movie = _create_movie(tmdb_id=42)

@@ -15,6 +15,7 @@ import requests
 from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema
 from atomic_agents.context import ChatHistory, SystemPromptGenerator
 from bs4 import BeautifulSoup
+from google.genai.errors import ClientError
 from pydantic import Field
 
 from flask_backend.db import db_session
@@ -23,7 +24,7 @@ from flask_backend.models import Movie
 from flask_backend.repository import movie_inspections
 from flask_backend.repository.movies import get_by_id as get_movie_by_id
 from flask_backend.repository.screenings import get_screening_by_id
-from flask_backend.service.gemini_api import Gemini
+from flask_backend.service.gemini_models import call_with_fallback
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
     clear_tmdb_metadata,
@@ -215,8 +216,12 @@ class InspectionOutcome:
     after_snapshot: Optional[dict] = None
 
 
-def _build_agent() -> AtomicAgent[OrchestratorInput, OrchestratorDecision]:
-    client = instructor.from_provider(f"google/{Gemini.MODEL}", api_key=GEMINI_API_KEY)
+def _is_rate_limited(exc: Exception) -> bool:
+    return isinstance(exc, ClientError) and exc.code == 429
+
+
+def _build_agent(model_id: str) -> AtomicAgent[OrchestratorInput, OrchestratorDecision]:
+    client = instructor.from_provider(f"google/{model_id}", api_key=GEMINI_API_KEY)
     system_prompt_generator = SystemPromptGenerator(
         background=[
             "Você é um inspetor de dados de um portal de cinema.",
@@ -239,7 +244,7 @@ def _build_agent() -> AtomicAgent[OrchestratorInput, OrchestratorDecision]:
     return AtomicAgent[OrchestratorInput, OrchestratorDecision](
         config=AgentConfig(
             client=client,
-            model=Gemini.MODEL,
+            model=model_id,
             system_prompt_generator=system_prompt_generator,
             history=ChatHistory(),
             assistant_role="model",
@@ -397,7 +402,21 @@ def _apply_verdict(
 def inspect_movie(movie: Movie) -> InspectionOutcome:
     """Runs the orchestrator's bounded tool-calling loop for one movie and
     returns the resulting outcome. If `verdict.status == "fixed"`, the
-    movie's TMDB link has already been updated and committed."""
+    movie's TMDB link has already been updated and committed. If the
+    current model is rate-limited, retries the whole inspection with the
+    next model in GEMINI_MODEL_PRIORITY, starting from a clean slate rather
+    than resuming a partial tool-calling loop."""
+    allowed_screening_ids = {s.id for s in movie.screenings}
+
+    def call(model_id):
+        return _run_inspection_loop(model_id, movie, allowed_screening_ids)
+
+    return call_with_fallback(call, _is_rate_limited)
+
+
+def _run_inspection_loop(
+    model_id: str, movie: Movie, allowed_screening_ids: set
+) -> InspectionOutcome:
     agent_input = OrchestratorInput(
         movie_title=movie.title,
         tmdb_original_title=movie.original_title,
@@ -413,9 +432,8 @@ def inspect_movie(movie: Movie) -> InspectionOutcome:
             for s in movie.screenings
         ],
     )
-    allowed_screening_ids = {s.id for s in movie.screenings}
     observed_tmdb_ids: set = set()
-    agent = _build_agent()
+    agent = _build_agent(model_id)
     _attach_debug_hooks(agent, movie)
 
     for turn in range(1, MAX_TOOL_CALLS + 1):
