@@ -24,7 +24,7 @@ class TestGeminiInit:
             patch("flask_backend.service.gemini_api.genai.Client") as mock_client_cls,
         ):
             Gemini()
-        mock_client_cls.assert_called_once_with(api_key="fake-key")
+            mock_client_cls.assert_called_once_with(api_key="fake-key")
 
 
 def _make_gemini():
