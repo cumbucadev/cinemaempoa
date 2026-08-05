@@ -1,13 +1,9 @@
 from google import genai
 from google.genai import types
-from google.genai.errors import ClientError
 
 from flask_backend.env_config import GEMINI_API_KEY
 from flask_backend.service.gemini_models import call_with_fallback
-
-
-def _is_rate_limited(exc: Exception) -> bool:
-    return isinstance(exc, ClientError) and exc.code == 429
+from flask_backend.service.gemini_quota import classify_gemini_rate_limit
 
 
 class Gemini:
@@ -31,5 +27,5 @@ class Gemini:
                 contents=[text, image_part],
             )
 
-        response = call_with_fallback(call, _is_rate_limited)
+        response = call_with_fallback(call, classify_gemini_rate_limit)
         return response.text

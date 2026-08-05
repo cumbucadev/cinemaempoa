@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from google.genai.errors import ClientError as GoogleGenAIClientError
 from llama_index.core import Settings
 from llama_index.core.bridge.pydantic import BaseModel
 from llama_index.core.llms import ChatMessage
@@ -10,6 +9,7 @@ from flask_backend.service.gemini_models import (
     AllGeminiModelsExhausted,
     call_with_fallback,
 )
+from flask_backend.service.gemini_quota import classify_gemini_rate_limit
 
 
 class Movie(BaseModel):
@@ -24,10 +24,6 @@ class Movie(BaseModel):
 
 class Movies(BaseModel):
     movies: list[Movie]
-
-
-def _is_rate_limited(exc: Exception) -> bool:
-    return isinstance(exc, GoogleGenAIClientError) and exc.code == 429
 
 
 def _build_llm(model_id):
@@ -57,7 +53,7 @@ class CineBancariosExtractorLLM:
             return llm.as_structured_llm(Movies).chat(messages)
 
         try:
-            response = call_with_fallback(call, _is_rate_limited)
+            response = call_with_fallback(call, classify_gemini_rate_limit)
         except AllGeminiModelsExhausted:
             print("All Gemini models rate-limited. Exiting...")
             return
@@ -108,7 +104,7 @@ class CineCincoExtractorLLM:
             return llm.as_structured_llm(Movies).chat(messages)
 
         try:
-            response = call_with_fallback(call, _is_rate_limited)
+            response = call_with_fallback(call, classify_gemini_rate_limit)
         except AllGeminiModelsExhausted:
             print("All Gemini models rate-limited. Exiting...")
             return
