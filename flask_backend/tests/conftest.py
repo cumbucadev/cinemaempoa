@@ -39,6 +39,7 @@ def clean_db(app):
             Collection,
             Country,
             Director,
+            GeminiUsageEvent,
             Genre,
             Movie,
             MovieInspection,
@@ -60,6 +61,7 @@ def clean_db(app):
         db_session.query(MovieInspection).delete()
         db_session.query(MovieMetadataFetchAttempt).delete()
         db_session.query(PosterFetchAttempt).delete()
+        db_session.query(GeminiUsageEvent).delete()
         db_session.query(PipelineRun).delete()
         db_session.execute(movie_genres.delete())
         db_session.execute(movie_directors.delete())

@@ -354,6 +354,32 @@ class AlertAction(Base):
     created_by: Mapped[Optional["User"]] = relationship()
 
 
+GEMINI_USAGE_OUTCOMES = ["success", "rate_limited"]
+
+GEMINI_QUOTA_METRICS = ["requests_per_minute", "requests_per_day", "unknown"]
+
+
+class GeminiUsageEvent(Base):
+    """One row per model actually attempted inside
+    gemini_models.call_with_fallback, whether it succeeded or was
+    rate-limited. Backs the proactive RPM/RPD pre-check and the reactive
+    cooldown in flask_backend/service/gemini_quota.py.
+
+    occurred_at is stored as naive UTC (not this codebase's usual naive
+    server-local convention) because the requests-per-day window has to
+    line up with Google's actual daily quota reset, which is anchored to
+    Pacific time, not server local time."""
+
+    __tablename__ = "gemini_usage_events"
+
+    id = Column(Integer, primary_key=True)
+    model_id = Column(String, nullable=False, index=True)
+    occurred_at = Column(DateTime, nullable=False, index=True)
+    outcome = Column(String, nullable=False)
+    quota_metric = Column(String, nullable=True)
+    unavailable_until = Column(DateTime, nullable=True)
+
+
 class BlogPost(Base):
     __tablename__ = "blog_posts"
 
