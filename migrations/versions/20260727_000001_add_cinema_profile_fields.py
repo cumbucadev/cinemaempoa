@@ -1,6 +1,6 @@
 """Adds cinema profile fields (address, opening hours, Instagram, map
-embed, photo) so /cinemas/<slug> can show venue info - see
-docs/superpowers/specs/2026-07-27-cinema-pages-design.md.
+embed, photo) so /cinemas/<slug> can show venue info - see design spec at
+https://github.com/cumbucadev/cinemaempoa/pull/281#issuecomment-5097356660.
 
 Revision ID: 20260727_000001
 Revises: 20260727_000000

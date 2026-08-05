@@ -1,7 +1,8 @@
 """The movie inspector agent: checks whether a movie's linked TMDB entry
 is consistent with what cinemas actually published about it (director,
 year, country), fixing confidently-wrong matches and flagging uncertain
-ones for manual review. See docs/superpowers/specs/2026-08-04-cinema-inspector-agent-design.md.
+ones for manual review. See design spec at
+https://github.com/cumbucadev/cinemaempoa/pull/301#issuecomment-5182749958.
 """
 
 import json

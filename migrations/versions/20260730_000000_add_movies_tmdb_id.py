@@ -1,6 +1,6 @@
 """Adds movies.tmdb_id so an admin can pin a Movie to a specific TMDB
-entry from the web UI - see
-docs/superpowers/specs/2026-07-30-movie-tmdb-metadata-edit-design.md.
+entry from the web UI - see design spec at
+https://github.com/cumbucadev/cinemaempoa/pull/288#issuecomment-5132356227.
 
 Revision ID: 20260730_000000
 Revises: 20260727_000001
