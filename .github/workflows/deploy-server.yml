@@ -25,6 +25,10 @@ jobs:
             cd cinemaempoa
             git pull
 
+            echo "🧹 Pruning stale images before build..."
+            docker image prune -af
+            echo "✅ Pre-build cleanup complete."
+
             echo "🔄 Building Docker image..."
             docker compose -f docker-compose.shared.yml build flask
 

@@ -33,3 +33,4 @@ flask_backend/static/sitemaps.txt
 .python-version
 
 .superpowers/
+.worktrees/
