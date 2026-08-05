@@ -3,7 +3,7 @@ FROM python:3.14-slim
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends locales tzdata git sqlite3 && \
+    apt-get install -y --no-install-recommends locales tzdata && \
     sed -i '/pt_BR.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
     apt-get clean && \
@@ -23,6 +23,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml uv.lock .
 RUN uv sync --frozen
+
+# Install git for code editor integration
+RUN apt-get update && apt-get install git -y
+
+# Install sqlite3 for database debugging
+RUN apt-get update && apt-get install sqlite3 -y
 
 EXPOSE 5000
 
