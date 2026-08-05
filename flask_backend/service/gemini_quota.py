@@ -83,11 +83,16 @@ PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
 DEFAULT_RPM_COOLDOWN_SECONDS = 60
 
 # Hand-maintained. A model with no entry, or a missing "rpm"/"rpd" key, is
-# treated as unlimited for that dimension. gemini-2.5-flash's rpd=20 is the
-# one confirmed data point (from a real 429 response); add others as their
-# real limits are observed.
+# treated as unlimited for that dimension. Values are the free-tier limits
+# published at aistudio.google.com/rate-limit.
 GEMINI_MODEL_LIMITS: dict[str, dict[str, int]] = {
-    "gemini-2.5-flash": {"rpd": 20},
+    "gemini-3.6-flash": {"rpm": 5, "rpd": 20},
+    "gemini-3.5-flash": {"rpm": 5, "rpd": 20},
+    "gemini-3-flash-preview": {"rpm": 5, "rpd": 20},
+    "gemini-2.5-flash": {"rpm": 5, "rpd": 20},
+    "gemini-3.5-flash-lite": {"rpm": 15, "rpd": 500},
+    "gemini-3.1-flash-lite": {"rpm": 15, "rpd": 500},
+    "gemini-2.5-flash-lite": {"rpm": 10, "rpd": 20},
 }
 
 

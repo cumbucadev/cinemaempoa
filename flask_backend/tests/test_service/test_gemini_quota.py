@@ -119,8 +119,7 @@ class TestIsAvailable:
             assert is_available("gemini-2.5-flash") is True
 
     def test_unavailable_once_rpm_limit_reached_within_trailing_60s(self, app):
-        # gemini-2.5-flash has no configured "rpm" in production - patch in a
-        # fake model with one so this test doesn't depend on real config.
+        # Patch in a fake model so this test doesn't depend on real config.
         with app.app_context(), patch(
             "flask_backend.service.gemini_quota.GEMINI_MODEL_LIMITS",
             {"test-model": {"rpm": 3}},
