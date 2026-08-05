@@ -54,6 +54,8 @@ class TestCallWithFallback:
 
         assert isinstance(exc_info.value.__cause__, ValueError)
         assert "model-b" in str(exc_info.value.__cause__)
+        assert str(exc_info.value)
+        assert "2" in str(exc_info.value)
 
     def test_non_rate_limited_exception_propagates_immediately(self):
         calls = []
@@ -92,7 +94,7 @@ class TestGeminiModelPriority:
         assert [
             "gemini-3.6-flash",
             "gemini-3.5-flash",
-            "gemini-3-flash",
+            "gemini-3-flash-preview",
             "gemini-2.5-flash",
             "gemini-3.5-flash-lite",
             "gemini-3.1-flash-lite",

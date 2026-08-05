@@ -429,12 +429,15 @@ class TestInspectMovie:
 
     def test_rate_limit_on_first_model_retries_whole_inspection_on_second(self, app):
         from google.genai.errors import ClientError
+        from instructor.core import InstructorRetryException
 
         with app.app_context():
             movie = _create_movie(tmdb_id=42)
 
             rate_limited_agent = MagicMock()
-            rate_limited_agent.run.side_effect = ClientError(code=429, response_json={})
+            rate_limited_agent.run.side_effect = InstructorRetryException(
+                ClientError(code=429, response_json={}), n_attempts=1, total_usage=0
+            )
             second_agent = MagicMock()
             second_agent.run.return_value = self._decision(
                 verdict=self._verdict(status="consistent", reasoning="ok")
@@ -459,6 +462,7 @@ class TestInspectMovie:
 
     def test_rate_limit_on_every_model_raises_all_exhausted(self, app):
         from google.genai.errors import ClientError
+        from instructor.core import InstructorRetryException
 
         from flask_backend.service.gemini_models import (
             GEMINI_MODEL_PRIORITY,
@@ -469,7 +473,9 @@ class TestInspectMovie:
             movie = _create_movie(tmdb_id=42)
 
             rate_limited_agent = MagicMock()
-            rate_limited_agent.run.side_effect = ClientError(code=429, response_json={})
+            rate_limited_agent.run.side_effect = InstructorRetryException(
+                ClientError(code=429, response_json={}), n_attempts=1, total_usage=0
+            )
 
             with (
                 patch.object(
@@ -863,6 +869,44 @@ class TestRunPipeline:
             rows, _, _ = movie_inspections.get_paginated("error", 1, 20)
             assert len(rows) == 1
             assert "gemini indisponível" in rows[0].reasoning
+
+    def test_stops_batch_early_when_all_gemini_models_exhausted(self, app):
+        from flask_backend.service.gemini_models import AllGeminiModelsExhausted
+
+        with app.app_context():
+            movie_a = _create_movie(tmdb_id=1)
+            movie_b = Movie(title="Filme B", slug="filme-b", tmdb_id=2)
+            db_session.add(movie_b)
+            db_session.commit()
+
+            inspected_movie_ids = []
+
+            def fake_inspect(movie):
+                inspected_movie_ids.append(movie.id)
+                raise AllGeminiModelsExhausted(
+                    "All 7 Gemini models rate-limited (last error: boom)"
+                )
+
+            with patch.object(
+                movie_inspector, "inspect_movie", side_effect=fake_inspect
+            ):
+                result = movie_inspector.run_pipeline()
+
+            # Only one movie should have been inspected - once the batch
+            # stops on total exhaustion, the other movie must never reach
+            # inspect_movie at all.
+            assert len(inspected_movie_ids) == 1
+            assert set(inspected_movie_ids) <= {movie_a.id, movie_b.id}
+
+            assert result.errors == 1
+            assert result.processed == 1
+
+            from flask_backend.repository import movie_inspections
+
+            rows, _, total = movie_inspections.get_paginated("error", 1, 20)
+            assert total == 1
+            assert rows[0].movie_id == inspected_movie_ids[0]
+            assert "Gemini models rate-limited" in rows[0].reasoning
 
     def test_tags_rows_with_pipeline_run_id(self, app):
         with app.app_context():

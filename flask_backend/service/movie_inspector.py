@@ -16,6 +16,7 @@ from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema
 from atomic_agents.context import ChatHistory, SystemPromptGenerator
 from bs4 import BeautifulSoup
 from google.genai.errors import ClientError
+from instructor.core import InstructorRetryException
 from pydantic import Field
 
 from flask_backend.db import db_session
@@ -24,7 +25,10 @@ from flask_backend.models import Movie
 from flask_backend.repository import movie_inspections
 from flask_backend.repository.movies import get_by_id as get_movie_by_id
 from flask_backend.repository.screenings import get_screening_by_id
-from flask_backend.service.gemini_models import call_with_fallback
+from flask_backend.service.gemini_models import (
+    AllGeminiModelsExhausted,
+    call_with_fallback,
+)
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
     clear_tmdb_metadata,
@@ -217,6 +221,8 @@ class InspectionOutcome:
 
 
 def _is_rate_limited(exc: Exception) -> bool:
+    if isinstance(exc, InstructorRetryException) and exc.args:
+        exc = exc.args[0]
     return isinstance(exc, ClientError) and exc.code == 429
 
 
@@ -508,6 +514,23 @@ def run_pipeline(
         checked_tmdb_id = movie.tmdb_id
         try:
             outcome = inspect_movie(movie)
+        except AllGeminiModelsExhausted as exc:
+            logger.warning(
+                "Filme %d ('%s') – todos os modelos Gemini esgotados; "
+                "interrompendo o restante do lote",
+                movie.id,
+                movie.title,
+            )
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="error",
+                reasoning=str(exc)[:500],
+                checked_tmdb_id=checked_tmdb_id,
+                pipeline_run_id=pipeline_run_id,
+            )
+            result.errors += 1
+            result.processed += 1
+            break
         except Exception as exc:
             logger.warning(
                 "Filme %d ('%s') – erro na inspeção: %s", movie.id, movie.title, exc

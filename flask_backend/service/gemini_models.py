@@ -5,7 +5,7 @@ T = TypeVar("T")
 GEMINI_MODEL_PRIORITY = [
     "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-3-flash",
+    "gemini-3-flash-preview",
     "gemini-2.5-flash",
     "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
@@ -36,4 +36,6 @@ def call_with_fallback(
                 raise
             last_error = exc
             continue
-    raise AllGeminiModelsExhausted from last_error
+    raise AllGeminiModelsExhausted(
+        f"All {len(models)} Gemini models rate-limited (last error: {last_error})"
+    ) from last_error
