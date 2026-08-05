@@ -151,6 +151,27 @@ def is_available(model_id: str) -> bool:
         return True
 
 
+def seconds_until_available(models: list[str]) -> Optional[float]:
+    """Returns how many seconds until the soonest of `models` is expected to
+    become available again, based on each model's most recent rate_limited
+    event's unavailable_until (may be negative if that time has already
+    passed). None if none of `models` has a known cooldown - e.g. every
+    currently-unavailable one was skipped by the proactive RPM/RPD count
+    check rather than an explicit reactive-cooldown row, so there's no
+    specific recovery time to report."""
+    now = _utcnow_naive()
+    recoveries = [
+        event.unavailable_until
+        for event in (gemini_usage_events.most_recent(model_id) for model_id in models)
+        if event is not None
+        and event.outcome == "rate_limited"
+        and event.unavailable_until is not None
+    ]
+    if not recoveries:
+        return None
+    return (min(recoveries) - now).total_seconds()
+
+
 def record_attempt(
     model_id: str, outcome: str, rate_limit_info: Optional[RateLimitInfo]
 ) -> None:

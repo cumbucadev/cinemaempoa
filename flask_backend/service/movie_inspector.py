@@ -7,6 +7,7 @@ https://github.com/cumbucadev/cinemaempoa/pull/301#issuecomment-5182749958.
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from typing import List, Literal, Optional
 
@@ -24,7 +25,9 @@ from flask_backend.models import Movie
 from flask_backend.repository import movie_inspections
 from flask_backend.repository.movies import get_by_id as get_movie_by_id
 from flask_backend.repository.screenings import get_screening_by_id
+from flask_backend.service import gemini_quota
 from flask_backend.service.gemini_models import (
+    GEMINI_MODEL_PRIORITY,
     AllGeminiModelsExhausted,
     call_with_fallback,
 )
@@ -36,6 +39,13 @@ from flask_backend.service.movie_metadata_pipeline import (
 from flask_backend.service.tmdb import TMDBClient
 
 logger = logging.getLogger(__name__)
+
+# A model's rate-limit cooldown recorded by gemini_quota can be as short as a
+# few seconds (a requests-per-minute violation) or as long as most of a day
+# (requests-per-day). Only the former is worth waiting out inline - anything
+# longer, or unknown, means the batch genuinely can't make progress right now.
+SHORT_COOLDOWN_CAP_SECONDS = 90
+MAX_EXHAUSTION_RETRIES = 1
 
 
 def _snapshot(movie: Movie) -> dict:
@@ -485,6 +495,37 @@ def _run_inspection_loop(
     )
 
 
+def _inspect_movie_with_backoff(movie: Movie) -> InspectionOutcome:
+    """Wraps inspect_movie, absorbing a transient all-models-exhausted
+    condition instead of letting it immediately abort the whole batch: if
+    the soonest model recovery is within SHORT_COOLDOWN_CAP_SECONDS (a
+    requests-per-minute-only cooldown), sleeps that long and retries this
+    same movie from scratch, up to MAX_EXHAUSTION_RETRIES times. A
+    longer/unknown recovery time (e.g. a requests-per-day cooldown on every
+    model) or a retry that's still exhausted is re-raised for the caller to
+    handle as a genuine stop."""
+    attempt = 0
+    while True:
+        try:
+            return inspect_movie(movie)
+        except AllGeminiModelsExhausted:
+            attempt += 1
+            if attempt > MAX_EXHAUSTION_RETRIES:
+                raise
+            wait_seconds = gemini_quota.seconds_until_available(GEMINI_MODEL_PRIORITY)
+            if wait_seconds is None or wait_seconds > SHORT_COOLDOWN_CAP_SECONDS:
+                raise
+            wait_seconds = max(wait_seconds, 0)
+            logger.info(
+                "Filme %d ('%s') – todos os modelos Gemini temporariamente "
+                "esgotados; aguardando %.0fs antes de tentar novamente",
+                movie.id,
+                movie.title,
+                wait_seconds,
+            )
+            time.sleep(wait_seconds)
+
+
 @dataclass
 class PipelineResult:
     processed: int = 0
@@ -513,7 +554,7 @@ def run_pipeline(
         # was actually checked, not the replacement.
         checked_tmdb_id = movie.tmdb_id
         try:
-            outcome = inspect_movie(movie)
+            outcome = _inspect_movie_with_backoff(movie)
         except AllGeminiModelsExhausted as exc:
             logger.warning(
                 "Filme %d ('%s') – todos os modelos Gemini esgotados; "

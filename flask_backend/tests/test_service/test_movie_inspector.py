@@ -908,6 +908,122 @@ class TestRunPipeline:
             assert rows[0].movie_id == inspected_movie_ids[0]
             assert "Gemini models rate-limited" in rows[0].reasoning
 
+    def test_retries_the_same_movie_after_a_short_all_models_exhausted_cooldown(
+        self, app
+    ):
+        from flask_backend.service.gemini_models import AllGeminiModelsExhausted
+
+        with app.app_context():
+            movie_a = _create_movie(tmdb_id=1)
+
+            attempts = []
+
+            def fake_inspect(movie):
+                attempts.append(movie.id)
+                if len(attempts) == 1:
+                    raise AllGeminiModelsExhausted("all models rate-limited")
+                return movie_inspector.InspectionOutcome(
+                    status="consistent", reasoning="ok"
+                )
+
+            with (
+                patch.object(
+                    movie_inspector, "inspect_movie", side_effect=fake_inspect
+                ),
+                patch(
+                    "flask_backend.service.movie_inspector.gemini_quota."
+                    "seconds_until_available",
+                    return_value=30,
+                ),
+                patch("flask_backend.service.movie_inspector.time.sleep") as mock_sleep,
+            ):
+                result = movie_inspector.run_pipeline()
+
+            mock_sleep.assert_called_once_with(30)
+            assert attempts == [movie_a.id, movie_a.id]
+            assert result.processed == 1
+            assert result.consistent == 1
+            assert result.errors == 0
+
+    def test_gives_up_if_still_exhausted_after_the_short_cooldown_retry(self, app):
+        from flask_backend.service.gemini_models import AllGeminiModelsExhausted
+
+        with app.app_context():
+            movie_a = _create_movie(tmdb_id=1)
+
+            attempts = []
+
+            def fake_inspect(movie):
+                attempts.append(movie.id)
+                raise AllGeminiModelsExhausted("all models rate-limited")
+
+            with (
+                patch.object(
+                    movie_inspector, "inspect_movie", side_effect=fake_inspect
+                ),
+                patch(
+                    "flask_backend.service.movie_inspector.gemini_quota."
+                    "seconds_until_available",
+                    return_value=30,
+                ),
+                patch("flask_backend.service.movie_inspector.time.sleep") as mock_sleep,
+            ):
+                result = movie_inspector.run_pipeline()
+
+            mock_sleep.assert_called_once_with(30)
+            # Retried once after waiting, then gave up.
+            assert attempts == [movie_a.id, movie_a.id]
+            assert result.processed == 1
+            assert result.errors == 1
+
+    def test_does_not_wait_when_no_cooldown_is_known(self, app):
+        from flask_backend.service.gemini_models import AllGeminiModelsExhausted
+
+        with app.app_context():
+            _create_movie(tmdb_id=1)
+
+            with (
+                patch.object(
+                    movie_inspector,
+                    "inspect_movie",
+                    side_effect=AllGeminiModelsExhausted("all models rate-limited"),
+                ),
+                patch(
+                    "flask_backend.service.movie_inspector.gemini_quota."
+                    "seconds_until_available",
+                    return_value=None,
+                ),
+                patch("flask_backend.service.movie_inspector.time.sleep") as mock_sleep,
+            ):
+                result = movie_inspector.run_pipeline()
+
+            mock_sleep.assert_not_called()
+            assert result.errors == 1
+
+    def test_does_not_wait_when_cooldown_exceeds_the_short_wait_cap(self, app):
+        from flask_backend.service.gemini_models import AllGeminiModelsExhausted
+
+        with app.app_context():
+            _create_movie(tmdb_id=1)
+
+            with (
+                patch.object(
+                    movie_inspector,
+                    "inspect_movie",
+                    side_effect=AllGeminiModelsExhausted("all models rate-limited"),
+                ),
+                patch(
+                    "flask_backend.service.movie_inspector.gemini_quota."
+                    "seconds_until_available",
+                    return_value=movie_inspector.SHORT_COOLDOWN_CAP_SECONDS + 1,
+                ),
+                patch("flask_backend.service.movie_inspector.time.sleep") as mock_sleep,
+            ):
+                result = movie_inspector.run_pipeline()
+
+            mock_sleep.assert_not_called()
+            assert result.errors == 1
+
     def test_tags_rows_with_pipeline_run_id(self, app):
         with app.app_context():
             _create_movie(tmdb_id=1)

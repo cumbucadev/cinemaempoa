@@ -10,6 +10,7 @@ from flask_backend.service.gemini_quota import (
     classify_gemini_rate_limit,
     is_available,
     record_attempt,
+    seconds_until_available,
 )
 
 # Matches the real payload Google returns for a free-tier daily request cap.
@@ -241,6 +242,86 @@ class TestIsAvailable:
             side_effect=Exception("db exploded"),
         ):
             assert is_available("gemini-2.5-flash") is True
+
+
+class TestSecondsUntilAvailable:
+    def test_returns_none_when_no_model_has_a_known_cooldown(self, app):
+        with app.app_context():
+            assert seconds_until_available(["gemini-2.5-flash", "other-model"]) is None
+
+    def test_returns_seconds_remaining_on_a_single_models_cooldown(self, app):
+        with app.app_context():
+            gemini_usage_events.create(
+                "gemini-2.5-flash",
+                FROZEN_NOW,
+                "rate_limited",
+                quota_metric="requests_per_minute",
+                unavailable_until=FROZEN_NOW + timedelta(seconds=30),
+            )
+
+            with patch(
+                "flask_backend.service.gemini_quota._utcnow_naive",
+                return_value=FROZEN_NOW,
+            ):
+                assert seconds_until_available(["gemini-2.5-flash"]) == 30
+
+    def test_returns_the_soonest_cooldown_across_multiple_models(self, app):
+        with app.app_context():
+            gemini_usage_events.create(
+                "model-a",
+                FROZEN_NOW,
+                "rate_limited",
+                quota_metric="requests_per_day",
+                unavailable_until=FROZEN_NOW + timedelta(hours=6),
+            )
+            gemini_usage_events.create(
+                "model-b",
+                FROZEN_NOW,
+                "rate_limited",
+                quota_metric="requests_per_minute",
+                unavailable_until=FROZEN_NOW + timedelta(seconds=15),
+            )
+
+            with patch(
+                "flask_backend.service.gemini_quota._utcnow_naive",
+                return_value=FROZEN_NOW,
+            ):
+                assert seconds_until_available(["model-a", "model-b"]) == 15
+
+    def test_ignores_a_model_whose_most_recent_event_is_a_success(self, app):
+        with app.app_context():
+            gemini_usage_events.create(
+                "gemini-2.5-flash",
+                FROZEN_NOW,
+                "rate_limited",
+                quota_metric="requests_per_minute",
+                unavailable_until=FROZEN_NOW + timedelta(seconds=30),
+            )
+            gemini_usage_events.create(
+                "gemini-2.5-flash", FROZEN_NOW + timedelta(seconds=1), "success"
+            )
+
+            with patch(
+                "flask_backend.service.gemini_quota._utcnow_naive",
+                return_value=FROZEN_NOW,
+            ):
+                assert seconds_until_available(["gemini-2.5-flash"]) is None
+
+    def test_can_return_a_negative_number_once_the_cooldown_has_passed(self, app):
+        with app.app_context():
+            gemini_usage_events.create(
+                "gemini-2.5-flash",
+                FROZEN_NOW,
+                "rate_limited",
+                quota_metric="requests_per_minute",
+                unavailable_until=FROZEN_NOW + timedelta(seconds=30),
+            )
+
+            with patch(
+                "flask_backend.service.gemini_quota._utcnow_naive",
+                return_value=FROZEN_NOW + timedelta(seconds=45),
+            ):
+                assert seconds_until_available(["gemini-2.5-flash"]) == -15
 
 
 class TestRecordAttempt:
