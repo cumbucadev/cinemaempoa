@@ -64,7 +64,12 @@ def get_movies_needing_inspection() -> List[Movie]:
     """Movies linked to TMDB whose match hasn't been inspected yet, or has
     changed since the last inspection (e.g. a prior fix, or a manual
     re-match via /admin/movies/<id>)."""
-    candidates = db_session.query(Movie).filter(Movie.tmdb_id.isnot(None)).all()
+    candidates = (
+        db_session.query(Movie)
+        .filter(Movie.tmdb_id.isnot(None))
+        .order_by(Movie.created_at.desc())
+        .all()
+    )
     return [
         movie
         for movie in candidates
