@@ -25,6 +25,16 @@ def tmdb_api_token(monkeypatch):
     monkeypatch.setattr("flask_backend.service.tmdb.TMDB_API_TOKEN", "fake-token")
 
 
+@pytest.fixture(autouse=True)
+def _reenable_movie_inspector_logger(app):
+    # migrations/env.py calls logging.config.fileConfig(...) on every `app`
+    # fixture setup (via init_db's alembic upgrade), which disables any
+    # logger that already existed at that point - including this module's,
+    # imported at collection time. Re-enable it post-setup so caplog can
+    # actually observe log calls in these tests.
+    movie_inspector.logger.disabled = False
+
+
 class TestSnapshot:
     def test_captures_key_fields(self, app):
         with app.app_context():
@@ -254,6 +264,132 @@ class TestRunFetchScreeningSource:
             assert "Erro" in observation
 
 
+class TestAttachDebugHooks:
+    def _handler_for(self, fake_agent, event):
+        for call in fake_agent.register_hook.call_args_list:
+            if call.args[0] == event:
+                return call.args[1]
+        raise AssertionError(f"no handler registered for {event!r}")
+
+    def test_registers_all_hook_events(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+
+            registered_events = {
+                call.args[0] for call in fake_agent.register_hook.call_args_list
+            }
+            assert registered_events == {
+                "completion:kwargs",
+                "completion:response",
+                "completion:error",
+                "completion:last_attempt",
+                "parse:error",
+            }
+
+    def test_completion_kwargs_hook_logs_model_and_message_count(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+            handler = self._handler_for(fake_agent, "completion:kwargs")
+
+            with caplog.at_level("INFO", logger=movie_inspector.__name__):
+                handler(
+                    model="gemini-2.5-flash",
+                    messages=[{"role": "user", "content": "oi"}],
+                    response_model=movie_inspector.OrchestratorDecision,
+                )
+
+            message = caplog.records[-1].getMessage()
+            assert str(movie.id) in message
+            assert "gemini-2.5-flash" in message
+            assert "mensagens=1" in message
+
+    def test_completion_response_hook_logs_token_usage(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+            handler = self._handler_for(fake_agent, "completion:response")
+
+            response = MagicMock()
+            response.usage_metadata.prompt_token_count = 100
+            response.usage_metadata.candidates_token_count = 20
+            response.usage_metadata.total_token_count = 120
+
+            with caplog.at_level("INFO", logger=movie_inspector.__name__):
+                handler(response)
+
+            message = caplog.records[-1].getMessage()
+            assert str(movie.id) in message
+            assert "100" in message
+            assert "20" in message
+            assert "120" in message
+
+    def test_completion_response_hook_without_usage_metadata_does_not_crash(
+        self, app, caplog
+    ):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+            handler = self._handler_for(fake_agent, "completion:response")
+
+            with caplog.at_level("INFO", logger=movie_inspector.__name__):
+                handler(object())
+
+            message = caplog.records[-1].getMessage()
+            assert str(movie.id) in message
+
+    def test_completion_error_hook_logs_warning(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+            handler = self._handler_for(fake_agent, "completion:error")
+
+            with caplog.at_level("WARNING", logger=movie_inspector.__name__):
+                handler(RuntimeError("gemini indisponível"))
+
+            record = caplog.records[-1]
+            assert record.levelname == "WARNING"
+            assert "gemini indisponível" in record.getMessage()
+            assert str(movie.id) in record.getMessage()
+
+    def test_completion_last_attempt_hook_logs_warning(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+            handler = self._handler_for(fake_agent, "completion:last_attempt")
+
+            with caplog.at_level("WARNING", logger=movie_inspector.__name__):
+                handler(RuntimeError("timeout"))
+
+            record = caplog.records[-1]
+            assert record.levelname == "WARNING"
+            assert "timeout" in record.getMessage()
+            assert str(movie.id) in record.getMessage()
+
+    def test_parse_error_hook_logs_warning(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+            fake_agent = MagicMock()
+            movie_inspector._attach_debug_hooks(fake_agent, movie)
+            handler = self._handler_for(fake_agent, "parse:error")
+
+            with caplog.at_level("WARNING", logger=movie_inspector.__name__):
+                handler(ValueError("campo obrigatório ausente"))
+
+            record = caplog.records[-1]
+            assert record.levelname == "WARNING"
+            assert "campo obrigatório ausente" in record.getMessage()
+            assert str(movie.id) in record.getMessage()
+
+
 class TestInspectMovie:
     def _decision(self, **kwargs):
         defaults = {
@@ -274,6 +410,22 @@ class TestInspectMovie:
         }
         defaults.update(kwargs)
         return movie_inspector.InspectionVerdict(**defaults)
+
+    def test_attaches_debug_hooks_to_the_built_agent(self, app):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                verdict=self._verdict(status="consistent", reasoning="ok")
+            )
+            with (
+                patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
+                patch.object(movie_inspector, "_attach_debug_hooks") as mock_attach,
+            ):
+                movie_inspector.inspect_movie(movie)
+
+            mock_attach.assert_called_once_with(fake_agent, movie)
 
     def test_consistent_verdict_leaves_movie_untouched(self, app):
         with app.app_context():
@@ -368,6 +520,30 @@ class TestInspectMovie:
             assert outcome.status == "needs_review"
             assert movie.tmdb_id == 1
 
+    def test_unobserved_tmdb_id_guard_logs_warning(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.return_value = self._decision(
+                verdict=self._verdict(
+                    status="fixed",
+                    reasoning="Confio que é o id 999999.",
+                    new_tmdb_id=999999,
+                )
+            )
+            with (
+                patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
+                caplog.at_level("WARNING", logger=movie_inspector.__name__),
+            ):
+                movie_inspector.inspect_movie(movie)
+
+            messages = [r.getMessage() for r in caplog.records]
+            assert any(
+                str(movie.id) in m and "999999" in m and "não foi observado" in m
+                for m in messages
+            )
+
     def test_rejects_fetch_screening_source_for_a_different_movies_screening(self, app):
         from flask_backend.models import Cinema, Screening
 
@@ -441,6 +617,41 @@ class TestInspectMovie:
                 "573412" in observation
                 for observation in second_call_input.observations
             )
+
+    def test_logs_each_turns_decision_and_tool_dispatch_at_debug(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=1)
+
+            fake_agent = MagicMock()
+            fake_agent.run.side_effect = [
+                self._decision(
+                    action="search_tmdb_candidates", search_title="A Capela"
+                ),
+                self._decision(
+                    verdict=self._verdict(status="needs_review", reasoning="Incerto.")
+                ),
+            ]
+            with (
+                patch.object(movie_inspector, "_build_agent", return_value=fake_agent),
+                patch.object(
+                    movie_inspector.TMDBClient,
+                    "search_movies",
+                    return_value=[
+                        {"id": 573412, "title": "A Capela", "release_date": "1979"}
+                    ],
+                ),
+                caplog.at_level("DEBUG", logger=movie_inspector.__name__),
+            ):
+                movie_inspector.inspect_movie(movie)
+
+            messages = [r.getMessage() for r in caplog.records]
+            assert any(
+                "turno 1" in m and "search_tmdb_candidates" in m for m in messages
+            )
+            assert any(
+                "search_tmdb_candidates" in m and "573412" in m for m in messages
+            )
+            assert any("turno 2" in m and "conclude" in m for m in messages)
 
     def test_dispatches_get_tmdb_details_tool_then_concludes(self, app):
         with app.app_context():
@@ -744,6 +955,33 @@ class TestRevertInspection:
 
             with pytest.raises(ValueError):
                 movie_inspector.revert_inspection(inspection.id)
+
+    def test_stale_inspection_rejection_logs_warning(self, app, caplog):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+
+            from flask_backend.repository import movie_inspections
+
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="fixed",
+                reasoning="Primeira correção.",
+                checked_tmdb_id=1,
+                previous_snapshot=json.dumps({"tmdb_id": 1}),
+                new_snapshot=json.dumps({"tmdb_id": 42}),
+            )
+            movie.tmdb_id = 99
+            db_session.add(movie)
+            db_session.commit()
+
+            with (
+                pytest.raises(ValueError),
+                caplog.at_level("WARNING", logger=movie_inspector.__name__),
+            ):
+                movie_inspector.revert_inspection(inspection.id)
+
+            messages = [r.getMessage() for r in caplog.records]
+            assert any(str(inspection.id) in m and "recusado" in m for m in messages)
 
     def test_reverting_leaves_the_original_row_unchanged(self, app):
         with app.app_context():

@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import patch
 
 from flask_backend.db import db_session
@@ -553,3 +554,31 @@ class TestInspectMoviesCommand:
 
         mock_run.assert_called_once()
         assert mock_run.call_args.kwargs["limit"] == 5
+
+    def test_verbose_flag_sets_debug_log_level(self, runner):
+        with (
+            patch(
+                "flask_backend.service.movie_inspector.run_pipeline",
+                return_value=InspectionPipelineResult(),
+            ),
+            patch("flask_backend.commands.logging.basicConfig") as mock_basic_config,
+        ):
+            result = runner.invoke(args=["inspect-movies", "--verbose"])
+
+        assert result.exception is None
+        mock_basic_config.assert_called_once()
+        assert mock_basic_config.call_args.kwargs["level"] == logging.DEBUG
+
+    def test_without_verbose_flag_uses_info_log_level(self, runner):
+        with (
+            patch(
+                "flask_backend.service.movie_inspector.run_pipeline",
+                return_value=InspectionPipelineResult(),
+            ),
+            patch("flask_backend.commands.logging.basicConfig") as mock_basic_config,
+        ):
+            result = runner.invoke(args=["inspect-movies"])
+
+        assert result.exception is None
+        mock_basic_config.assert_called_once()
+        assert mock_basic_config.call_args.kwargs["level"] == logging.INFO

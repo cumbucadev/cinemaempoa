@@ -246,6 +246,93 @@ def _build_agent() -> AtomicAgent[OrchestratorInput, OrchestratorDecision]:
     )
 
 
+def _attach_debug_hooks(agent: AtomicAgent, movie: Movie) -> None:
+    """Registers atomic-agents' Instructor hooks so every LLM call this
+    agent makes is logged: request kwargs, response/token usage, and
+    errors. INFO carries short summaries; DEBUG carries raw prompt/response
+    content, which may include untrusted scraped text (see
+    `_run_fetch_screening_source`) and so is gated behind --verbose."""
+
+    def on_completion_kwargs(**kwargs):
+        messages = kwargs.get("messages") or []
+        logger.info(
+            "Filme %d ('%s') – chamada LLM: model=%s, mensagens=%d",
+            movie.id,
+            movie.title,
+            kwargs.get("model"),
+            len(messages),
+        )
+        logger.debug(
+            "Filme %d ('%s') – mensagens enviadas: %s",
+            movie.id,
+            movie.title,
+            [
+                {
+                    "role": m.get("role"),
+                    "content": str(m.get("content"))[:2000],
+                }
+                for m in messages
+            ],
+        )
+
+    def on_completion_response(response):
+        usage = getattr(response, "usage_metadata", None)
+        if usage is None:
+            logger.info(
+                "Filme %d ('%s') – resposta LLM recebida (sem dados de uso de tokens)",
+                movie.id,
+                movie.title,
+            )
+        else:
+            logger.info(
+                "Filme %d ('%s') – resposta LLM: tokens(prompt=%s, resposta=%s, total=%s)",
+                movie.id,
+                movie.title,
+                getattr(usage, "prompt_token_count", None),
+                getattr(usage, "candidates_token_count", None),
+                getattr(usage, "total_token_count", None),
+            )
+        logger.debug(
+            "Filme %d ('%s') – resposta LLM bruta: %s",
+            movie.id,
+            movie.title,
+            repr(response)[:2000],
+        )
+
+    def on_completion_error(error):
+        logger.warning(
+            "Filme %d ('%s') – erro na chamada LLM: %s: %s",
+            movie.id,
+            movie.title,
+            type(error).__name__,
+            error,
+        )
+
+    def on_completion_last_attempt(error):
+        logger.warning(
+            "Filme %d ('%s') – última tentativa de chamada LLM falhou: %s: %s",
+            movie.id,
+            movie.title,
+            type(error).__name__,
+            error,
+        )
+
+    def on_parse_error(error):
+        logger.warning(
+            "Filme %d ('%s') – erro ao validar resposta do LLM: %s: %s",
+            movie.id,
+            movie.title,
+            type(error).__name__,
+            error,
+        )
+
+    agent.register_hook("completion:kwargs", on_completion_kwargs)
+    agent.register_hook("completion:response", on_completion_response)
+    agent.register_hook("completion:error", on_completion_error)
+    agent.register_hook("completion:last_attempt", on_completion_last_attempt)
+    agent.register_hook("parse:error", on_parse_error)
+
+
 def _dispatch_tool(
     decision: OrchestratorDecision, allowed_screening_ids: set
 ) -> tuple[str, list[int]]:
@@ -278,6 +365,14 @@ def _apply_verdict(
     enforced here rather than only asked for in the prompt."""
     if verdict.status == "fixed":
         if verdict.new_tmdb_id is None or verdict.new_tmdb_id not in observed_tmdb_ids:
+            logger.warning(
+                "Filme %d ('%s') – veredito 'fixed' com tmdb_id=%s que não foi "
+                "observado por nenhuma ferramenta desta inspeção; rebaixado para "
+                "needs_review",
+                movie.id,
+                movie.title,
+                verdict.new_tmdb_id,
+            )
             return InspectionOutcome(
                 status="needs_review",
                 reasoning=(
@@ -320,9 +415,18 @@ def inspect_movie(movie: Movie) -> InspectionOutcome:
     allowed_screening_ids = {s.id for s in movie.screenings}
     observed_tmdb_ids: set = set()
     agent = _build_agent()
+    _attach_debug_hooks(agent, movie)
 
-    for _ in range(MAX_TOOL_CALLS):
+    for turn in range(1, MAX_TOOL_CALLS + 1):
         decision = agent.run(agent_input)
+        logger.debug(
+            "Filme %d ('%s') – turno %d/%d: ação=%s",
+            movie.id,
+            movie.title,
+            turn,
+            MAX_TOOL_CALLS,
+            decision.action,
+        )
 
         if decision.action == "conclude":
             if decision.verdict is None:
@@ -333,6 +437,14 @@ def inspect_movie(movie: Movie) -> InspectionOutcome:
             return _apply_verdict(movie, decision.verdict, observed_tmdb_ids)
 
         observation, ids = _dispatch_tool(decision, allowed_screening_ids)
+        logger.debug(
+            "Filme %d ('%s') – turno %d: tool=%s observação=%s",
+            movie.id,
+            movie.title,
+            turn,
+            decision.action,
+            observation[:200],
+        )
         observed_tmdb_ids.update(ids)
         agent_input.observations.append(observation)
 
@@ -430,6 +542,12 @@ def revert_inspection(inspection_id: int):
         json.loads(inspection.new_snapshot) if inspection.new_snapshot else None
     )
     if new_snapshot is None or movie.tmdb_id != new_snapshot.get("tmdb_id"):
+        logger.warning(
+            "Inspeção #%d – revert recusado: filme %d não reflete mais o "
+            "snapshot desta inspeção (uma correção mais recente já foi aplicada)",
+            inspection_id,
+            movie.id,
+        )
         raise ValueError(
             f"Inspeção #{inspection_id} não reflete mais o estado atual do "
             "filme (uma correção mais recente já foi aplicada); não pode ser "

@@ -402,7 +402,10 @@ def movie_metadata_review():
     default=None,
     help="Número máximo de filmes a inspecionar. Sem limite por padrão.",
 )
-def inspect_movies(limit):
+@click.option(
+    "--verbose", "-v", is_flag=True, default=False, help="Mostra logs detalhados."
+)
+def inspect_movies(limit, verbose):
     """Verifica se o filme vinculado no TMDB é consistente com o que os
     cinemas publicaram sobre ele, corrigindo vínculos incorretos quando
     identifica um substituto com confiança e sinalizando os demais para
@@ -410,6 +413,9 @@ def inspect_movies(limit):
     """
     from flask_backend.repository import pipeline_runs
     from flask_backend.service.movie_inspector import run_pipeline
+
+    log_level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
     run = pipeline_runs.start("inspect-movies")
     try:
