@@ -18,6 +18,9 @@ from flask_backend.scripts.title_cleaning_backfill import (
 from flask_backend.scripts.title_cleaning_report import (
     title_cleaning_report as run_title_cleaning_report,
 )
+from flask_backend.scripts.tmdb_id_backfill import (
+    tmdb_id_backfill as run_tmdb_id_backfill,
+)
 from flask_backend.service.runner import Runner
 
 
@@ -33,6 +36,7 @@ def register_commands(app):
     app.cli.add_command(inspect_movies)
     app.cli.add_command(title_cleaning_report_command)
     app.cli.add_command(title_cleaning_backfill_command)
+    app.cli.add_command(tmdb_id_backfill_command)
     app.cli.add_command(delete_movie_command)
     app.cli.add_command(sync_graph_command)
     app.cli.add_command(graph_query_command)
@@ -479,6 +483,25 @@ def title_cleaning_backfill_command(apply_):
     forma irreversível. Faça backup do arquivo do banco antes de usar.
     """
     run_title_cleaning_backfill(apply=apply_)
+
+
+@click.command("tmdb-id-backfill")
+@click.option(
+    "--apply",
+    "apply_",
+    is_flag=True,
+    default=False,
+    help="Aplica as alterações. Sem esta flag, apenas mostra o que seria feito.",
+)
+def tmdb_id_backfill_command(apply_):
+    """Remove o histórico de tentativas de filmes que já têm metadados TMDB
+    (diretor/gênero/título original) mas nunca tiveram tmdb_id gravado -
+    relíquia do pipeline anterior ao #295. Por padrão roda em modo dry-run.
+
+    Depois de aplicar, rode 'flask fetch-movie-metadata' para que esses
+    filmes sejam buscados novamente no TMDB, desta vez gravando o tmdb_id.
+    """
+    run_tmdb_id_backfill(apply=apply_)
 
 
 @click.command("delete-movie")
