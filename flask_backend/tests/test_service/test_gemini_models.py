@@ -16,8 +16,8 @@ class TestCallWithFallback:
 
         result = call_with_fallback(
             build_and_call,
-            lambda exc: False,
-            models=["model-a", "model-b"],  # noqa: ARG005
+            lambda _exc: False,
+            models=["model-a", "model-b"],
         )
 
         assert result == "ok"
@@ -48,8 +48,8 @@ class TestCallWithFallback:
         with pytest.raises(AllGeminiModelsExhausted) as exc_info:
             call_with_fallback(
                 build_and_call,
-                lambda exc: True,
-                models=["model-a", "model-b"],  # noqa: ARG005
+                lambda _exc: True,
+                models=["model-a", "model-b"],
             )
 
         assert isinstance(exc_info.value.__cause__, ValueError)
@@ -65,8 +65,8 @@ class TestCallWithFallback:
         with pytest.raises(ValueError, match="boom"):
             call_with_fallback(
                 build_and_call,
-                lambda exc: False,
-                models=["model-a", "model-b"],  # noqa: ARG005
+                lambda _exc: False,
+                models=["model-a", "model-b"],
             )
 
         assert calls == ["model-a"]
