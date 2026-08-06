@@ -57,7 +57,7 @@ def _score(observation: Observation, motif_count: int) -> float:
 def _overlaps(a_nodes: set[str], b_nodes: set[str]) -> bool:
     """Two observations are considered the same underlying story only when
     a majority of their combined evidence overlaps (Jaccard similarity) - a
-    bare intersection is too coarse: a CountryCluster observation can carry
+    bare intersection is too coarse: a CountryFocus observation can carry
     a dozen+ movie nodes, so it would otherwise "absorb" every unrelated
     observation that happens to mention any one of those movies."""
     if not a_nodes or not b_nodes:

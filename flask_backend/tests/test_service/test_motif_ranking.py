@@ -124,16 +124,16 @@ class TestRunMotifs:
             observations = run_motifs(db_path=db_path)
 
             assert len(observations) == 1
-            assert observations[0].motif_name == "multiple_movies_same_director"
+            assert observations[0].motif_name == "director_focus"
             assert observations[0].score > 0
 
-    def test_country_cluster_does_not_swallow_an_unrelated_anniversary(
+    def test_country_focus_does_not_swallow_an_unrelated_anniversary(
         self, app, setup_cinemas, tmp_path
     ):
-        """A CountryCluster observation can carry a dozen+ movie nodes; under
+        """A CountryFocus observation can carry a dozen+ movie nodes; under
         the old any-intersection dedup rule it would 'absorb' every other
         observation that happens to mention any one of those movies, even
-        when the stories are unrelated. Here the country cluster has 4
+        when the stories are unrelated. Here the country focus has 4
         evidence nodes (country + 3 movies) and the anniversary has 1
         (one of those same movies) - intersection=1, union=4, jaccard=0.25,
         below the 0.5 threshold, so both must survive."""
@@ -198,7 +198,7 @@ class TestRunMotifs:
 
             motif_names = {o.motif_name for o in observations}
             assert len(observations) >= 2
-            assert "country_cluster" in motif_names
+            assert "country_focus" in motif_names
             assert "anniversary" in motif_names
 
     def test_merges_director_return_and_anniversary_for_the_same_movie(

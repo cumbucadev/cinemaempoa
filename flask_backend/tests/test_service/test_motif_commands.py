@@ -59,7 +59,7 @@ class TestDetectMotifsCommand:
         result = runner.invoke(args=["detect-motifs"])
 
         assert result.exit_code == 0
-        assert "multiple_movies_same_director" in result.output
+        assert "director_focus" in result.output
         assert "Wim Wenders" in result.output
 
     def test_json_flag_prints_full_observation_objects(
@@ -78,7 +78,7 @@ class TestDetectMotifsCommand:
 
         assert result.exit_code == 0
         payload = json.loads(result.output)
-        assert payload[0]["motif_name"] == "multiple_movies_same_director"
+        assert payload[0]["motif_name"] == "director_focus"
         assert "evidence" in payload[0]
 
     def test_limit_option_caps_the_number_of_results(
