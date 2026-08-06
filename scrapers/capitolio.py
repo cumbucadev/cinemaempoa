@@ -75,16 +75,20 @@ class Capitolio:
 
                     general_info_lines = []
                     if movie_subtitle:
-                        general_info_lines.append(movie_subtitle.get_text().strip())
+                        subtitle_text = movie_subtitle.get_text().strip()
+                        if subtitle_text:
+                            general_info_lines.append(subtitle_text)
                     if movie_director_block:
-                        for line in movie_director_block.get_text().splitlines():
+                        for line in movie_director_block.get_text("\n").splitlines():
                             line = line.strip()
                             if line:
                                 general_info_lines.append(line)
                     feature_film["general_info"] = "\n".join(general_info_lines)
 
                     movie_text = movie.css.select_one(".movie-info .movie-text")
-                    feature_film["excerpt"] = movie_text.get_text().strip()
+                    feature_film["excerpt"] = (
+                        movie_text.get_text().strip() if movie_text else ""
+                    )
 
                     read_more = movie.css.select_one(".movie-info .read-more")
                     feature_film["read_more"] = f"{self.url}{read_more['href']}"
