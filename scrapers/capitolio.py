@@ -62,69 +62,33 @@ class Capitolio:
                     poster = movie.find("img", class_="movie-poster")
                     feature_film["poster"] = poster["src"]
 
+                    # Capitólio splits movie metadata across two elements:
+                    # .movie-subtitle (title/price line) and .movie-director
+                    # (origin/year/duration, Direção:, Classificação:, etc).
+                    # We keep this text as-is rather than parsing it into
+                    # separate fields - it all ends up concatenated into one
+                    # Screening.description string downstream anyway.
                     movie_subtitle = movie.css.select_one(".movie-info .movie-subtitle")
-
-                    # get film original title
-                    if movie_subtitle:
-                        if re.search(r"[|]", movie_subtitle.get_text()):
-                            movie_original_title = (
-                                movie_subtitle.get_text().split("|")[0].strip()
-                            )
-                            feature_film["original_title"] = movie_original_title
-                        elif re.search(r"[(]", movie_subtitle.get_text()):
-                            movie_original_title = (
-                                movie_subtitle.get_text().split("(")[0].strip()
-                            )
-                            feature_film["original_title"] = movie_original_title
-                        else:
-                            feature_film["original_title"] = "Não informado"
-
-                    # get ticket price
-                    get_price = movie.css.select_one(
-                        ".movie .movie-info .movie-subtitle"
+                    movie_director_block = movie.css.select_one(
+                        ".movie-info .movie-director"
                     )
 
-                    if re.search(r"[R$]", get_price.get_text()):
-                        try:
-                            ticket_price = get_price.get_text().split("|")[1].strip()
-                            feature_film["price"] = ticket_price
-                        except (IndexError, AttributeError):
-                            ticket_price = get_price.get_text()
-                            feature_film["price"] = ticket_price
-                    elif re.search(r"[(]", get_price.get_text()):
-                        ticket_price = (
-                            get_price.get_text().split("(")[1].replace(")", "").strip()
-                        )
-                        feature_film["price"] = ticket_price
-                    else:
-                        feature_film["price"] = "Não informado"
-
-                    # origin/year/length info
-                    movie_director = movie.css.select_one(
-                        ".movie-info .movie-text"
-                    ).get_text()
-                    general_info = ""
-                    for line in iter(movie_director.splitlines()):
-                        line = line.strip()
-                        if len(line) == 0:
-                            continue
-                        if line.startswith("Direção"):
-                            feature_film["director"] = (
-                                line.replace(
-                                    "Direção:",
-                                    "",
-                                )
-                                .replace("Direção", "")
-                                .strip()
-                            )
-                        elif line.startswith("Classificação"):
-                            feature_film["classification"] = line
-                        else:
-                            general_info += f"\n{line}"
-                    feature_film["general_info"] = general_info
+                    general_info_lines = []
+                    if movie_subtitle:
+                        subtitle_text = movie_subtitle.get_text().strip()
+                        if subtitle_text:
+                            general_info_lines.append(subtitle_text)
+                    if movie_director_block:
+                        for line in movie_director_block.get_text("\n").splitlines():
+                            line = line.strip()
+                            if line:
+                                general_info_lines.append(line)
+                    feature_film["general_info"] = "\n".join(general_info_lines)
 
                     movie_text = movie.css.select_one(".movie-info .movie-text")
-                    feature_film["excerpt"] = movie_text.get_text()
+                    feature_film["excerpt"] = (
+                        movie_text.get_text().strip() if movie_text else ""
+                    )
 
                     read_more = movie.css.select_one(".movie-info .read-more")
                     feature_film["read_more"] = f"{self.url}{read_more['href']}"
