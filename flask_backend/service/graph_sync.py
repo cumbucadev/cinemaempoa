@@ -198,7 +198,22 @@ def sync_graph(db_path: str | None = None) -> SyncResult:
     state."""
     path = db_path or GRAPH_DB_PATH
     graph = Graph(path)
-    graph.query("MATCH (n) DETACH DELETE n")
+    conn = graph.connection.sqlite_connection
+
+    # `cypher()` runs as a `SELECT`, so sqlite3's implicit-transaction
+    # detection (which only triggers on literal INSERT/UPDATE/DELETE/REPLACE
+    # statement text) never opens one here. Without an explicit transaction,
+    # DETACH DELETE removes each node/edge as its own autocommit write - a
+    # separate fsync'd journal file per row - which takes minutes once the
+    # graph has thousands of nodes instead of the sub-second it takes wrapped
+    # in a single transaction.
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        graph.query("MATCH (n) DETACH DELETE n")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
 
     nodes, edges = build_graph_data()
     result = graph.insert_graph_bulk(nodes, edges)
