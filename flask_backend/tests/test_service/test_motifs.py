@@ -2,7 +2,6 @@
 Tests flask_backend/service/motifs.py.
 """
 
-import calendar
 from datetime import date, timedelta
 
 from graphqlite import Graph
@@ -21,10 +20,10 @@ from flask_backend.service.graph_sync import sync_graph
 from flask_backend.service.motifs import (
     MOTIF_REGISTRY,
     AnniversaryMotif,
-    CinemaGenreFocusMotif,
     CountryFocusMotif,
     DirectorFocusMotif,
     DirectorReturnMotif,
+    GenreFocusMotif,
     _dedupe_preserve_order,
 )
 
@@ -238,140 +237,80 @@ class TestDirectorReturnMotif:
             assert DirectorReturnMotif().detect(graph) == []
 
 
-def _this_month_date(day_offset=0):
-    today = date.today()
-    last_day = calendar.monthrange(today.year, today.month)[1]
-    day = min(15 + day_offset, last_day)
-    return today.replace(day=day)
-
-
-class TestCinemaGenreFocusMotif:
-    def test_flags_genre_with_no_historical_precedent_and_min_count_met(
+class TestGenreFocusMotif:
+    def test_flags_genre_with_two_currently_showing_movies(
         self, app, setup_cinemas, tmp_path
     ):
         with app.app_context():
             doc_genre = get_or_create_genre(1, "Documentário")
-            cinema = get_cinema_by_slug("capitolio")
-            for i in range(3):
-                movie = Movie(title=f"Doc {i}", slug=f"doc-{i}")
-                movie.genres = [doc_genre]
-                movie.screenings = [
-                    Screening(
-                        cinema_id=cinema.id,
-                        description="d",
-                        draft=False,
-                        dates=[ScreeningDate(date=_this_month_date(i), time="19:00")],
-                    )
-                ]
-                db_session.add(movie)
+            movie_a = Movie(title="Doc A", slug="doc-a")
+            movie_a.genres = [doc_genre]
+            movie_a.screenings = [_screening("capitolio", 1)]
+            movie_b = Movie(title="Doc B", slug="doc-b")
+            movie_b.genres = [doc_genre]
+            movie_b.screenings = [_screening("sala-redencao", 2)]
+            db_session.add_all([movie_a, movie_b])
             db_session.commit()
 
             db_path = str(tmp_path / "graph.db")
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            observations = CinemaGenreFocusMotif().detect(graph)
+            observations = GenreFocusMotif().detect(graph)
 
             assert len(observations) == 1
-            assert observations[0].motif_name == "cinema_genre_focus"
-            assert observations[0].metadata["cinema"] == "Cinemateca Capitólio"
-            assert observations[0].metadata["genre"] == "Documentário"
+            obs = observations[0]
+            assert obs.motif_name == "genre_focus"
+            assert obs.confidence == 1.0
+            assert obs.metadata["genre"] == "Documentário"
+            assert sorted(obs.metadata["movies"]) == sorted(["Doc A", "Doc B"])
+            assert (
+                obs.metadata["next_screening_date"]
+                == (date.today() + timedelta(days=1)).isoformat()
+            )
 
-    def test_does_not_flag_genre_below_the_minimum_count(
+    def test_does_not_flag_genre_with_only_one_currently_showing_movie(
         self, app, setup_cinemas, tmp_path
     ):
         with app.app_context():
             doc_genre = get_or_create_genre(1, "Documentário")
-            cinema = get_cinema_by_slug("capitolio")
-            for i in range(2):
-                movie = Movie(title=f"Doc {i}", slug=f"doc-{i}")
-                movie.genres = [doc_genre]
-                movie.screenings = [
-                    Screening(
-                        cinema_id=cinema.id,
-                        description="d",
-                        draft=False,
-                        dates=[ScreeningDate(date=_this_month_date(i), time="19:00")],
-                    )
-                ]
-                db_session.add(movie)
+            movie = Movie(title="Doc Único", slug="doc-unico")
+            movie.genres = [doc_genre]
+            movie.screenings = [_screening("capitolio", 1)]
+            db_session.add(movie)
             db_session.commit()
 
             db_path = str(tmp_path / "graph.db")
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            assert CinemaGenreFocusMotif().detect(graph) == []
+            assert GenreFocusMotif().detect(graph) == []
 
-    def test_does_not_flag_genre_matching_its_historical_share(
-        self, app, setup_cinemas, tmp_path
-    ):
+    def test_counts_movies_across_all_cinemas(self, app, setup_cinemas, tmp_path):
+        """The whole point of this motif post-rewrite: a genre with 2
+        movies split across two different cinemas must still be flagged,
+        not just when both screen at the same cinema."""
         with app.app_context():
-            doc_genre = get_or_create_genre(1, "Documentário")
             drama_genre = get_or_create_genre(2, "Drama")
-            cinema = get_cinema_by_slug("capitolio")
-
-            # Historical baseline: 3 documentaries, 3 dramas, all in the past
-            # (outside this month) so current-period counts don't also
-            # inflate the baseline disproportionately.
-            for i in range(3):
-                doc_movie = Movie(title=f"Doc Antigo {i}", slug=f"doc-antigo-{i}")
-                doc_movie.genres = [doc_genre]
-                doc_movie.screenings = [
-                    Screening(
-                        cinema_id=cinema.id,
-                        description="d",
-                        draft=False,
-                        dates=[ScreeningDate(date=date(2025, 1, i + 1), time="19:00")],
-                    )
-                ]
-                db_session.add(doc_movie)
-
-                drama_movie = Movie(title=f"Drama Antigo {i}", slug=f"drama-antigo-{i}")
-                drama_movie.genres = [drama_genre]
-                drama_movie.screenings = [
-                    Screening(
-                        cinema_id=cinema.id,
-                        description="d",
-                        draft=False,
-                        dates=[ScreeningDate(date=date(2025, 1, i + 1), time="19:00")],
-                    )
-                ]
-                db_session.add(drama_movie)
-
-            # Current period: same 1:1 ratio, at the minimum count.
-            for i in range(3):
-                doc_movie = Movie(title=f"Doc Novo {i}", slug=f"doc-novo-{i}")
-                doc_movie.genres = [doc_genre]
-                doc_movie.screenings = [
-                    Screening(
-                        cinema_id=cinema.id,
-                        description="d",
-                        draft=False,
-                        dates=[ScreeningDate(date=_this_month_date(i), time="19:00")],
-                    )
-                ]
-                db_session.add(doc_movie)
-
-                drama_movie = Movie(title=f"Drama Novo {i}", slug=f"drama-novo-{i}")
-                drama_movie.genres = [drama_genre]
-                drama_movie.screenings = [
-                    Screening(
-                        cinema_id=cinema.id,
-                        description="d",
-                        draft=False,
-                        dates=[ScreeningDate(date=_this_month_date(i), time="19:00")],
-                    )
-                ]
-                db_session.add(drama_movie)
-
+            movie_a = Movie(title="Drama A", slug="drama-a")
+            movie_a.genres = [drama_genre]
+            movie_a.screenings = [_screening("capitolio", 1)]
+            movie_b = Movie(title="Drama B", slug="drama-b")
+            movie_b.genres = [drama_genre]
+            movie_b.screenings = [_screening("cinebancarios", 2)]
+            db_session.add_all([movie_a, movie_b])
             db_session.commit()
 
             db_path = str(tmp_path / "graph.db")
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            assert CinemaGenreFocusMotif().detect(graph) == []
+            observations = GenreFocusMotif().detect(graph)
+
+            assert len(observations) == 1
+            assert sorted(observations[0].metadata["movies"]) == sorted(
+                ["Drama A", "Drama B"]
+            )
 
 
 class TestAnniversaryMotif:
@@ -442,7 +381,7 @@ class TestMotifRegistry:
             "director_focus",
             "country_focus",
             "director_return",
-            "cinema_genre_focus",
+            "genre_focus",
             "anniversary",
         }
         assert len(MOTIF_REGISTRY) == 5

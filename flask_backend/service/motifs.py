@@ -6,7 +6,6 @@ design rationale, including the GraphQLite quirks this module works around
 (min()/max() on date strings, collect(DISTINCT ...) not deduplicating).
 """
 
-import calendar
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date
@@ -244,124 +243,60 @@ class DirectorReturnMotif(Motif):
         return observations
 
 
-CINEMA_GENRE_FOCUS_MULTIPLIER = 1.5
-CINEMA_GENRE_FOCUS_MIN_COUNT = 3
+GENRE_FOCUS_THRESHOLD = 2
 
 ANNIVERSARY_YEARS = {10, 20, 25, 30, 40, 50, 75, 100}
 
 
-class CinemaGenreFocusMotif(Motif):
-    name = "cinema_genre_focus"
+class GenreFocusMotif(Motif):
+    name = "genre_focus"
     description = (
-        "Detects cinemas whose current-month genre distribution is "
-        f"unusually skewed toward one genre (>= {CINEMA_GENRE_FOCUS_MULTIPLIER}x "
-        "its historical share at that cinema, with at least "
-        f"{CINEMA_GENRE_FOCUS_MIN_COUNT} screenings this month). The "
-        "historical baseline is everything strictly before the current "
-        "month - it must exclude the current period, otherwise a cinema "
-        "with no prior history in a genre would show current == historical "
-        "(both 100%) and never trip the multiplier check."
+        "Detects genres with "
+        f"{GENRE_FOCUS_THRESHOLD}+ movies currently screening, across all "
+        "cinemas."
     )
-    version = "1.0"
+    version = "2.0"
 
     def detect(self, graph) -> list[Observation]:
-        today = date.today()
-        last_day = calendar.monthrange(today.year, today.month)[1]
-        start = today.replace(day=1).isoformat()
-        end = today.replace(day=last_day).isoformat()
-
-        current_query = (
-            "MATCH (ci:Cinema)<-[:AT_CINEMA]-(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
-            "(s)<-[:HAS_SCREENING]-(m:Movie)-[:HAS_GENRE]->(g:Genre) "
-            "WHERE sd.date >= $start AND sd.date <= $end AND s.draft = false "
-            "WITH ci, g, count(sd) AS screening_count, collect(m.id) AS movie_ids, "
-            "collect(sd.date) AS dates "
-            "RETURN ci.id AS cinema_id, ci.name AS cinema_name, g.id AS genre_id, "
-            "g.name AS genre_name, screening_count, movie_ids, dates"
+        today = date.today().isoformat()
+        query = (
+            "MATCH (m:Movie)-[:HAS_GENRE]->(g:Genre), "
+            "(m)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
+            "WHERE sd.date >= $today AND s.draft = false "
+            "WITH g, count(DISTINCT m) AS movie_count, collect(m.id) AS movie_ids, "
+            "collect(m.title) AS titles, collect(sd.date) AS dates "
+            "WHERE movie_count >= $threshold "
+            "RETURN g.id AS genre_id, g.name AS genre_name, movie_count, "
+            "movie_ids, titles, dates "
+            "ORDER BY genre_name"
         )
-        current_rows = graph.query(current_query, {"start": start, "end": end})
-        historical_query = (
-            "MATCH (ci:Cinema)<-[:AT_CINEMA]-(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate), "
-            "(s)<-[:HAS_SCREENING]-(m:Movie)-[:HAS_GENRE]->(g:Genre) "
-            "WHERE sd.date < $start AND s.draft = false "
-            "WITH ci, g, count(sd) AS screening_count "
-            "RETURN ci.id AS cinema_id, g.id AS genre_id, screening_count"
-        )
-        historical_rows = graph.query(historical_query, {"start": start})
-
-        historical_by_pair: dict[tuple[str, str], int] = {}
-        historical_totals: dict[str, int] = {}
-        for row in historical_rows:
-            key = (row["cinema_id"], row["genre_id"])
-            historical_by_pair[key] = (
-                historical_by_pair.get(key, 0) + row["screening_count"]
-            )
-            historical_totals[row["cinema_id"]] = (
-                historical_totals.get(row["cinema_id"], 0) + row["screening_count"]
-            )
-
-        current_totals: dict[str, int] = {}
-        for row in current_rows:
-            current_totals[row["cinema_id"]] = (
-                current_totals.get(row["cinema_id"], 0) + row["screening_count"]
-            )
+        rows = graph.query(query, {"today": today, "threshold": GENRE_FOCUS_THRESHOLD})
 
         observations = []
-        for row in current_rows:
-            if row["screening_count"] < CINEMA_GENRE_FOCUS_MIN_COUNT:
-                continue
-
-            cinema_total = current_totals[row["cinema_id"]]
-            current_share = row["screening_count"] / cinema_total
-
-            hist_key = (row["cinema_id"], row["genre_id"])
-            hist_count = historical_by_pair.get(hist_key, 0)
-            hist_total = historical_totals.get(row["cinema_id"], 0)
-
-            if hist_count == 0:
-                qualifies = True
-            else:
-                historical_share = hist_count / hist_total
-                qualifies = (
-                    current_share >= CINEMA_GENRE_FOCUS_MULTIPLIER * historical_share
-                )
-
-            if not qualifies:
-                continue
-
+        for row in rows:
             movie_ids = _dedupe_preserve_order(row["movie_ids"])
-            # This motif's query window is the whole calendar month (not
-            # "today onward" like the other motifs), so row["dates"] often
-            # contains dates earlier than today - prefer the earliest
-            # future date, falling back to the earliest date overall only
-            # if every date is in the past.
-            today_iso = date.today().isoformat()
-            future_dates = [d for d in row["dates"] if d >= today_iso]
-            next_screening_date = (
-                min(future_dates) if future_dates else min(row["dates"])
-            )
+            titles = _dedupe_preserve_order(row["titles"])
             observations.append(
                 Observation(
                     motif_name=self.name,
-                    confidence=0.7,
+                    confidence=1.0,
                     score=0.0,
-                    headline=(f"{row['cinema_name']} em foco: {row['genre_name']}"),
+                    headline=f"{row['genre_name']} em destaque nos cinemas",
                     summary=(
-                        f"{row['cinema_name']} está com programação "
-                        f"incomumente voltada a {row['genre_name']} este mês."
+                        f"{len(movie_ids)} filmes de {row['genre_name']} "
+                        "estão em cartaz atualmente."
                     ),
                     evidence=GraphEvidence(
-                        nodes=[row["cinema_id"], row["genre_id"], *movie_ids],
+                        nodes=[row["genre_id"], *movie_ids],
                         edges=[
                             (mid, row["genre_id"], "HAS_GENRE") for mid in movie_ids
                         ],
-                        query=current_query,
+                        query=query,
                     ),
                     metadata={
-                        "cinema": row["cinema_name"],
                         "genre": row["genre_name"],
-                        "screening_count": row["screening_count"],
-                        "next_screening_date": next_screening_date,
+                        "movies": titles,
+                        "next_screening_date": min(row["dates"]),
                     },
                 )
             )
@@ -434,6 +369,6 @@ MOTIF_REGISTRY: list[Motif] = [
     DirectorFocusMotif(),
     CountryFocusMotif(),
     DirectorReturnMotif(),
-    CinemaGenreFocusMotif(),
+    GenreFocusMotif(),
     AnniversaryMotif(),
 ]
