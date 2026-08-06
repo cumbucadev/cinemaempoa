@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ def register_commands(app):
     app.cli.add_command(delete_movie_command)
     app.cli.add_command(sync_graph_command)
     app.cli.add_command(graph_query_command)
+    app.cli.add_command(detect_motifs_command)
 
 
 def _run_import_json(run, json_path):
@@ -520,3 +522,56 @@ def delete_movie_command(identifier, yes):
     IDENTIFIER pode ser o id numérico ou o slug do filme.
     """
     run_delete_movie(identifier, skip_confirmation=yes)
+
+
+@click.command("detect-motifs")
+@click.option(
+    "--limit", type=int, default=10, help="Número máximo de observações a exibir."
+)
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    help="Imprime as observações completas (com evidências) em JSON.",
+)
+def detect_motifs_command(limit, as_json):
+    """Executa o motor de detecção de motivos editoriais sobre o grafo de
+    conhecimento e imprime as observações de maior pontuação.
+    """
+    from flask_backend.service import motif_ranking
+
+    if limit < 0:
+        raise click.UsageError("--limit não pode ser negativo.")
+
+    # Read GRAPH_DB_PATH off the module at call time (not import time) so
+    # tests that monkeypatch it still take effect. Without this check, a
+    # missing graph file silently opens as a fresh empty graph and every
+    # query below just returns [] - no observations, with no hint that
+    # `sync-graph` was never run.
+    if not os.path.exists(motif_ranking.GRAPH_DB_PATH):
+        raise click.UsageError(
+            f"Grafo não encontrado em {motif_ranking.GRAPH_DB_PATH}. "
+            "Rode `flask --app flask_backend sync-graph` primeiro."
+        )
+
+    observations = motif_ranking.run_motifs()[:limit]
+
+    if as_json:
+        click.echo(
+            json.dumps(
+                [dataclasses.asdict(o) for o in observations],
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+
+    if not observations:
+        click.echo("Nenhuma observação.")
+        return
+
+    for observation in observations:
+        click.echo(
+            f"{observation.score:.2f} | {observation.motif_name} | "
+            f"{observation.headline}"
+        )
