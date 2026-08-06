@@ -22,9 +22,9 @@ from flask_backend.service.motifs import (
     MOTIF_REGISTRY,
     AnniversaryMotif,
     CinemaGenreFocusMotif,
-    CountryClusterMotif,
+    CountryFocusMotif,
+    DirectorFocusMotif,
     DirectorReturnMotif,
-    MultipleMoviesSameDirectorMotif,
     _dedupe_preserve_order,
 )
 
@@ -53,7 +53,7 @@ def _screening(cinema_slug, days_from_today, draft=False):
     )
 
 
-class TestMultipleMoviesSameDirectorMotif:
+class TestDirectorFocusMotif:
     def test_flags_director_with_two_currently_showing_movies(
         self, app, setup_cinemas, tmp_path
     ):
@@ -72,11 +72,11 @@ class TestMultipleMoviesSameDirectorMotif:
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            observations = MultipleMoviesSameDirectorMotif().detect(graph)
+            observations = DirectorFocusMotif().detect(graph)
 
             assert len(observations) == 1
             obs = observations[0]
-            assert obs.motif_name == "multiple_movies_same_director"
+            assert obs.motif_name == "director_focus"
             assert obs.confidence == 1.0
             assert sorted(obs.metadata["movies"]) == sorted(
                 ["Paris, Texas", "Perfect Days"]
@@ -102,7 +102,7 @@ class TestMultipleMoviesSameDirectorMotif:
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            assert MultipleMoviesSameDirectorMotif().detect(graph) == []
+            assert DirectorFocusMotif().detect(graph) == []
 
     def test_excludes_draft_screenings_from_the_count(
         self, app, setup_cinemas, tmp_path
@@ -122,10 +122,10 @@ class TestMultipleMoviesSameDirectorMotif:
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            assert MultipleMoviesSameDirectorMotif().detect(graph) == []
+            assert DirectorFocusMotif().detect(graph) == []
 
 
-class TestCountryClusterMotif:
+class TestCountryFocusMotif:
     def test_flags_country_with_two_currently_showing_movies(
         self, app, setup_cinemas, tmp_path
     ):
@@ -144,10 +144,10 @@ class TestCountryClusterMotif:
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            observations = CountryClusterMotif().detect(graph)
+            observations = CountryFocusMotif().detect(graph)
 
             assert len(observations) == 1
-            assert observations[0].motif_name == "country_cluster"
+            assert observations[0].motif_name == "country_focus"
             assert observations[0].metadata["country"] == "Japan"
             assert sorted(observations[0].metadata["movies"]) == sorted(
                 ["Filme A", "Filme B"]
@@ -168,7 +168,7 @@ class TestCountryClusterMotif:
             sync_graph(db_path=db_path)
             graph = Graph(db_path)
 
-            assert CountryClusterMotif().detect(graph) == []
+            assert CountryFocusMotif().detect(graph) == []
 
 
 class TestDirectorReturnMotif:
@@ -439,8 +439,8 @@ class TestMotifRegistry:
     def test_contains_one_instance_of_each_motif(self):
         names = {motif.name for motif in MOTIF_REGISTRY}
         assert names == {
-            "multiple_movies_same_director",
-            "country_cluster",
+            "director_focus",
+            "country_focus",
             "director_return",
             "cinema_genre_focus",
             "anniversary",

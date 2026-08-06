@@ -124,7 +124,7 @@ class TestRunMotifs:
             observations = run_motifs(db_path=db_path)
 
             assert len(observations) == 1
-            assert observations[0].motif_name == "multiple_movies_same_director"
+            assert observations[0].motif_name == "director_focus"
             assert observations[0].score > 0
 
     def test_country_cluster_does_not_swallow_an_unrelated_anniversary(
@@ -198,7 +198,7 @@ class TestRunMotifs:
 
             motif_names = {o.motif_name for o in observations}
             assert len(observations) >= 2
-            assert "country_cluster" in motif_names
+            assert "country_focus" in motif_names
             assert "anniversary" in motif_names
 
     def test_merges_director_return_and_anniversary_for_the_same_movie(

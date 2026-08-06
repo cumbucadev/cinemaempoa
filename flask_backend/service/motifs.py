@@ -46,12 +46,12 @@ def _dedupe_preserve_order(items: list) -> list:
     return list(dict.fromkeys(items))
 
 
-COUNTRY_CLUSTER_THRESHOLD = 2
-MULTIPLE_MOVIES_THRESHOLD = 2
+COUNTRY_FOCUS_THRESHOLD = 2
+DIRECTOR_FOCUS_THRESHOLD = 2
 
 
-class MultipleMoviesSameDirectorMotif(Motif):
-    name = "multiple_movies_same_director"
+class DirectorFocusMotif(Motif):
+    name = "director_focus"
     description = "Detects directors with 2+ movies currently screening."
     version = "1.0"
 
@@ -69,7 +69,7 @@ class MultipleMoviesSameDirectorMotif(Motif):
             "ORDER BY director_name"
         )
         rows = graph.query(
-            query, {"today": today, "threshold": MULTIPLE_MOVIES_THRESHOLD}
+            query, {"today": today, "threshold": DIRECTOR_FOCUS_THRESHOLD}
         )
 
         observations = []
@@ -104,10 +104,10 @@ class MultipleMoviesSameDirectorMotif(Motif):
         return observations
 
 
-class CountryClusterMotif(Motif):
-    name = "country_cluster"
+class CountryFocusMotif(Motif):
+    name = "country_focus"
     description = (
-        f"Detects production countries with {COUNTRY_CLUSTER_THRESHOLD}+ "
+        f"Detects production countries with {COUNTRY_FOCUS_THRESHOLD}+ "
         "movies currently screening."
     )
     version = "1.0"
@@ -126,7 +126,7 @@ class CountryClusterMotif(Motif):
             "ORDER BY country_name"
         )
         rows = graph.query(
-            query, {"today": today, "threshold": COUNTRY_CLUSTER_THRESHOLD}
+            query, {"today": today, "threshold": COUNTRY_FOCUS_THRESHOLD}
         )
 
         observations = []
@@ -431,8 +431,8 @@ class AnniversaryMotif(Motif):
 
 
 MOTIF_REGISTRY: list[Motif] = [
-    MultipleMoviesSameDirectorMotif(),
-    CountryClusterMotif(),
+    DirectorFocusMotif(),
+    CountryFocusMotif(),
     DirectorReturnMotif(),
     CinemaGenreFocusMotif(),
     AnniversaryMotif(),
