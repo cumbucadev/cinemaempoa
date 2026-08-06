@@ -248,7 +248,7 @@ class TestGenreFocusMotif:
             movie_a.screenings = [_screening("capitolio", 1)]
             movie_b = Movie(title="Doc B", slug="doc-b")
             movie_b.genres = [doc_genre]
-            movie_b.screenings = [_screening("sala-redencao", 2)]
+            movie_b.screenings = [_screening("capitolio", 2)]
             db_session.add_all([movie_a, movie_b])
             db_session.commit()
 

@@ -45,8 +45,9 @@ def _dedupe_preserve_order(items: list) -> list:
     return list(dict.fromkeys(items))
 
 
-COUNTRY_FOCUS_THRESHOLD = 2
 DIRECTOR_FOCUS_THRESHOLD = 2
+COUNTRY_FOCUS_THRESHOLD = 2
+GENRE_FOCUS_THRESHOLD = 2
 
 
 class DirectorFocusMotif(Motif):
@@ -159,6 +160,60 @@ class CountryFocusMotif(Motif):
         return observations
 
 
+class GenreFocusMotif(Motif):
+    name = "genre_focus"
+    description = (
+        f"Detects genres with {GENRE_FOCUS_THRESHOLD}+ movies currently "
+        "screening, across all cinemas."
+    )
+    version = "2.0"
+
+    def detect(self, graph) -> list[Observation]:
+        today = date.today().isoformat()
+        query = (
+            "MATCH (m:Movie)-[:HAS_GENRE]->(g:Genre), "
+            "(m)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
+            "WHERE sd.date >= $today AND s.draft = false "
+            "WITH g, count(DISTINCT m) AS movie_count, collect(m.id) AS movie_ids, "
+            "collect(m.title) AS titles, collect(sd.date) AS dates "
+            "WHERE movie_count >= $threshold "
+            "RETURN g.id AS genre_id, g.name AS genre_name, movie_count, "
+            "movie_ids, titles, dates "
+            "ORDER BY genre_name"
+        )
+        rows = graph.query(query, {"today": today, "threshold": GENRE_FOCUS_THRESHOLD})
+
+        observations = []
+        for row in rows:
+            movie_ids = _dedupe_preserve_order(row["movie_ids"])
+            titles = _dedupe_preserve_order(row["titles"])
+            observations.append(
+                Observation(
+                    motif_name=self.name,
+                    confidence=1.0,
+                    score=0.0,
+                    headline=f"{row['genre_name']} em destaque nos cinemas",
+                    summary=(
+                        f"{len(movie_ids)} filmes de {row['genre_name']} "
+                        "estão em cartaz atualmente."
+                    ),
+                    evidence=GraphEvidence(
+                        nodes=[row["genre_id"], *movie_ids],
+                        edges=[
+                            (mid, row["genre_id"], "HAS_GENRE") for mid in movie_ids
+                        ],
+                        query=query,
+                    ),
+                    metadata={
+                        "genre": row["genre_name"],
+                        "movies": titles,
+                        "next_screening_date": min(row["dates"]),
+                    },
+                )
+            )
+        return observations
+
+
 DIRECTOR_RETURN_GAP_DAYS = 180
 
 
@@ -243,64 +298,7 @@ class DirectorReturnMotif(Motif):
         return observations
 
 
-GENRE_FOCUS_THRESHOLD = 2
-
 ANNIVERSARY_YEARS = {10, 20, 25, 30, 40, 50, 75, 100}
-
-
-class GenreFocusMotif(Motif):
-    name = "genre_focus"
-    description = (
-        "Detects genres with "
-        f"{GENRE_FOCUS_THRESHOLD}+ movies currently screening, across all "
-        "cinemas."
-    )
-    version = "2.0"
-
-    def detect(self, graph) -> list[Observation]:
-        today = date.today().isoformat()
-        query = (
-            "MATCH (m:Movie)-[:HAS_GENRE]->(g:Genre), "
-            "(m)-[:HAS_SCREENING]->(s:Screening)-[:HAS_DATE]->(sd:ScreeningDate) "
-            "WHERE sd.date >= $today AND s.draft = false "
-            "WITH g, count(DISTINCT m) AS movie_count, collect(m.id) AS movie_ids, "
-            "collect(m.title) AS titles, collect(sd.date) AS dates "
-            "WHERE movie_count >= $threshold "
-            "RETURN g.id AS genre_id, g.name AS genre_name, movie_count, "
-            "movie_ids, titles, dates "
-            "ORDER BY genre_name"
-        )
-        rows = graph.query(query, {"today": today, "threshold": GENRE_FOCUS_THRESHOLD})
-
-        observations = []
-        for row in rows:
-            movie_ids = _dedupe_preserve_order(row["movie_ids"])
-            titles = _dedupe_preserve_order(row["titles"])
-            observations.append(
-                Observation(
-                    motif_name=self.name,
-                    confidence=1.0,
-                    score=0.0,
-                    headline=f"{row['genre_name']} em destaque nos cinemas",
-                    summary=(
-                        f"{len(movie_ids)} filmes de {row['genre_name']} "
-                        "estão em cartaz atualmente."
-                    ),
-                    evidence=GraphEvidence(
-                        nodes=[row["genre_id"], *movie_ids],
-                        edges=[
-                            (mid, row["genre_id"], "HAS_GENRE") for mid in movie_ids
-                        ],
-                        query=query,
-                    ),
-                    metadata={
-                        "genre": row["genre_name"],
-                        "movies": titles,
-                        "next_screening_date": min(row["dates"]),
-                    },
-                )
-            )
-        return observations
 
 
 class AnniversaryMotif(Motif):
@@ -368,7 +366,7 @@ class AnniversaryMotif(Motif):
 MOTIF_REGISTRY: list[Motif] = [
     DirectorFocusMotif(),
     CountryFocusMotif(),
-    DirectorReturnMotif(),
     GenreFocusMotif(),
+    DirectorReturnMotif(),
     AnniversaryMotif(),
 ]
