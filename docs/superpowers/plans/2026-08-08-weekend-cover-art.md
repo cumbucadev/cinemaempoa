@@ -133,14 +133,18 @@ class TestCollectCoverMovies:
     @staticmethod
     def _screening_date(movie_id, image):
         class FakeMovie:
-            id = movie_id
+            pass
 
         class FakeScreening:
-            movie = FakeMovie()
-            image = image
+            pass
 
         class FakeScreeningDate:
-            screening = FakeScreening()
+            pass
+
+        FakeMovie.id = movie_id
+        FakeScreening.movie = FakeMovie()
+        FakeScreening.image = image
+        FakeScreeningDate.screening = FakeScreening()
 
         return FakeScreeningDate()
 
@@ -514,14 +518,18 @@ class TestBuildWeekendCoverImage:
     @staticmethod
     def _screening_date(movie_id, image):
         class FakeMovie:
-            id = movie_id
+            pass
 
         class FakeScreening:
-            movie = FakeMovie()
-            image = image
+            pass
 
         class FakeScreeningDate:
-            screening = FakeScreening()
+            pass
+
+        FakeMovie.id = movie_id
+        FakeScreening.movie = FakeMovie()
+        FakeScreening.image = image
+        FakeScreeningDate.screening = FakeScreening()
 
         return FakeScreeningDate()
 
