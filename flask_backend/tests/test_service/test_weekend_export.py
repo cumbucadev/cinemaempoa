@@ -3,7 +3,7 @@ from datetime import date
 from io import BytesIO
 
 import requests
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from flask_backend.service.weekend_export import (
     BG_COLOR,
@@ -15,6 +15,7 @@ from flask_backend.service.weekend_export import (
     _available_rows_height,
     _build_poster_grid,
     _collect_cover_movies,
+    _cover_crop,
     _format_weekend_date_range,
     _grid_dimensions,
     _load_poster_bytes,
@@ -230,6 +231,56 @@ class TestLoadPosterBytes:
         assert result is None
 
 
+class TestCoverCrop:
+    BG = (200, 50, 50)
+    STRIPE = (20, 20, 220)
+
+    def test_wide_source_crops_horizontally_to_exact_target(self):
+        img = Image.new("RGB", (400, 100), self.BG)
+        result = _cover_crop(img, 200, 100)
+        assert result.size == (200, 100)
+
+    def test_tall_source_crops_vertically_to_exact_target(self):
+        img = Image.new("RGB", (100, 400), self.BG)
+        result = _cover_crop(img, 200, 100)
+        assert result.size == (200, 100)
+
+    def test_wide_source_crop_keeps_center_content_without_stretching(self):
+        # 400x100 source is wider than the 200x100 target (2:1) ratio, so
+        # _cover_crop trims the sides: crop window is x in [100, 300).
+        img = Image.new("RGB", (400, 100), self.BG)
+        draw = ImageDraw.Draw(img)
+        # Stripe at x in [180, 220) sits fully inside the crop window; after
+        # cropping (offset -100) it should land at x in [80, 120), unscaled
+        # since the crop is already exactly the target size.
+        draw.rectangle([180, 0, 219, 99], fill=self.STRIPE)
+
+        result = _cover_crop(img, 200, 100)
+
+        assert result.size == (200, 100)
+        assert result.getpixel((100, 50)) == self.STRIPE
+        assert result.getpixel((10, 50)) == self.BG
+        assert result.getpixel((190, 50)) == self.BG
+
+    def test_tall_source_crop_keeps_center_content_without_stretching(self):
+        # 100x400 source is taller than the 200x100 target (2:1) ratio, so
+        # _cover_crop trims top/bottom: crop window is y in [175, 225),
+        # then the 100x50 crop is upscaled 2x in both axes to fill 200x100.
+        img = Image.new("RGB", (100, 400), self.BG)
+        draw = ImageDraw.Draw(img)
+        # Stripe at y in [190, 210) sits fully inside the crop window; after
+        # cropping (offset -175) and 2x resize it should land at y in
+        # [30, 70).
+        draw.rectangle([0, 190, 99, 209], fill=self.STRIPE)
+
+        result = _cover_crop(img, 200, 100)
+
+        assert result.size == (200, 100)
+        assert result.getpixel((100, 50)) == self.STRIPE
+        assert result.getpixel((100, 5)) == self.BG
+        assert result.getpixel((100, 95)) == self.BG
+
+
 class TestBuildPosterGrid:
     def test_renders_full_canvas_with_all_tiles_loaded(self, monkeypatch):
         monkeypatch.setattr(
@@ -249,6 +300,16 @@ class TestBuildPosterGrid:
             lambda _image_path, _upload_folder: None,
         )
         tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/missing.jpg")]
+        grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
+        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+        assert grid.getpixel((10, 10)) == BG_COLOR
+
+    def test_corrupt_poster_bytes_leaves_background_without_crashing(self, monkeypatch):
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: b"not a real image",
+        )
+        tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/corrupt.jpg")]
         grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
         assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
         assert grid.getpixel((10, 10)) == BG_COLOR
