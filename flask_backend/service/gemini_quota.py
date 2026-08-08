@@ -92,7 +92,6 @@ GEMINI_MODEL_LIMITS: dict[str, dict[str, int]] = {
     "gemini-2.5-flash": {"rpm": 5, "rpd": 20},
     "gemini-3.5-flash-lite": {"rpm": 15, "rpd": 500},
     "gemini-3.1-flash-lite": {"rpm": 15, "rpd": 500},
-    "gemini-2.5-flash-lite": {"rpm": 10, "rpd": 20},
 }
 
 

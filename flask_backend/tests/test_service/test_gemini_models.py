@@ -195,7 +195,7 @@ class TestCallWithFallback:
 
 
 class TestGeminiModelPriority:
-    def test_has_seven_models_newest_flash_before_lite_per_generation(self):
+    def test_has_six_models_newest_flash_before_lite_per_generation(self):
         from flask_backend.service.gemini_models import GEMINI_MODEL_PRIORITY
 
         assert [
@@ -205,5 +205,4 @@ class TestGeminiModelPriority:
             "gemini-2.5-flash",
             "gemini-3.5-flash-lite",
             "gemini-3.1-flash-lite",
-            "gemini-2.5-flash-lite",
         ] == GEMINI_MODEL_PRIORITY
