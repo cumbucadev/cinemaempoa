@@ -8,7 +8,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from functools import lru_cache
 from io import BytesIO
-from typing import List
+from math import ceil
+from typing import List, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -262,6 +263,35 @@ def _measure_row(
     text_height = len(lines) * _line_height(font_row)
     height = text_height + 2 * ROW_VERTICAL_PADDING
     return RowLayout(row=row, movie_lines=lines, height=height)
+
+
+def _grid_dimensions(movie_count: int) -> Tuple[int, int]:
+    """Picks column count from the number of movies (more movies -> more,
+    narrower columns), then caps rows at 5 so tiles never get too thin.
+    Returns (cols, rows); cols * rows is the max number of tiles shown -
+    movies beyond that are dropped by the caller (_collect_cover_movies
+    already orders movies by weekend order, so earlier movies win)."""
+    if movie_count <= 6:
+        cols = 3
+    elif movie_count <= 12:
+        cols = 4
+    else:
+        cols = 5
+
+    max_tiles = cols * 5
+    tile_count = min(movie_count, max_tiles)
+    rows = ceil(tile_count / cols)
+    return cols, rows
+
+
+def _segment_lengths(total: int, count: int) -> List[int]:
+    """Splits `total` pixels into `count` near-equal integer segments; any
+    remainder from integer division is added to the last segment so the
+    segments always sum exactly to `total`."""
+    base = total // count
+    lengths = [base] * count
+    lengths[-1] += total - base * count
+    return lengths
 
 
 def paginate_rows_for_day(rows: List[RowData]) -> List[List[RowLayout]]:

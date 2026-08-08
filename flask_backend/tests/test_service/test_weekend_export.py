@@ -13,6 +13,8 @@ from flask_backend.service.weekend_export import (
     _available_rows_height,
     _collect_cover_movies,
     _format_weekend_date_range,
+    _grid_dimensions,
+    _segment_lengths,
     build_weekend_export_images,
     paginate_rows_for_day,
     render_day_image,
@@ -157,3 +159,26 @@ class TestCollectCoverMovies:
             CoverMovie(movie_id=1, image_path="/screening/assets/first.jpg"),
             CoverMovie(movie_id=2, image_path="/screening/assets/other.jpg"),
         ]
+
+
+class TestGridDimensions:
+    def test_few_movies_use_three_columns(self):
+        assert _grid_dimensions(3) == (3, 1)
+        assert _grid_dimensions(6) == (3, 2)
+
+    def test_mid_range_uses_four_columns(self):
+        assert _grid_dimensions(7) == (4, 2)
+        assert _grid_dimensions(12) == (4, 3)
+
+    def test_many_movies_use_five_columns_capped_at_five_rows(self):
+        assert _grid_dimensions(13) == (5, 3)
+        assert _grid_dimensions(30) == (5, 5)
+
+
+class TestSegmentLengths:
+    def test_evenly_divisible_total(self):
+        assert _segment_lengths(1080, 3) == [360, 360, 360]
+
+    def test_remainder_goes_to_last_segment(self):
+        assert _segment_lengths(1350, 4) == [337, 337, 337, 339]
+        assert sum(_segment_lengths(1350, 4)) == 1350
