@@ -11,6 +11,18 @@ def get_all() -> List[Cinema]:
     return cinemas
 
 
+def get_cinemas_with_photo() -> List[Cinema]:
+    """Return cinemas that have a photo set. Used by the resize-images
+    backfill (flask_backend.service.image_resize_pipeline) to find
+    candidates for reprocessing."""
+    return (
+        db_session.query(Cinema)
+        .filter(Cinema.photo.isnot(None), Cinema.photo != "")
+        .order_by(Cinema.id)
+        .all()
+    )
+
+
 def get_by_id(cinema_id: int) -> Optional[Cinema]:
     return db_session.query(Cinema).filter(Cinema.id == cinema_id).first()
 

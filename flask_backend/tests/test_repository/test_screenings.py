@@ -10,6 +10,7 @@ from flask_backend.repository.screenings import (
     get_screening_dates_for_movies,
     get_screenings_for_movies_with_dates_in_range,
     get_screenings_in_date_range,
+    get_screenings_with_image,
     get_screenings_with_upcoming_dates,
     reattach_movie,
 )
@@ -619,3 +620,33 @@ class TestGetLatestScreeningImagesForMovies:
             cinema = get_cinema_by_slug("capitolio")
             result = get_latest_screening_images_for_movies(cinema.id, [movie_id])
             assert movie_id not in result
+
+
+class TestGetScreeningsWithImage:
+    def test_returns_only_screenings_with_image_set(self, app, setup_cinemas):
+        with app.app_context():
+            with_image_id, _ = _create_screening(
+                app, "Com Imagem", "com-imagem", [date.today()]
+            )
+            without_image_id, _ = _create_screening(
+                app, "Sem Imagem", "sem-imagem", [date.today()]
+            )
+            screening = db_session.get(Screening, with_image_id)
+            screening.image = "https://i.ibb.co/x/poster.webp"
+            screening.image_width = 800
+            screening.image_height = 1200
+            db_session.commit()
+
+            result = get_screenings_with_image()
+
+        result_ids = {s.id for s in result}
+        assert with_image_id in result_ids
+        assert without_image_id not in result_ids
+
+    def test_returns_empty_list_when_no_screening_has_image(self, app, setup_cinemas):
+        with app.app_context():
+            _create_screening(app, "Sem Imagem", "sem-imagem-2", [date.today()])
+
+            result = get_screenings_with_image()
+
+        assert result == []
