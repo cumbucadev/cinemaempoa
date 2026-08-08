@@ -86,6 +86,32 @@ class TestRunPipeline:
             assert screening.image_width == 1200
             assert screening.image_height == 600
 
+    def test_reprocesses_small_non_webp_image(self, app, setup_cinemas):
+        screening_id = _create_screening_with_image(
+            app, "pequena-nao-webp", "https://i.ibb.co/x/poster-pequeno.png", 800, 600
+        )
+
+        with (
+            app.app_context(),
+            patch(
+                "flask_backend.service.image_resize_pipeline.download_image_from_url",
+                return_value=(io.BytesIO(b"original-bytes"), "poster-pequeno.png"),
+            ) as mock_download,
+            patch(
+                "flask_backend.service.image_resize_pipeline.save_image",
+                return_value=("https://i.ibb.co/y/poster-pequeno.webp", 800, 600),
+            ) as mock_save,
+        ):
+            result = run_pipeline(MagicMock())
+
+        mock_download.assert_called_once_with("https://i.ibb.co/x/poster-pequeno.png")
+        mock_save.assert_called_once()
+        assert result.resized == 1
+        assert result.skipped_already_processed == 0
+        with app.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.image == "https://i.ibb.co/y/poster-pequeno.webp"
+
     def test_reprocesses_webp_image_over_max_dimension(self, app, setup_cinemas):
         _create_screening_with_image(
             app, "webp-grande", "https://i.ibb.co/x/poster.webp", 2400, 1200
