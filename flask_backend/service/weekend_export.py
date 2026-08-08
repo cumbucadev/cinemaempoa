@@ -126,6 +126,12 @@ class ExportedDayImages:
     images_base64: List[str] = field(default_factory=list)
 
 
+@dataclass
+class CoverMovie:
+    movie_id: int
+    image_path: str
+
+
 def _available_rows_height() -> int:
     return (
         CANVAS_HEIGHT
@@ -143,6 +149,26 @@ def _build_row_data(screening_date: ScreeningDate) -> RowData:
         cinema_name=screening_date.screening.cinema.short_name,
         time_label=screening_date.time.replace(":", "h"),
     )
+
+
+def _collect_cover_movies(screening_dates: List[ScreeningDate]) -> List[CoverMovie]:
+    """Deduplicates screening_dates into one CoverMovie per distinct movie,
+    keeping the image from the first occurrence in weekend order (the list
+    is assumed already date/time-ordered, same as build_weekend_export_images
+    expects). Screenings with no image are skipped entirely."""
+    seen_movie_ids = set()
+    movies: List[CoverMovie] = []
+    for screening_date in screening_dates:
+        screening = screening_date.screening
+        image_path = screening.image
+        if not image_path:
+            continue
+        movie_id = screening.movie.id
+        if movie_id in seen_movie_ids:
+            continue
+        seen_movie_ids.add(movie_id)
+        movies.append(CoverMovie(movie_id=movie_id, image_path=image_path))
+    return movies
 
 
 @lru_cache(maxsize=None)

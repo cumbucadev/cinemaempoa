@@ -8,8 +8,10 @@ from flask_backend.service.weekend_export import (
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
     MAX_TITLE_LINES,
+    CoverMovie,
     RowData,
     _available_rows_height,
+    _collect_cover_movies,
     _format_weekend_date_range,
     build_weekend_export_images,
     paginate_rows_for_day,
@@ -119,3 +121,39 @@ class TestFormatWeekendDateRange:
             date(2026, 7, 31), date(2026, 8, 1), date(2026, 8, 2)
         )
         assert result == "31 de julho, 1 e 2 de agosto"
+
+
+class TestCollectCoverMovies:
+    @staticmethod
+    def _screening_date(movie_id, image):
+        class FakeMovie:
+            pass
+
+        class FakeScreening:
+            pass
+
+        class FakeScreeningDate:
+            pass
+
+        FakeMovie.id = movie_id
+        FakeScreening.movie = FakeMovie()
+        FakeScreening.image = image
+        FakeScreeningDate.screening = FakeScreening()
+
+        return FakeScreeningDate()
+
+    def test_skips_screenings_with_no_image(self):
+        screening_dates = [self._screening_date(1, None), self._screening_date(2, "")]
+        assert _collect_cover_movies(screening_dates) == []
+
+    def test_dedupes_by_movie_id_keeping_first_image_seen(self):
+        screening_dates = [
+            self._screening_date(1, "/screening/assets/first.jpg"),
+            self._screening_date(1, "/screening/assets/second.jpg"),
+            self._screening_date(2, "/screening/assets/other.jpg"),
+        ]
+        result = _collect_cover_movies(screening_dates)
+        assert result == [
+            CoverMovie(movie_id=1, image_path="/screening/assets/first.jpg"),
+            CoverMovie(movie_id=2, image_path="/screening/assets/other.jpg"),
+        ]
