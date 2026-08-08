@@ -20,6 +20,7 @@ from flask_backend.service.weekend_export import (
     _grid_dimensions,
     _load_poster_bytes,
     _segment_lengths,
+    build_weekend_cover_image,
     build_weekend_export_images,
     paginate_rows_for_day,
     render_day_image,
@@ -313,3 +314,51 @@ class TestBuildPosterGrid:
         grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
         assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
         assert grid.getpixel((10, 10)) == BG_COLOR
+
+
+class TestBuildWeekendCoverImage:
+    FRIDAY, SATURDAY, SUNDAY = date(2026, 8, 7), date(2026, 8, 8), date(2026, 8, 9)
+
+    @staticmethod
+    def _screening_date(movie_id, image):
+        class FakeMovie:
+            pass
+
+        class FakeScreening:
+            pass
+
+        class FakeScreeningDate:
+            pass
+
+        FakeMovie.id = movie_id
+        FakeScreening.movie = FakeMovie()
+        FakeScreening.image = image
+        FakeScreeningDate.screening = FakeScreening()
+
+        return FakeScreeningDate()
+
+    def test_returns_none_when_no_movie_has_a_poster(self):
+        screening_dates = [self._screening_date(1, None)]
+        result = build_weekend_cover_image(
+            screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
+        )
+        assert result is None
+
+    def test_returns_decodable_png_at_canvas_size(self, monkeypatch):
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: _fake_poster_bytes(),
+        )
+        screening_dates = [
+            self._screening_date(1, "/screening/assets/1.jpg"),
+            self._screening_date(2, "/screening/assets/2.jpg"),
+            self._screening_date(3, "/screening/assets/3.jpg"),
+        ]
+        result = build_weekend_cover_image(
+            screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
+        )
+        assert result is not None
+        png_bytes = base64.b64decode(result)
+        img = Image.open(BytesIO(png_bytes))
+        assert img.format == "PNG"
+        assert img.size == (CANVAS_WIDTH, CANVAS_HEIGHT)

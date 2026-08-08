@@ -13,7 +13,7 @@ from math import ceil
 from typing import List, Optional, Tuple
 
 import requests
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from flask_backend.models import ScreeningDate
 from flask_backend.service.screening import group_screening_dates_by_day
@@ -62,6 +62,12 @@ FONT_SIZE_ROW = 24
 FONT_SIZE_FOOTER = 20
 
 WATERMARK_TEXT = "cinemaempoa.com.br"
+
+COVER_TITLE_TEXT = "Programação Final de Semana"
+FONT_SIZE_COVER_TITLE = 64
+FONT_SIZE_COVER_SUBTITLE = 34
+COVER_BLUR_RADIUS = 6
+COVER_SCRIM_PEAK_ALPHA = 170
 
 DAY_DEFS = [
     ("friday", "Sexta-feira"),
@@ -524,3 +530,89 @@ def build_weekend_export_images(
         ]
         results.append(ExportedDayImages(day_key, day_label, day_date, images_b64))
     return results
+
+
+def _build_vertical_scrim(width: int, height: int, peak_alpha: int) -> Image.Image:
+    """Black overlay, near-transparent at the top/bottom edges and darkest
+    through the middle band, so centered title text stays readable over a
+    busy poster grid without hiding the whole image."""
+    scrim = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(scrim)
+    center = height / 2
+    for y in range(height):
+        distance = abs(y - center) / center
+        alpha = max(int(peak_alpha * (1 - distance)), 0)
+        draw.line([(0, y), (width, y)], fill=(0, 0, 0, alpha))
+    return scrim
+
+
+def _draw_cover_text(img: Image.Image, subtitle_text: str) -> None:
+    draw = ImageDraw.Draw(img)
+    font_title = _load_font(FONT_BOLD_PATH, FONT_SIZE_COVER_TITLE)
+    font_subtitle = _load_font(FONT_REGULAR_PATH, FONT_SIZE_COVER_SUBTITLE)
+
+    title_lines = _wrap_text_to_width(
+        draw, COVER_TITLE_TEXT, font_title, CANVAS_WIDTH - 2 * MARGIN_X
+    )
+    title_line_height = _line_height(font_title)
+    subtitle_line_height = _line_height(font_subtitle)
+
+    block_height = len(title_lines) * title_line_height + 16 + subtitle_line_height
+    y = (CANVAS_HEIGHT - block_height) / 2
+
+    for line in title_lines:
+        line_width = draw.textlength(line, font=font_title)
+        x = (CANVAS_WIDTH - line_width) / 2
+        draw.text((x, y), line, font=font_title, fill=(255, 255, 255))
+        y += title_line_height
+
+    y += 16
+    subtitle_width = draw.textlength(subtitle_text, font=font_subtitle)
+    x = (CANVAS_WIDTH - subtitle_width) / 2
+    draw.text((x, y), subtitle_text, font=font_subtitle, fill=(255, 255, 255))
+
+
+def _draw_cover_watermark(img: Image.Image) -> None:
+    draw = ImageDraw.Draw(img)
+    font_footer = _load_font(FONT_REGULAR_PATH, FONT_SIZE_FOOTER)
+    watermark_width = draw.textlength(WATERMARK_TEXT, font=font_footer)
+    footer_y = CANVAS_HEIGHT - MARGIN_BOTTOM - FOOTER_HEIGHT / 2
+    draw.text(
+        ((CANVAS_WIDTH - watermark_width) / 2, footer_y),
+        WATERMARK_TEXT,
+        font=font_footer,
+        fill=(255, 255, 255),
+    )
+
+
+def build_weekend_cover_image(
+    screening_dates: List[ScreeningDate],
+    upload_folder: str,
+    friday_date: date,
+    saturday_date: date,
+    sunday_date: date,
+) -> Optional[str]:
+    """Builds the weekend's single base64 PNG cover image: a poster-grid
+    mosaic of every distinct movie showing that weekend (first-seen poster
+    wins), blurred with a dark scrim, and the "Programação Final de
+    Semana" title + date subtitle centered on top. Returns None if no
+    screening that weekend has a usable poster image."""
+    movies = _collect_cover_movies(screening_dates)
+    if not movies:
+        return None
+
+    cols, rows = _grid_dimensions(len(movies))
+    tiles = movies[: cols * rows]
+
+    grid = _build_poster_grid(tiles, cols, rows, upload_folder)
+    blurred = grid.filter(ImageFilter.GaussianBlur(COVER_BLUR_RADIUS)).convert("RGBA")
+    scrim = _build_vertical_scrim(CANVAS_WIDTH, CANVAS_HEIGHT, COVER_SCRIM_PEAK_ALPHA)
+    composited = Image.alpha_composite(blurred, scrim).convert("RGB")
+
+    subtitle_text = _format_weekend_date_range(friday_date, saturday_date, sunday_date)
+    _draw_cover_text(composited, subtitle_text)
+    _draw_cover_watermark(composited)
+
+    buffer = BytesIO()
+    composited.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
