@@ -6,10 +6,18 @@ import requests
 from PIL import Image, ImageDraw
 
 from flask_backend.service.weekend_export import (
-    BG_COLOR,
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
+    COVER_BG_COLOR,
+    COVER_POSTER_LOAD_BUDGET_SECONDS,
+    COVER_TITLE_TEXT,
+    FONT_BOLD_PATH,
+    FONT_REGULAR_PATH,
+    FONT_SIZE_COVER_SUBTITLE,
+    FONT_SIZE_COVER_TITLE,
+    MARGIN_X,
     MAX_TITLE_LINES,
+    POSTER_LOAD_TIMEOUT_SECONDS,
     CoverMovie,
     RowData,
     _available_rows_height,
@@ -18,8 +26,11 @@ from flask_backend.service.weekend_export import (
     _cover_crop,
     _format_weekend_date_range,
     _grid_dimensions,
+    _line_height,
+    _load_font,
     _load_poster_bytes,
     _segment_lengths,
+    _wrap_text_to_width,
     build_weekend_cover_image,
     build_weekend_export_images,
     paginate_rows_for_day,
@@ -216,7 +227,7 @@ class TestLoadPosterBytes:
 
         def fake_get(url, timeout):
             assert url == "https://i.ibb.co/example.jpg"
-            assert timeout == 10
+            assert timeout == POSTER_LOAD_TIMEOUT_SECONDS
             return FakeResponse()
 
         monkeypatch.setattr(requests, "get", fake_get)
@@ -303,7 +314,7 @@ class TestBuildPosterGrid:
         tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/missing.jpg")]
         grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
         assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
-        assert grid.getpixel((10, 10)) == BG_COLOR
+        assert grid.getpixel((10, 10)) == COVER_BG_COLOR
 
     def test_corrupt_poster_bytes_leaves_background_without_crashing(self, monkeypatch):
         monkeypatch.setattr(
@@ -313,7 +324,50 @@ class TestBuildPosterGrid:
         tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/corrupt.jpg")]
         grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
         assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
-        assert grid.getpixel((10, 10)) == BG_COLOR
+        assert grid.getpixel((10, 10)) == COVER_BG_COLOR
+
+    def test_poster_load_budget_stops_further_network_attempts(self, monkeypatch):
+        """Once the wall-clock budget for the poster-loading pass is
+        exceeded, remaining tiles must be skipped without even attempting
+        _load_poster_bytes - proving a slow/hanging image host can't pin
+        the whole loop for tile_count * timeout."""
+        call_count = 0
+
+        def fake_load(_image_path, _upload_folder):
+            nonlocal call_count
+            call_count += 1
+            return _fake_poster_bytes()
+
+        # time.monotonic() is called once for start_time, then once per
+        # tile as a budget check before attempting its load. The first two
+        # budget checks (tiles 0 and 1) report 0s elapsed, so those tiles
+        # load normally; the third check (tile 2) reports elapsed time past
+        # the budget, so tiles 2 and 3 are skipped without ever calling
+        # _load_poster_bytes.
+        monotonic_values = iter([0.0, 0.0, 0.0, COVER_POSTER_LOAD_BUDGET_SECONDS + 1])
+
+        def fake_monotonic():
+            try:
+                return next(monotonic_values)
+            except StopIteration:
+                return COVER_POSTER_LOAD_BUDGET_SECONDS + 1
+
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes", fake_load
+        )
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export.time.monotonic", fake_monotonic
+        )
+
+        tiles = [
+            CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
+            for i in range(4)
+        ]
+        grid = _build_poster_grid(tiles, cols=2, rows=2, upload_folder="/uploads")
+
+        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+        assert call_count == 2
+        assert call_count < len(tiles)
 
 
 class TestBuildWeekendCoverImage:
@@ -362,3 +416,78 @@ class TestBuildWeekendCoverImage:
         img = Image.open(BytesIO(png_bytes))
         assert img.format == "PNG"
         assert img.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+
+    def test_title_text_is_actually_drawn_near_white(self, monkeypatch):
+        """A near-white pixel must exist in the title text's band -
+        catches a regression where the title were drawn in the background
+        color (invisible) instead of white."""
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: _fake_poster_bytes(color=(200, 50, 50)),
+        )
+        screening_dates = [
+            self._screening_date(1, "/screening/assets/1.jpg"),
+            self._screening_date(2, "/screening/assets/2.jpg"),
+            self._screening_date(3, "/screening/assets/3.jpg"),
+        ]
+        result = build_weekend_cover_image(
+            screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
+        )
+        img = Image.open(BytesIO(base64.b64decode(result))).convert("RGB")
+
+        # Replicate the title block's vertical placement using the same
+        # private helpers _draw_cover_text uses, so the sampled strip
+        # matches wherever the title actually lands regardless of wrapping.
+        dummy_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+        font_title = _load_font(FONT_BOLD_PATH, FONT_SIZE_COVER_TITLE)
+        title_lines = _wrap_text_to_width(
+            dummy_draw, COVER_TITLE_TEXT, font_title, CANVAS_WIDTH - 2 * MARGIN_X
+        )
+        title_line_height = _line_height(font_title)
+        font_subtitle = _load_font(FONT_REGULAR_PATH, FONT_SIZE_COVER_SUBTITLE)
+        subtitle_line_height = _line_height(font_subtitle)
+        block_height = len(title_lines) * title_line_height + 16 + subtitle_line_height
+        top = int((CANVAS_HEIGHT - block_height) / 2)
+        bottom = top + len(title_lines) * title_line_height
+
+        brightest = max(
+            max(img.getpixel((x, y)))
+            for y in range(top, bottom)
+            for x in range(0, CANVAS_WIDTH, 2)
+        )
+        assert brightest >= 230
+
+    def test_scrim_darkens_center_band_relative_to_known_poster_color(
+        self, monkeypatch
+    ):
+        """Proves the vertical scrim actually darkens the middle band by
+        rendering with a known solid poster color and asserting the
+        composited pixel is measurably darker in every channel than the
+        pre-scrim color."""
+        poster_color = (200, 50, 50)
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: _fake_poster_bytes(color=poster_color),
+        )
+        # 3 movies -> _grid_dimensions(3) == (3, 1), so the single row of
+        # tiles spans the full canvas height and every tile uses the same
+        # monkeypatched solid-color poster, making the pre-scrim canvas a
+        # known uniform color.
+        screening_dates = [
+            self._screening_date(1, "/screening/assets/1.jpg"),
+            self._screening_date(2, "/screening/assets/2.jpg"),
+            self._screening_date(3, "/screening/assets/3.jpg"),
+        ]
+        result = build_weekend_cover_image(
+            screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
+        )
+        img = Image.open(BytesIO(base64.b64decode(result))).convert("RGB")
+
+        # Sample near the left edge at the vertical center: still inside
+        # the scrim's darkest band (alpha depends only on y), but outside
+        # the centered title/subtitle/watermark text.
+        sample_x, sample_y = 20, CANVAS_HEIGHT // 2
+        r, g, b = img.getpixel((sample_x, sample_y))
+        assert r < poster_color[0]
+        assert g < poster_color[1]
+        assert b < poster_color[2]

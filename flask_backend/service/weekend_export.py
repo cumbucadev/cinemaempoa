@@ -5,6 +5,7 @@ numbered images when its screening list doesn't fit in a single image."""
 import base64
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from datetime import date
 from functools import lru_cache
@@ -68,6 +69,10 @@ FONT_SIZE_COVER_TITLE = 64
 FONT_SIZE_COVER_SUBTITLE = 34
 COVER_BLUR_RADIUS = 6
 COVER_SCRIM_PEAK_ALPHA = 170
+COVER_BG_COLOR = (25, 25, 25)
+
+POSTER_LOAD_TIMEOUT_SECONDS = 3
+COVER_POSTER_LOAD_BUDGET_SECONDS = 8
 
 DAY_DEFS = [
     ("friday", "Sexta-feira"),
@@ -318,7 +323,7 @@ def _load_poster_bytes(image_path: str, upload_folder: str) -> Optional[bytes]:
             file_path = os.path.join(upload_folder, filename)
             with open(file_path, "rb") as f:
                 return f.read()
-        response = requests.get(image_path, timeout=10)
+        response = requests.get(image_path, timeout=POSTER_LOAD_TIMEOUT_SECONDS)
         response.raise_for_status()
         return response.content
     except (OSError, requests.RequestException) as exc:
@@ -354,16 +359,28 @@ def _build_poster_grid(
 ) -> Image.Image:
     """Renders the CANVAS_WIDTH x CANVAS_HEIGHT poster mosaic: each tile is
     center-cropped to fill its cell. A tile whose poster fails to load is
-    left as plain background - grid layout still holds."""
-    grid = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), BG_COLOR)
+    left as plain background - grid layout still holds. The whole loop is
+    bounded by COVER_POSTER_LOAD_BUDGET_SECONDS of wall-clock time so a
+    slow/hanging image host can't pin the request for the full
+    tile-count * timeout duration - once the budget is exceeded, remaining
+    tiles are skipped without attempting to load them."""
+    grid = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), COVER_BG_COLOR)
     col_widths = _segment_lengths(CANVAS_WIDTH, cols)
     row_heights = _segment_lengths(CANVAS_HEIGHT, rows)
 
+    start_time = time.monotonic()
     for idx, tile in enumerate(tiles):
         col, row = idx % cols, idx // cols
         x = sum(col_widths[:col])
         y = sum(row_heights[:row])
         w, h = col_widths[col], row_heights[row]
+
+        if time.monotonic() - start_time >= COVER_POSTER_LOAD_BUDGET_SECONDS:
+            logger.warning(
+                "Orçamento de tempo para carregar posters da capa do fim de "
+                "semana excedido; pulando os tiles restantes."
+            )
+            break
 
         poster_bytes = _load_poster_bytes(tile.image_path, upload_folder)
         if poster_bytes is None:
@@ -582,6 +599,8 @@ def _draw_cover_watermark(img: Image.Image) -> None:
         WATERMARK_TEXT,
         font=font_footer,
         fill=(255, 255, 255),
+        stroke_width=2,
+        stroke_fill=(0, 0, 0),
     )
 
 
