@@ -12,6 +12,23 @@ def _make_image_bytes(width, height, mode="RGB", fmt="PNG", color=(120, 60, 200)
     return buffer.read()
 
 
+def _make_gradient_image_bytes(width, height, fmt="PNG"):
+    """Create an image with a gradient (texture) for quality parameter testing."""
+    buffer = io.BytesIO()
+    img = Image.new("RGB", (width, height))
+    pixels = img.load()
+    for y in range(height):
+        for x in range(width):
+            # Create a gradient that varies by position
+            r = int((x / width) * 255)
+            g = int((y / height) * 255)
+            b = int(((x + y) / (width + height)) * 255)
+            pixels[x, y] = (r, g, b)
+    img.save(buffer, format=fmt)
+    buffer.seek(0)
+    return buffer.read()
+
+
 class TestResizeForDisplay:
     def test_downscales_when_longer_edge_exceeds_max_dimension(self):
         source = _make_image_bytes(2000, 1000)
@@ -59,7 +76,9 @@ class TestResizeForDisplay:
         assert image.format == "WEBP"
 
     def test_higher_quality_produces_larger_output(self):
-        source = _make_image_bytes(800, 800, color=(200, 40, 90))
+        # Use a gradient image (with texture) rather than solid color, so that
+        # quality actually affects compression and output size varies monotonically.
+        source = _make_gradient_image_bytes(800, 800)
 
         low = resize_for_display(source, quality=10)
         high = resize_for_display(source, quality=95)
