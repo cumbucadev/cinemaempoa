@@ -62,6 +62,47 @@ DAY_DEFS = [
     ("sunday", "Domingo"),
 ]
 
+_MONTH_NAMES_PT = {
+    1: "janeiro",
+    2: "fevereiro",
+    3: "março",
+    4: "abril",
+    5: "maio",
+    6: "junho",
+    7: "julho",
+    8: "agosto",
+    9: "setembro",
+    10: "outubro",
+    11: "novembro",
+    12: "dezembro",
+}
+
+
+def _format_weekend_date_range(
+    friday_date: date, saturday_date: date, sunday_date: date
+) -> str:
+    """Formats the three weekend dates as a natural-language Portuguese
+    range, e.g. "7, 8 e 9 de agosto". Groups consecutive same-month dates
+    together, so a weekend crossing a month boundary (e.g. the last
+    weekend of a month) reads as "31 de julho, 1 e 2 de agosto"."""
+    dates = [friday_date, saturday_date, sunday_date]
+
+    groups: List[List[date]] = []
+    for current_date in dates:
+        if groups and groups[-1][-1].month == current_date.month:
+            groups[-1].append(current_date)
+        else:
+            groups.append([current_date])
+
+    parts = []
+    for group in groups:
+        days = [str(d.day) for d in group]
+        month_name = _MONTH_NAMES_PT[group[-1].month]
+        day_text = days[0] if len(days) == 1 else f"{', '.join(days[:-1])} e {days[-1]}"
+        parts.append(f"{day_text} de {month_name}")
+
+    return ", ".join(parts)
+
 
 @dataclass
 class RowData:

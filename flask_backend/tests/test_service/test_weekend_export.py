@@ -10,6 +10,7 @@ from flask_backend.service.weekend_export import (
     MAX_TITLE_LINES,
     RowData,
     _available_rows_height,
+    _format_weekend_date_range,
     build_weekend_export_images,
     paginate_rows_for_day,
     render_day_image,
@@ -104,3 +105,17 @@ class TestBuildWeekendExportImages:
         saturday_result, sunday_result = results[1], results[2]
         assert saturday_result.images_base64 == []
         assert sunday_result.images_base64 == []
+
+
+class TestFormatWeekendDateRange:
+    def test_same_month_weekend(self):
+        result = _format_weekend_date_range(
+            date(2026, 8, 7), date(2026, 8, 8), date(2026, 8, 9)
+        )
+        assert result == "7, 8 e 9 de agosto"
+
+    def test_weekend_crossing_month_boundary(self):
+        result = _format_weekend_date_range(
+            date(2026, 7, 31), date(2026, 8, 1), date(2026, 8, 2)
+        )
+        assert result == "31 de julho, 1 e 2 de agosto"
