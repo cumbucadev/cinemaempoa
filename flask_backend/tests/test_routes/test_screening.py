@@ -1,15 +1,24 @@
 import io
 import re
 from datetime import date, datetime, timedelta
+from io import BytesIO
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
 from flask import url_for
 from google.genai.errors import ClientError, ServerError
+from PIL import Image
 
 from flask_backend.db import db_session
 from flask_backend.models import AlertAction, Cinema, Movie, Screening, ScreeningDate
 from flask_backend.service.shared import get_weekend_dates
+
+
+def _fake_png_bytes():
+    img = Image.new("RGB", (300, 450), (200, 50, 50))
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def _get_cinema(slug="capitolio"):
@@ -168,6 +177,39 @@ class TestScreeningWeekendExport:
                 )
         response = client.get("/weekend/export")
         assert response.get_data(as_text=True).count("data:image/png;base64,") >= 2
+
+    def test_weekend_export_shows_no_cover_when_no_screenings_have_images(
+        self, client, setup_cinemas
+    ):
+        friday_date, _, _ = get_weekend_dates(date.today())
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Sem Poster", screening_date=friday_date
+            )
+        response = client.get("/weekend/export")
+        html = response.get_data(as_text=True)
+        assert "Capa" not in html
+
+    def test_weekend_export_shows_cover_when_a_screening_has_an_image(
+        self, client, setup_cinemas, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: _fake_png_bytes(),
+        )
+        friday_date, _, _ = get_weekend_dates(date.today())
+        with client.application.app_context():
+            _create_screening(
+                movie_title="Filme Com Poster",
+                screening_date=friday_date,
+                image="/screening/assets/poster.jpg",
+                image_width=300,
+                image_height=450,
+            )
+        response = client.get("/weekend/export")
+        html = response.get_data(as_text=True)
+        assert "Capa" in html
+        assert html.count("data:image/png;base64,") == 2  # cover + 1 day image
 
 
 class TestScreeningProgramacao:

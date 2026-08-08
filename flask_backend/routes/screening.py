@@ -54,7 +54,10 @@ from flask_backend.service.screening import (
     save_image,
     validate_image,
 )
-from flask_backend.service.weekend_export import build_weekend_export_images
+from flask_backend.service.weekend_export import (
+    build_weekend_cover_image,
+    build_weekend_export_images,
+)
 from flask_backend.utils.mobile import is_mobile_user_agent
 from flask_backend.utils.visitor import (
     VISITOR_COOKIE_NAME,
@@ -224,9 +227,17 @@ def weekend_export():
     day_exports = build_weekend_export_images(
         screening_dates, friday_date, saturday_date, sunday_date
     )
+    cover_image_base64 = build_weekend_cover_image(
+        screening_dates,
+        current_app.config["UPLOAD_FOLDER"],
+        friday_date,
+        saturday_date,
+        sunday_date,
+    )
     return render_template(
         "screening/weekend_export.html",
         day_exports=day_exports,
+        cover_image_base64=cover_image_base64,
     )
 
 
