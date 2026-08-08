@@ -3,18 +3,24 @@
 numbered images when its screening list doesn't fit in a single image."""
 
 import base64
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import date
 from functools import lru_cache
 from io import BytesIO
 from math import ceil
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+import requests
 from PIL import Image, ImageDraw, ImageFont
 
 from flask_backend.models import ScreeningDate
 from flask_backend.service.screening import group_screening_dates_by_day
+
+logger = logging.getLogger(__name__)
+
+LOCAL_ASSET_PREFIX = "/screening/assets/"
 
 CANVAS_WIDTH = 1080
 CANVAS_HEIGHT = 1350
@@ -292,6 +298,82 @@ def _segment_lengths(total: int, count: int) -> List[int]:
     lengths = [base] * count
     lengths[-1] += total - base * count
     return lengths
+
+
+def _load_poster_bytes(image_path: str, upload_folder: str) -> Optional[bytes]:
+    """Loads poster image bytes from either a local upload
+    (/screening/assets/<filename>, served straight from disk) or a remote
+    URL (production imgBB uploads). Returns None on any failure - missing
+    file, network error, or bad response - so a single bad poster never
+    breaks the whole cover image."""
+    try:
+        if image_path.startswith(LOCAL_ASSET_PREFIX):
+            filename = image_path[len(LOCAL_ASSET_PREFIX) :]
+            file_path = os.path.join(upload_folder, filename)
+            with open(file_path, "rb") as f:
+                return f.read()
+        response = requests.get(image_path, timeout=10)
+        response.raise_for_status()
+        return response.content
+    except (OSError, requests.RequestException) as exc:
+        logger.warning(
+            "Falha ao carregar poster '%s' para a capa do fim de semana: %s",
+            image_path,
+            exc,
+        )
+        return None
+
+
+def _cover_crop(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
+    """Center-crops (never distorts) `img` to exactly target_w x target_h,
+    cropping whichever dimension has excess before resizing."""
+    src_w, src_h = img.size
+    src_ratio = src_w / src_h
+    target_ratio = target_w / target_h
+
+    if src_ratio > target_ratio:
+        new_w = round(src_h * target_ratio)
+        offset = (src_w - new_w) // 2
+        img = img.crop((offset, 0, offset + new_w, src_h))
+    else:
+        new_h = round(src_w / target_ratio)
+        offset = (src_h - new_h) // 2
+        img = img.crop((0, offset, src_w, offset + new_h))
+
+    return img.resize((target_w, target_h), Image.LANCZOS)
+
+
+def _build_poster_grid(
+    tiles: List[CoverMovie], cols: int, rows: int, upload_folder: str
+) -> Image.Image:
+    """Renders the CANVAS_WIDTH x CANVAS_HEIGHT poster mosaic: each tile is
+    center-cropped to fill its cell. A tile whose poster fails to load is
+    left as plain background - grid layout still holds."""
+    grid = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), BG_COLOR)
+    col_widths = _segment_lengths(CANVAS_WIDTH, cols)
+    row_heights = _segment_lengths(CANVAS_HEIGHT, rows)
+
+    for idx, tile in enumerate(tiles):
+        col, row = idx % cols, idx // cols
+        x = sum(col_widths[:col])
+        y = sum(row_heights[:row])
+        w, h = col_widths[col], row_heights[row]
+
+        poster_bytes = _load_poster_bytes(tile.image_path, upload_folder)
+        if poster_bytes is None:
+            continue
+        try:
+            poster = Image.open(BytesIO(poster_bytes)).convert("RGB")
+        except Exception as exc:
+            logger.warning(
+                "Poster inválido para o filme %d na capa do fim de semana: %s",
+                tile.movie_id,
+                exc,
+            )
+            continue
+        grid.paste(_cover_crop(poster, w, h), (x, y))
+
+    return grid
 
 
 def paginate_rows_for_day(rows: List[RowData]) -> List[List[RowLayout]]:

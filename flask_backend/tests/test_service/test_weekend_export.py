@@ -2,23 +2,34 @@ import base64
 from datetime import date
 from io import BytesIO
 
+import requests
 from PIL import Image
 
 from flask_backend.service.weekend_export import (
+    BG_COLOR,
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
     MAX_TITLE_LINES,
     CoverMovie,
     RowData,
     _available_rows_height,
+    _build_poster_grid,
     _collect_cover_movies,
     _format_weekend_date_range,
     _grid_dimensions,
+    _load_poster_bytes,
     _segment_lengths,
     build_weekend_export_images,
     paginate_rows_for_day,
     render_day_image,
 )
+
+
+def _fake_poster_bytes(width=300, height=450, color=(200, 50, 50)):
+    img = Image.new("RGB", (width, height), color)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 class TestPaginateRowsForDay:
@@ -182,3 +193,62 @@ class TestSegmentLengths:
     def test_remainder_goes_to_last_segment(self):
         assert _segment_lengths(1350, 4) == [337, 337, 337, 339]
         assert sum(_segment_lengths(1350, 4)) == 1350
+
+
+class TestLoadPosterBytes:
+    def test_reads_local_asset_from_upload_folder(self, tmp_path):
+        (tmp_path / "poster.jpg").write_bytes(b"fake-bytes")
+        result = _load_poster_bytes("/screening/assets/poster.jpg", str(tmp_path))
+        assert result == b"fake-bytes"
+
+    def test_missing_local_asset_returns_none(self, tmp_path):
+        result = _load_poster_bytes("/screening/assets/missing.jpg", str(tmp_path))
+        assert result is None
+
+    def test_remote_url_is_fetched(self, monkeypatch):
+        class FakeResponse:
+            content = b"remote-bytes"
+
+            def raise_for_status(self):
+                pass
+
+        def fake_get(url, timeout):
+            assert url == "https://i.ibb.co/example.jpg"
+            assert timeout == 10
+            return FakeResponse()
+
+        monkeypatch.setattr(requests, "get", fake_get)
+        result = _load_poster_bytes("https://i.ibb.co/example.jpg", "/uploads")
+        assert result == b"remote-bytes"
+
+    def test_remote_url_failure_returns_none(self, monkeypatch):
+        def fake_get(url, timeout):
+            raise requests.RequestException("boom")
+
+        monkeypatch.setattr(requests, "get", fake_get)
+        result = _load_poster_bytes("https://i.ibb.co/example.jpg", "/uploads")
+        assert result is None
+
+
+class TestBuildPosterGrid:
+    def test_renders_full_canvas_with_all_tiles_loaded(self, monkeypatch):
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: _fake_poster_bytes(),
+        )
+        tiles = [
+            CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
+            for i in range(6)
+        ]
+        grid = _build_poster_grid(tiles, cols=3, rows=2, upload_folder="/uploads")
+        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+
+    def test_failed_poster_load_leaves_background_without_crashing(self, monkeypatch):
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: None,
+        )
+        tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/missing.jpg")]
+        grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
+        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+        assert grid.getpixel((10, 10)) == BG_COLOR
