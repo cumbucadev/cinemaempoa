@@ -2,7 +2,8 @@ name: Import CineBancarios
 
 on:
   schedule:
-    - cron: "0 3 * * 4" # At 03:00 UTC every thursday (every 7 days)
+    - cron: "0 0 * * 5" # At 00:00 UTC friday = 21:00 BRT thursday (every 7 days)
+    - cron: "0 9 * * 5" # At 09:00 UTC friday = 06:00 BRT friday (every 7 days)
   workflow_dispatch:
 
 jobs:
