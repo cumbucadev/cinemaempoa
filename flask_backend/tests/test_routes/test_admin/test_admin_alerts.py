@@ -195,6 +195,41 @@ class TestAdminAlertsMarkPosted:
             assert action.remind_at is None
             assert action.created_by_user_id is not None
 
+    def test_redirect_preserves_filters(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/mark-posted",
+            data={
+                "status": "pending",
+                "cinema": "capitolio",
+                "categoria": "unica",
+                "page": "2",
+                "limit": "10",
+            },
+        )
+        assert response.status_code == 302
+        location = response.headers["Location"]
+        assert "status=pending" in location
+        assert "cinema=capitolio" in location
+        assert "categoria=unica" in location
+        assert "page=2" in location
+        assert "limit=10" in location
+
+    def test_redirect_defaults_when_filters_absent(
+        self, app, auth_headers, setup_cinemas
+    ):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(f"/admin/alerts/{screening_id}/mark-posted")
+        assert response.status_code == 302
+        location = response.headers["Location"]
+        assert "status=pending" in location
+        assert "cinema=" not in location
+        assert "categoria=" not in location
+        assert "page=" not in location
+        assert "limit=" not in location
+
     def test_records_action_with_reminder(self, app, auth_headers, setup_cinemas):
         screening_id = _create_screening_with_future_date(app, days=10)
         remind_at = (date.today() + timedelta(days=5)).isoformat()
@@ -260,6 +295,27 @@ class TestAdminAlertsDismiss:
                 db_session.query(AlertAction).filter_by(screening_id=screening_id).one()
             )
             assert action.action == "dismissed"
+
+    def test_redirect_preserves_filters(self, app, auth_headers, setup_cinemas):
+        screening_id = _create_screening_with_future_date(app)
+
+        response = auth_headers.post(
+            f"/admin/alerts/{screening_id}/dismiss",
+            data={
+                "status": "pending",
+                "cinema": "capitolio",
+                "categoria": "unica",
+                "page": "2",
+                "limit": "10",
+            },
+        )
+        assert response.status_code == 302
+        location = response.headers["Location"]
+        assert "status=pending" in location
+        assert "cinema=capitolio" in location
+        assert "categoria=unica" in location
+        assert "page=2" in location
+        assert "limit=10" in location
 
 
 class TestAdminAlertsHistory:
