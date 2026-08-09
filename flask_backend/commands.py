@@ -31,6 +31,7 @@ def register_commands(app):
     app.cli.add_command(run_dedupper)
     app.cli.add_command(generate_sitemap)
     app.cli.add_command(fetch_posters)
+    app.cli.add_command(resize_images)
     app.cli.add_command(poster_review)
     app.cli.add_command(fetch_movie_metadata)
     app.cli.add_command(movie_metadata_review)
@@ -285,6 +286,67 @@ def fetch_posters(limit, dry_run, verbose):
             f"\n⚠ {result.skipped_all_sources_tried} sessão(ões) já tentaram todas "
             "as fontes sem sucesso. Use 'flask poster-review' para listá-las."
         )
+
+
+@click.command("resize-images")
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Número máximo de imagens a reprocessar. Sem limite por padrão.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Apenas lista o que seria feito, sem fazer requisições.",
+)
+@click.option(
+    "--verbose", "-v", is_flag=True, default=False, help="Mostra logs detalhados."
+)
+def resize_images(limit, dry_run, verbose):
+    """Reprocessa imagens de sessões e cinemas enviadas antes da #229.
+
+    Baixa cada imagem que ainda não está no formato/tamanho alvo (webp,
+    maior lado <= 1200px), reprocessa via resize_for_display() e reenvia,
+    atualizando o registro no banco.
+    """
+    from flask_backend.repository import pipeline_runs
+    from flask_backend.service.image_resize_pipeline import run_pipeline
+
+    log_level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
+
+    if dry_run:
+        click.echo("=== Modo dry-run: nenhuma requisição será feita ===\n")
+
+    run = pipeline_runs.start("resize-images")
+    try:
+        result = run_pipeline(current_app, limit=limit, dry_run=dry_run)
+    except Exception as exc:
+        pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
+        raise
+
+    status = "warning" if result.errors > 0 else "success"
+    pipeline_runs.finish(
+        run.id,
+        status=status,
+        summary=json.dumps(
+            {
+                "processed": result.processed,
+                "resized": result.resized,
+                "skipped_already_processed": result.skipped_already_processed,
+                "errors": result.errors,
+            }
+        ),
+    )
+
+    click.echo(f"\n{'=' * 40}")
+    click.echo("Resultado do reprocessamento de imagens:")
+    click.echo(f"  Processadas:            {result.processed}")
+    click.echo(f"  Reprocessadas:          {result.resized}")
+    click.echo(f"  Já otimizadas (pulado): {result.skipped_already_processed}")
+    click.echo(f"  Erros:                  {result.errors}")
 
 
 @click.command("poster-review")
