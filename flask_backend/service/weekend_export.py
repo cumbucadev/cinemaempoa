@@ -57,7 +57,6 @@ FONT_REGULAR_PATH = os.path.join(FONT_DIR, "FiraSans-Regular.ttf")
 FONT_BOLD_PATH = os.path.join(FONT_DIR, "FiraSans-Bold.ttf")
 
 FONT_SIZE_HEADER = 44
-FONT_SIZE_SUBHEADER = 28
 FONT_SIZE_COLUMN_HEADER = 26
 FONT_SIZE_ROW = 24
 FONT_SIZE_FOOTER = 20
@@ -122,6 +121,13 @@ def _format_weekend_date_range(
         parts.append(f"{day_text} de {month_name}")
 
     return ", ".join(parts)
+
+
+def _format_day_header(day_label: str, day_date: date) -> str:
+    """Combines the weekday label and date into the single header line
+    rendered on each day image, e.g. "Sexta-feira, 08/08". No year: the
+    weekend export is always for the near future, so it'd be redundant."""
+    return f"{day_label}, {day_date.strftime('%d/%m')}"
 
 
 @dataclass
@@ -487,14 +493,14 @@ def render_day_image(
     part_index: int,
     total_parts: int,
 ) -> bytes:
-    """Draws one 1080x1350 canvas: header (day + date [+ part]), column
-    headers + divider, striped rows, and the cinemaempoa.com.br footer
-    watermark. Returns PNG-encoded bytes."""
+    """Draws one 1080x1350 canvas: header (day + date, with a small [part]
+    indicator in the top-right corner), column headers + divider, striped
+    rows, and the cinemaempoa.com.br footer watermark. Returns PNG-encoded
+    bytes."""
     img = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
     font_header = _load_font(FONT_BOLD_PATH, FONT_SIZE_HEADER)
-    font_subheader = _load_font(FONT_REGULAR_PATH, FONT_SIZE_SUBHEADER)
     font_col_header = _load_font(FONT_BOLD_PATH, FONT_SIZE_COLUMN_HEADER)
     font_row = _load_font(FONT_REGULAR_PATH, FONT_SIZE_ROW)
     font_footer = _load_font(FONT_REGULAR_PATH, FONT_SIZE_FOOTER)
@@ -503,17 +509,17 @@ def render_day_image(
     x_cinema = x_movie + COLUMN_WIDTHS["movie"] + COLUMN_GAP
     x_time = x_cinema + COLUMN_WIDTHS["cinema"] + COLUMN_GAP
 
-    header_text = day_label
-    if total_parts > 1:
-        header_text = f"{day_label} ({part_index}/{total_parts})"
+    header_text = _format_day_header(day_label, day_date)
     draw.text((MARGIN_X, MARGIN_TOP), header_text, font=font_header, fill=HEADER_COLOR)
-    date_text = day_date.strftime("%d/%m/%Y")
-    draw.text(
-        (MARGIN_X, MARGIN_TOP + _line_height(font_header) + 4),
-        date_text,
-        font=font_subheader,
-        fill=TEXT_COLOR,
-    )
+    if total_parts > 1:
+        part_text = f"{part_index}/{total_parts}"
+        part_width = draw.textlength(part_text, font=font_footer)
+        draw.text(
+            (CANVAS_WIDTH - MARGIN_X - part_width, MARGIN_TOP),
+            part_text,
+            font=font_footer,
+            fill=FOOTER_TEXT_COLOR,
+        )
 
     col_header_y = MARGIN_TOP + HEADER_HEIGHT
     draw.text((x_movie, col_header_y), "FILME", font=font_col_header, fill=HEADER_COLOR)

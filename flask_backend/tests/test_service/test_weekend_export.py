@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 
 from flask_backend.service import weekend_export
 from flask_backend.service.weekend_export import (
+    BG_COLOR,
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
     COVER_BG_COLOR,
@@ -16,6 +17,7 @@ from flask_backend.service.weekend_export import (
     FONT_REGULAR_PATH,
     FONT_SIZE_COVER_SUBTITLE,
     FONT_SIZE_COVER_TITLE,
+    MARGIN_TOP,
     MARGIN_X,
     MAX_COVER_TILES,
     MAX_TITLE_LINES,
@@ -27,6 +29,7 @@ from flask_backend.service.weekend_export import (
     _compose_poster_grid,
     _cover_crop,
     _distribute_counts,
+    _format_day_header,
     _format_weekend_date_range,
     _grid_dimensions,
     _line_height,
@@ -77,6 +80,31 @@ class TestPaginateRowsForDay:
         assert pages[0][0].movie_lines[-1].endswith("…")
 
 
+class TestFormatDayHeader:
+    def test_combines_day_label_and_short_date(self):
+        assert (
+            _format_day_header("Sexta-feira", date(2026, 8, 8)) == "Sexta-feira, 08/08"
+        )
+
+    def test_does_not_include_year(self):
+        assert "2026" not in _format_day_header("Domingo", date(2026, 8, 9))
+
+
+def _top_right_corner_has_ink(img):
+    """Samples the top-right margin band (where the part indicator would
+    be drawn) and returns True if any pixel there isn't the plain
+    background color - i.e. something was actually drawn there."""
+    top = MARGIN_TOP - 10
+    bottom = MARGIN_TOP + 50
+    left = CANVAS_WIDTH - 200
+    right = CANVAS_WIDTH - MARGIN_X
+    return any(
+        img.getpixel((x, y)) != BG_COLOR
+        for y in range(top, bottom)
+        for x in range(left, right)
+    )
+
+
 class TestRenderDayImage:
     def test_returns_valid_png_with_correct_dimensions(self):
         rows_page = paginate_rows_for_day(
@@ -86,6 +114,22 @@ class TestRenderDayImage:
         assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
         img = Image.open(BytesIO(png_bytes))
         assert img.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+
+    def test_single_part_draws_no_corner_indicator(self):
+        rows_page = paginate_rows_for_day(
+            [RowData("Filme Teste", "Capitólio", "20h00")]
+        )[0]
+        png_bytes = render_day_image("Sexta-feira", date.today(), rows_page, 1, 1)
+        img = Image.open(BytesIO(png_bytes)).convert("RGB")
+        assert not _top_right_corner_has_ink(img)
+
+    def test_multi_part_draws_corner_indicator(self):
+        rows_page = paginate_rows_for_day(
+            [RowData("Filme Teste", "Capitólio", "20h00")]
+        )[0]
+        png_bytes = render_day_image("Sexta-feira", date.today(), rows_page, 1, 2)
+        img = Image.open(BytesIO(png_bytes)).convert("RGB")
+        assert _top_right_corner_has_ink(img)
 
 
 class TestBuildWeekendExportImages:
