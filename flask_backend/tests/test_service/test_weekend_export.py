@@ -5,6 +5,7 @@ from io import BytesIO
 import requests
 from PIL import Image, ImageDraw
 
+from flask_backend.service import weekend_export
 from flask_backend.service.weekend_export import (
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
@@ -16,17 +17,20 @@ from flask_backend.service.weekend_export import (
     FONT_SIZE_COVER_SUBTITLE,
     FONT_SIZE_COVER_TITLE,
     MARGIN_X,
+    MAX_COVER_TILES,
     MAX_TITLE_LINES,
     POSTER_LOAD_TIMEOUT_SECONDS,
     CoverMovie,
     RowData,
     _available_rows_height,
-    _build_poster_grid,
     _collect_cover_movies,
+    _compose_poster_grid,
     _cover_crop,
+    _distribute_counts,
     _format_weekend_date_range,
     _grid_dimensions,
     _line_height,
+    _load_cover_posters,
     _load_font,
     _load_poster_bytes,
     _segment_lengths,
@@ -186,17 +190,40 @@ class TestCollectCoverMovies:
 
 
 class TestGridDimensions:
-    def test_few_movies_use_three_columns(self):
-        assert _grid_dimensions(3) == (3, 1)
-        assert _grid_dimensions(6) == (3, 2)
+    def test_exact_multiples_fill_every_row(self):
+        assert _grid_dimensions(3) == [3]
+        assert _grid_dimensions(6) == [3, 3]
+        assert _grid_dimensions(12) == [4, 4, 4]
 
-    def test_mid_range_uses_four_columns(self):
-        assert _grid_dimensions(7) == (4, 2)
-        assert _grid_dimensions(12) == (4, 3)
+    def test_single_movie_fills_entire_canvas(self):
+        assert _grid_dimensions(1) == [1]
 
-    def test_many_movies_use_five_columns_capped_at_five_rows(self):
-        assert _grid_dimensions(13) == (5, 3)
-        assert _grid_dimensions(30) == (5, 5)
+    def test_incomplete_row_is_redistributed_instead_of_left_blank(self):
+        # 7 movies at the 4-column tier would leave 1 blank cell under a
+        # fixed-column grid; instead tiles spread across rows as evenly as
+        # possible so every row is exactly full (row 2 gets bigger tiles).
+        assert _grid_dimensions(7) == [4, 3]
+        assert sum(_grid_dimensions(7)) == 7
+
+        # 13 movies at the 5-column tier would leave 2 blank cells in the
+        # last row under a fixed-column grid.
+        assert _grid_dimensions(13) == [5, 4, 4]
+        assert sum(_grid_dimensions(13)) == 13
+
+    def test_many_movies_capped_at_five_rows(self):
+        assert _grid_dimensions(30) == [5, 5, 5, 5, 5]
+
+
+class TestDistributeCounts:
+    def test_evenly_divisible_total(self):
+        assert _distribute_counts(6, 2) == [3, 3]
+
+    def test_remainder_front_loaded_onto_leading_buckets(self):
+        assert _distribute_counts(7, 2) == [4, 3]
+        assert _distribute_counts(13, 3) == [5, 4, 4]
+
+    def test_single_bucket_returns_total(self):
+        assert _distribute_counts(1, 1) == [1]
 
 
 class TestSegmentLengths:
@@ -293,44 +320,66 @@ class TestCoverCrop:
         assert result.getpixel((100, 95)) == self.BG
 
 
-class TestBuildPosterGrid:
-    def test_renders_full_canvas_with_all_tiles_loaded(self, monkeypatch):
+class TestLoadCoverPosters:
+    def test_loads_all_movies_within_budget(self, monkeypatch):
         monkeypatch.setattr(
             "flask_backend.service.weekend_export._load_poster_bytes",
             lambda _image_path, _upload_folder: _fake_poster_bytes(),
         )
-        tiles = [
+        movies = [
             CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
             for i in range(6)
         ]
-        grid = _build_poster_grid(tiles, cols=3, rows=2, upload_folder="/uploads")
-        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+        posters = _load_cover_posters(movies, upload_folder="/uploads")
+        assert len(posters) == 6
+        assert all(isinstance(p, Image.Image) for p in posters)
 
-    def test_failed_poster_load_leaves_background_without_crashing(self, monkeypatch):
+    def test_failed_poster_load_is_skipped_not_counted(self, monkeypatch):
+        def fake_load(image_path, _upload_folder):
+            return None if image_path.endswith("1.jpg") else _fake_poster_bytes()
+
         monkeypatch.setattr(
-            "flask_backend.service.weekend_export._load_poster_bytes",
-            lambda _image_path, _upload_folder: None,
+            "flask_backend.service.weekend_export._load_poster_bytes", fake_load
         )
-        tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/missing.jpg")]
-        grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
-        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
-        assert grid.getpixel((10, 10)) == COVER_BG_COLOR
+        movies = [
+            CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
+            for i in range(3)
+        ]
+        posters = _load_cover_posters(movies, upload_folder="/uploads")
+        assert len(posters) == 2
 
-    def test_corrupt_poster_bytes_leaves_background_without_crashing(self, monkeypatch):
+    def test_corrupt_poster_bytes_is_skipped_not_counted(self, monkeypatch):
         monkeypatch.setattr(
             "flask_backend.service.weekend_export._load_poster_bytes",
             lambda _image_path, _upload_folder: b"not a real image",
         )
-        tiles = [CoverMovie(movie_id=1, image_path="/screening/assets/corrupt.jpg")]
-        grid = _build_poster_grid(tiles, cols=3, rows=1, upload_folder="/uploads")
-        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
-        assert grid.getpixel((10, 10)) == COVER_BG_COLOR
+        movies = [CoverMovie(movie_id=1, image_path="/screening/assets/corrupt.jpg")]
+        posters = _load_cover_posters(movies, upload_folder="/uploads")
+        assert posters == []
+
+    def test_candidates_beyond_max_cover_tiles_are_never_attempted(self, monkeypatch):
+        attempted = []
+
+        def fake_load(image_path, _upload_folder):
+            attempted.append(image_path)
+            return _fake_poster_bytes()
+
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes", fake_load
+        )
+        movies = [
+            CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
+            for i in range(MAX_COVER_TILES + 5)
+        ]
+        posters = _load_cover_posters(movies, upload_folder="/uploads")
+        assert len(posters) == MAX_COVER_TILES
+        assert len(attempted) == MAX_COVER_TILES
 
     def test_poster_load_budget_stops_further_network_attempts(self, monkeypatch):
         """Once the wall-clock budget for the poster-loading pass is
-        exceeded, remaining tiles must be skipped without even attempting
-        _load_poster_bytes - proving a slow/hanging image host can't pin
-        the whole loop for tile_count * timeout."""
+        exceeded, remaining candidates must be skipped without even
+        attempting _load_poster_bytes - proving a slow/hanging image host
+        can't pin the whole loop for candidate_count * timeout."""
         call_count = 0
 
         def fake_load(_image_path, _upload_folder):
@@ -339,11 +388,11 @@ class TestBuildPosterGrid:
             return _fake_poster_bytes()
 
         # time.monotonic() is called once for start_time, then once per
-        # tile as a budget check before attempting its load. The first two
-        # budget checks (tiles 0 and 1) report 0s elapsed, so those tiles
-        # load normally; the third check (tile 2) reports elapsed time past
-        # the budget, so tiles 2 and 3 are skipped without ever calling
-        # _load_poster_bytes.
+        # candidate as a budget check before attempting its load. The
+        # first two budget checks (candidates 0 and 1) report 0s elapsed,
+        # so those load normally; the third check (candidate 2) reports
+        # elapsed time past the budget, so candidates 2 and 3 are skipped
+        # without ever calling _load_poster_bytes.
         monotonic_values = iter([0.0, 0.0, 0.0, COVER_POSTER_LOAD_BUDGET_SECONDS + 1])
 
         def fake_monotonic():
@@ -359,15 +408,35 @@ class TestBuildPosterGrid:
             "flask_backend.service.weekend_export.time.monotonic", fake_monotonic
         )
 
-        tiles = [
+        movies = [
             CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
             for i in range(4)
         ]
-        grid = _build_poster_grid(tiles, cols=2, rows=2, upload_folder="/uploads")
+        posters = _load_cover_posters(movies, upload_folder="/uploads")
 
-        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
         assert call_count == 2
-        assert call_count < len(tiles)
+        assert len(posters) == 2
+
+
+class TestComposePosterGrid:
+    @staticmethod
+    def _solid_posters(count, color=(200, 50, 50)):
+        return [Image.new("RGB", (300, 450), color) for _ in range(count)]
+
+    def test_renders_full_canvas(self):
+        grid = _compose_poster_grid(self._solid_posters(6), row_counts=[3, 3])
+        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+
+    def test_uneven_row_counts_leave_no_blank_cell(self):
+        """A row with fewer tiles than another must still be fully covered
+        by (bigger) tiles - proving the justified-row layout leaves no
+        background-colored gap anywhere on the canvas, unlike the old
+        fixed-column grid which left incomplete rows partially blank."""
+        grid = _compose_poster_grid(self._solid_posters(7), row_counts=[4, 3])
+        assert grid.size == (CANVAS_WIDTH, CANVAS_HEIGHT)
+        for x in range(0, CANVAS_WIDTH, 10):
+            for y in range(0, CANVAS_HEIGHT, 10):
+                assert grid.getpixel((x, y)) != COVER_BG_COLOR
 
 
 class TestBuildWeekendCoverImage:
@@ -397,6 +466,54 @@ class TestBuildWeekendCoverImage:
             screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
         )
         assert result is None
+
+    def test_returns_none_when_every_poster_fails_to_load(self, monkeypatch):
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes",
+            lambda _image_path, _upload_folder: None,
+        )
+        screening_dates = [self._screening_date(1, "/screening/assets/missing.jpg")]
+        result = build_weekend_cover_image(
+            screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
+        )
+        assert result is None
+
+    def test_grid_size_adapts_to_loaded_posters_not_movie_count(self, monkeypatch):
+        """13 candidate movies would normally pick the 5-column tier, but
+        if only 8 posters actually load, the grid must be sized for 8 (a
+        full 4x2 layout) rather than for 13 (a 5-column grid with blank
+        cells for the movies whose poster never loaded)."""
+
+        def fake_load(image_path, _upload_folder):
+            movie_num = int(image_path.rsplit("/", 1)[-1].split(".")[0])
+            return None if movie_num >= 8 else _fake_poster_bytes()
+
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._load_poster_bytes", fake_load
+        )
+
+        captured = {}
+        original_compose = weekend_export._compose_poster_grid
+
+        def spy_compose(posters, row_counts):
+            captured["poster_count"] = len(posters)
+            captured["row_counts"] = row_counts
+            return original_compose(posters, row_counts)
+
+        monkeypatch.setattr(
+            "flask_backend.service.weekend_export._compose_poster_grid", spy_compose
+        )
+
+        screening_dates = [
+            self._screening_date(i, f"/screening/assets/{i}.jpg") for i in range(13)
+        ]
+        result = build_weekend_cover_image(
+            screening_dates, "/uploads", self.FRIDAY, self.SATURDAY, self.SUNDAY
+        )
+
+        assert result is not None
+        assert captured["poster_count"] == 8
+        assert captured["row_counts"] == [4, 4]
 
     def test_returns_decodable_png_at_canvas_size(self, monkeypatch):
         monkeypatch.setattr(
@@ -469,7 +586,7 @@ class TestBuildWeekendCoverImage:
             "flask_backend.service.weekend_export._load_poster_bytes",
             lambda _image_path, _upload_folder: _fake_poster_bytes(color=poster_color),
         )
-        # 3 movies -> _grid_dimensions(3) == (3, 1), so the single row of
+        # 3 movies -> _grid_dimensions(3) == [3], so the single row of
         # tiles spans the full canvas height and every tile uses the same
         # monkeypatched solid-color poster, making the pre-scrim canvas a
         # known uniform color.

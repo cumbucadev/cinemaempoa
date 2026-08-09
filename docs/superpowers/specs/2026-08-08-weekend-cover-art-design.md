@@ -54,10 +54,16 @@ base64).
   beyond that cap are simply dropped from the grid (favoring earlier /
   Friday titles, since the source list is date/time-ordered). This keeps
   tiles from becoming absurdly thin.
-- Tile size = `CANVAS_WIDTH / cols` × `CANVAS_HEIGHT / rows`. Each poster
-  is center-cropped (cover-fit, no distortion) to exactly fill its tile.
-- If the last row is incomplete, the leftover cells are left as plain
-  background color — not stretched to fill the row.
+- Tiles are distributed per row (`_distribute_counts`), not fixed at
+  `cols` for every row: `tile_count` is spread across the row count as
+  evenly as possible, front-loading the remainder onto leading rows so no
+  row ever needs more than `cols` tiles. A row with fewer tiles than the
+  tier's column count gets proportionally *wider* tiles — every row is
+  always exactly full, so there is never a leftover blank cell, and fewer
+  movies means bigger tiles rather than empty background.
+- Tile size = `CANVAS_WIDTH / row_tile_count` × `CANVAS_HEIGHT / rows` for
+  each row's own tile count. Each poster is center-cropped (cover-fit, no
+  distortion) to exactly fill its tile.
 
 ## Poster loading
 

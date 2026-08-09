@@ -11,7 +11,7 @@ from datetime import date
 from functools import lru_cache
 from io import BytesIO
 from math import ceil
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -72,7 +72,8 @@ COVER_SCRIM_PEAK_ALPHA = 170
 COVER_BG_COLOR = (25, 25, 25)
 
 POSTER_LOAD_TIMEOUT_SECONDS = 3
-COVER_POSTER_LOAD_BUDGET_SECONDS = 8
+COVER_POSTER_LOAD_BUDGET_SECONDS = 60
+MAX_COVER_TILES = 25
 
 DAY_DEFS = [
     ("friday", "Sexta-feira"),
@@ -282,12 +283,26 @@ def _measure_row(
     return RowLayout(row=row, movie_lines=lines, height=height)
 
 
-def _grid_dimensions(movie_count: int) -> Tuple[int, int]:
-    """Picks column count from the number of movies (more movies -> more,
-    narrower columns), then caps rows at 5 so tiles never get too thin.
-    Returns (cols, rows); cols * rows is the max number of tiles shown -
-    movies beyond that are dropped by the caller (_collect_cover_movies
-    already orders movies by weekend order, so earlier movies win)."""
+def _distribute_counts(total: int, buckets: int) -> List[int]:
+    """Splits `total` items into `buckets` near-equal integer counts (each
+    is `total // buckets` or one more), front-loading the remainder so
+    leading buckets get the extra item. Used to spread tiles across grid
+    rows so every row is exactly full - no row ever gets more than
+    ceil(total / buckets) tiles."""
+    base = total // buckets
+    remainder = total % buckets
+    return [base + 1] * remainder + [base] * (buckets - remainder)
+
+
+def _grid_dimensions(movie_count: int) -> List[int]:
+    """Picks a column tier from the number of movies (more movies -> more,
+    narrower columns), then spreads tiles across rows (capped at 5) so
+    every row is exactly full - a row with fewer tiles than the tier's
+    column count gets proportionally bigger tiles instead of leaving blank
+    cells. Returns row_counts (tiles per row, one entry per row); sum(row_
+    counts) is the max number of tiles shown - movies beyond that are
+    dropped by the caller (_collect_cover_movies already orders movies by
+    weekend order, so earlier movies win)."""
     if movie_count <= 6:
         cols = 3
     elif movie_count <= 12:
@@ -298,7 +313,7 @@ def _grid_dimensions(movie_count: int) -> Tuple[int, int]:
     max_tiles = cols * 5
     tile_count = min(movie_count, max_tiles)
     rows = ceil(tile_count / cols)
-    return cols, rows
+    return _distribute_counts(tile_count, rows)
 
 
 def _segment_lengths(total: int, count: int) -> List[int]:
@@ -354,47 +369,62 @@ def _cover_crop(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
     return img.resize((target_w, target_h), Image.LANCZOS)
 
 
-def _build_poster_grid(
-    tiles: List[CoverMovie], cols: int, rows: int, upload_folder: str
-) -> Image.Image:
-    """Renders the CANVAS_WIDTH x CANVAS_HEIGHT poster mosaic: each tile is
-    center-cropped to fill its cell. A tile whose poster fails to load is
-    left as plain background - grid layout still holds. The whole loop is
-    bounded by COVER_POSTER_LOAD_BUDGET_SECONDS of wall-clock time so a
-    slow/hanging image host can't pin the request for the full
-    tile-count * timeout duration - once the budget is exceeded, remaining
-    tiles are skipped without attempting to load them."""
-    grid = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), COVER_BG_COLOR)
-    col_widths = _segment_lengths(CANVAS_WIDTH, cols)
-    row_heights = _segment_lengths(CANVAS_HEIGHT, rows)
-
+def _load_cover_posters(
+    movies: List[CoverMovie], upload_folder: str
+) -> List[Image.Image]:
+    """Loads and decodes up to MAX_COVER_TILES candidate posters, in
+    weekend order, bounded by COVER_POSTER_LOAD_BUDGET_SECONDS of
+    wall-clock time so a slow/hanging image host can't pin the request
+    indefinitely - once the budget is exceeded, remaining candidates are
+    skipped without attempting them. A poster that fails to download or
+    fails to decode is skipped (logged) rather than counted, so the caller
+    sizes the grid to exactly how many posters actually loaded - a movie
+    with an unusable poster never becomes a blank cell."""
+    posters: List[Image.Image] = []
     start_time = time.monotonic()
-    for idx, tile in enumerate(tiles):
-        col, row = idx % cols, idx // cols
-        x = sum(col_widths[:col])
-        y = sum(row_heights[:row])
-        w, h = col_widths[col], row_heights[row]
-
+    for movie in movies[:MAX_COVER_TILES]:
         if time.monotonic() - start_time >= COVER_POSTER_LOAD_BUDGET_SECONDS:
             logger.warning(
                 "Orçamento de tempo para carregar posters da capa do fim de "
-                "semana excedido; pulando os tiles restantes."
+                "semana excedido; pulando os candidatos restantes."
             )
             break
 
-        poster_bytes = _load_poster_bytes(tile.image_path, upload_folder)
+        poster_bytes = _load_poster_bytes(movie.image_path, upload_folder)
         if poster_bytes is None:
             continue
         try:
-            poster = Image.open(BytesIO(poster_bytes)).convert("RGB")
+            posters.append(Image.open(BytesIO(poster_bytes)).convert("RGB"))
         except Exception as exc:
             logger.warning(
                 "Poster inválido para o filme %d na capa do fim de semana: %s",
-                tile.movie_id,
+                movie.movie_id,
                 exc,
             )
-            continue
-        grid.paste(_cover_crop(poster, w, h), (x, y))
+
+    return posters
+
+
+def _compose_poster_grid(
+    posters: List[Image.Image], row_counts: List[int]
+) -> Image.Image:
+    """Composites already-decoded posters into the CANVAS_WIDTH x
+    CANVAS_HEIGHT mosaic. `row_counts` gives the number of tiles in each
+    row - rows can hold different counts so every row is always exactly
+    full, with narrower rows getting wider (bigger) tiles instead of
+    leaving blank cells. Each poster is center-cropped to fill its cell
+    without distortion. Assumes len(posters) == sum(row_counts)."""
+    grid = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), COVER_BG_COLOR)
+    row_heights = _segment_lengths(CANVAS_HEIGHT, len(row_counts))
+
+    poster_iter = iter(posters)
+    for row, row_tile_count in enumerate(row_counts):
+        col_widths = _segment_lengths(CANVAS_WIDTH, row_tile_count)
+        y = sum(row_heights[:row])
+        for col, w in enumerate(col_widths):
+            poster = next(poster_iter)
+            x = sum(col_widths[:col])
+            grid.paste(_cover_crop(poster, w, row_heights[row]), (x, y))
 
     return grid
 
@@ -615,15 +645,24 @@ def build_weekend_cover_image(
     mosaic of every distinct movie showing that weekend (first-seen poster
     wins), blurred with a dark scrim, and the "Programação Final de
     Semana" title + date subtitle centered on top. Returns None if no
-    screening that weekend has a usable poster image."""
+    screening that weekend has a usable poster image.
+
+    Posters are loaded before the grid is sized (see _load_cover_posters),
+    so the layout always matches how many posters actually decoded - a
+    weekend where several posters fail to load gets a smaller, denser grid
+    instead of a grid sized for the full movie count with blank cells."""
     movies = _collect_cover_movies(screening_dates)
     if not movies:
         return None
 
-    cols, rows = _grid_dimensions(len(movies))
-    tiles = movies[: cols * rows]
+    posters = _load_cover_posters(movies, upload_folder)
+    if not posters:
+        return None
 
-    grid = _build_poster_grid(tiles, cols, rows, upload_folder)
+    row_counts = _grid_dimensions(len(posters))
+    tiles = posters[: sum(row_counts)]
+
+    grid = _compose_poster_grid(tiles, row_counts)
     blurred = grid.filter(ImageFilter.GaussianBlur(COVER_BLUR_RADIUS)).convert("RGBA")
     scrim = _build_vertical_scrim(CANVAS_WIDTH, CANVAS_HEIGHT, COVER_SCRIM_PEAK_ALPHA)
     composited = Image.alpha_composite(blurred, scrim).convert("RGB")
