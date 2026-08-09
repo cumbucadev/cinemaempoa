@@ -396,6 +396,6 @@ def get_screenings_with_image() -> List[Screening]:
     return (
         db_session.query(Screening)
         .filter(Screening.image.isnot(None), Screening.image != "")
-        .order_by(Screening.id)
+        .order_by(Screening.id.desc())
         .all()
     )

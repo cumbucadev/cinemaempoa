@@ -650,3 +650,20 @@ class TestGetScreeningsWithImage:
             result = get_screenings_with_image()
 
         assert result == []
+
+    def test_orders_by_id_descending_so_newer_posters_come_first(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            first_id, _ = _create_screening(app, "Primeira", "primeira", [date.today()])
+            second_id, _ = _create_screening(app, "Segunda", "segunda", [date.today()])
+            for screening_id in (first_id, second_id):
+                screening = db_session.get(Screening, screening_id)
+                screening.image = "https://i.ibb.co/x/poster.webp"
+                screening.image_width = 800
+                screening.image_height = 1200
+            db_session.commit()
+
+            result = get_screenings_with_image()
+
+        assert [s.id for s in result] == [second_id, first_id]
