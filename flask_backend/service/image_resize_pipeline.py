@@ -76,25 +76,34 @@ def run_pipeline(
     result = ResizePipelineResult()
 
     all_screenings = get_screenings_with_image()
-    screenings_to_process = [
-        s
-        for s in all_screenings
-        if not _is_already_processed(s.image, s.image_width, s.image_height)
-    ]
+    screenings_to_process = []
+    for s in all_screenings:
+        if _is_already_processed(s.image, s.image_width, s.image_height):
+            logger.debug(
+                "screening #%d: já otimizado - %s (%sx%s)",
+                s.id,
+                s.image,
+                s.image_width,
+                s.image_height,
+            )
+            result.skipped_already_processed += 1
+        else:
+            screenings_to_process.append(s)
 
     all_cinemas = get_cinemas_with_photo()
-    cinemas_to_process = [
-        c
-        for c in all_cinemas
-        if not _is_already_processed(c.photo, c.photo_width, c.photo_height)
-    ]
-
-    result.skipped_already_processed = (
-        len(all_screenings)
-        - len(screenings_to_process)
-        + len(all_cinemas)
-        - len(cinemas_to_process)
-    )
+    cinemas_to_process = []
+    for c in all_cinemas:
+        if _is_already_processed(c.photo, c.photo_width, c.photo_height):
+            logger.debug(
+                "cinema #%d: já otimizado - %s (%sx%s)",
+                c.id,
+                c.photo,
+                c.photo_width,
+                c.photo_height,
+            )
+            result.skipped_already_processed += 1
+        else:
+            cinemas_to_process.append(c)
 
     items = [("screening", s) for s in screenings_to_process] + [
         ("cinema", c) for c in cinemas_to_process
@@ -105,6 +114,8 @@ def run_pipeline(
     for kind, obj in items:
         result.processed += 1
         url = obj.image if kind == "screening" else obj.photo
+        old_width = obj.image_width if kind == "screening" else obj.photo_width
+        old_height = obj.image_height if kind == "screening" else obj.photo_height
 
         if dry_run:
             logger.info("[dry-run] %s #%d: reprocessaria %s", kind, obj.id, url)
@@ -130,5 +141,16 @@ def run_pipeline(
         db_session.add(obj)
         db_session.commit()
         result.resized += 1
+        logger.info(
+            "%s #%d: %s (%sx%s) -> %s (%sx%s)",
+            kind,
+            obj.id,
+            url,
+            old_width,
+            old_height,
+            new_url,
+            width,
+            height,
+        )
 
     return result

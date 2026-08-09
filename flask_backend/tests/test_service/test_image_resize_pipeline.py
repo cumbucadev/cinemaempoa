@@ -1,6 +1,9 @@
 import io
+import logging
 from datetime import date
 from unittest.mock import ANY, MagicMock, patch
+
+import pytest
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
@@ -8,7 +11,18 @@ from flask_backend.repository.cinemas import (
     get_by_slug as get_cinema_by_slug,
     update as update_cinema,
 )
+from flask_backend.service import image_resize_pipeline
 from flask_backend.service.image_resize_pipeline import run_pipeline
+
+
+@pytest.fixture(autouse=True)
+def _reenable_image_resize_pipeline_logger(app):
+    # migrations/env.py calls logging.config.fileConfig(...) on every `app`
+    # fixture setup (via init_db's alembic upgrade), which disables any
+    # logger that already existed at that point - including this module's,
+    # imported at collection time. Re-enable it post-setup so caplog can
+    # actually observe log calls in these tests.
+    image_resize_pipeline.logger.disabled = False
 
 
 def _create_screening_with_image(app, slug, image_url, width, height):
@@ -291,3 +305,59 @@ class TestRunPipeline:
         with app.app_context():
             cinema = get_cinema_by_slug("capitolio")
             assert cinema.photo == "https://i.ibb.co/y/capitolio.webp"
+
+
+class TestRunPipelineLogging:
+    def test_logs_details_of_resized_image(self, app, setup_cinemas, caplog):
+        screening_id = _create_screening_with_image(
+            app, "loga-resize", "https://i.ibb.co/x/poster.png", 2000, 1000
+        )
+
+        with (
+            app.app_context(),
+            patch(
+                "flask_backend.service.image_resize_pipeline.download_image_from_url",
+                return_value=(io.BytesIO(b"bytes"), "poster.png"),
+            ),
+            patch(
+                "flask_backend.service.image_resize_pipeline.save_image",
+                return_value=("https://i.ibb.co/y/poster.webp", 1200, 600),
+            ),
+            caplog.at_level(
+                logging.INFO, logger="flask_backend.service.image_resize_pipeline"
+            ),
+        ):
+            run_pipeline(MagicMock())
+
+        messages = [r.getMessage() for r in caplog.records]
+        assert any(
+            f"screening #{screening_id}" in m
+            and "https://i.ibb.co/x/poster.png" in m
+            and "2000x1000" in m
+            and "https://i.ibb.co/y/poster.webp" in m
+            and "1200x600" in m
+            for m in messages
+        )
+
+    def test_logs_details_of_skipped_already_optimized_image(
+        self, app, setup_cinemas, caplog
+    ):
+        screening_id = _create_screening_with_image(
+            app, "loga-skip", "https://i.ibb.co/x/poster.webp", 800, 1200
+        )
+
+        with (
+            app.app_context(),
+            caplog.at_level(
+                logging.DEBUG, logger="flask_backend.service.image_resize_pipeline"
+            ),
+        ):
+            run_pipeline(MagicMock())
+
+        messages = [r.getMessage() for r in caplog.records]
+        assert any(
+            f"screening #{screening_id}" in m
+            and "https://i.ibb.co/x/poster.webp" in m
+            and "800x1200" in m
+            for m in messages
+        )
