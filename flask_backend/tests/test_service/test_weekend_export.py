@@ -1,4 +1,5 @@
 import base64
+import time
 from datetime import date
 from io import BytesIO
 
@@ -10,7 +11,6 @@ from flask_backend.service.weekend_export import (
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
     COVER_BG_COLOR,
-    COVER_POSTER_LOAD_BUDGET_SECONDS,
     COVER_TITLE_TEXT,
     FONT_BOLD_PATH,
     FONT_REGULAR_PATH,
@@ -357,11 +357,19 @@ class TestLoadCoverPosters:
         posters = _load_cover_posters(movies, upload_folder="/uploads")
         assert posters == []
 
-    def test_candidates_beyond_max_cover_tiles_are_never_attempted(self, monkeypatch):
-        attempted = []
+    def test_reaches_success_cap_by_drawing_from_the_full_candidate_list(
+        self, monkeypatch
+    ):
+        """The first batch of candidates (more than MAX_COVER_TILES of them)
+        all fail; only candidates past that batch succeed. The loader must
+        keep drawing from the full movie list - not just a pre-truncated
+        first MAX_COVER_TILES - to still reach the success cap."""
+        failing_batch_size = MAX_COVER_TILES + 5
 
         def fake_load(image_path, _upload_folder):
-            attempted.append(image_path)
+            index = int(image_path.rsplit("/", 1)[-1].split(".")[0])
+            if index < failing_batch_size:
+                return None
             return _fake_poster_bytes()
 
         monkeypatch.setattr(
@@ -369,53 +377,34 @@ class TestLoadCoverPosters:
         )
         movies = [
             CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
-            for i in range(MAX_COVER_TILES + 5)
+            for i in range(failing_batch_size + MAX_COVER_TILES)
         ]
         posters = _load_cover_posters(movies, upload_folder="/uploads")
         assert len(posters) == MAX_COVER_TILES
-        assert len(attempted) == MAX_COVER_TILES
 
-    def test_poster_load_budget_stops_further_network_attempts(self, monkeypatch):
+    def test_poster_load_budget_returns_whatever_completed_in_time(self, monkeypatch):
         """Once the wall-clock budget for the poster-loading pass is
-        exceeded, remaining candidates must be skipped without even
-        attempting _load_poster_bytes - proving a slow/hanging image host
-        can't pin the whole loop for candidate_count * timeout."""
-        call_count = 0
+        exceeded, the loader must stop waiting and return whichever posters
+        already finished - proving a slow/hanging image host can't pin the
+        whole call indefinitely."""
+        monkeypatch.setattr(weekend_export, "COVER_POSTER_LOAD_BUDGET_SECONDS", 0.2)
 
-        def fake_load(_image_path, _upload_folder):
-            nonlocal call_count
-            call_count += 1
+        def fake_load(image_path, _upload_folder):
+            if image_path.endswith("hangs.jpg"):
+                time.sleep(2)
             return _fake_poster_bytes()
-
-        # time.monotonic() is called once for start_time, then once per
-        # candidate as a budget check before attempting its load. The
-        # first two budget checks (candidates 0 and 1) report 0s elapsed,
-        # so those load normally; the third check (candidate 2) reports
-        # elapsed time past the budget, so candidates 2 and 3 are skipped
-        # without ever calling _load_poster_bytes.
-        monotonic_values = iter([0.0, 0.0, 0.0, COVER_POSTER_LOAD_BUDGET_SECONDS + 1])
-
-        def fake_monotonic():
-            try:
-                return next(monotonic_values)
-            except StopIteration:
-                return COVER_POSTER_LOAD_BUDGET_SECONDS + 1
 
         monkeypatch.setattr(
             "flask_backend.service.weekend_export._load_poster_bytes", fake_load
         )
-        monkeypatch.setattr(
-            "flask_backend.service.weekend_export.time.monotonic", fake_monotonic
-        )
 
         movies = [
-            CoverMovie(movie_id=i, image_path=f"/screening/assets/{i}.jpg")
-            for i in range(4)
+            CoverMovie(movie_id=0, image_path="/screening/assets/fast.jpg"),
+            CoverMovie(movie_id=1, image_path="/screening/assets/hangs.jpg"),
         ]
         posters = _load_cover_posters(movies, upload_folder="/uploads")
 
-        assert call_count == 2
-        assert len(posters) == 2
+        assert len(posters) == 1
 
 
 class TestComposePosterGrid:

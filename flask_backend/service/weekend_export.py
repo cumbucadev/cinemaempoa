@@ -5,7 +5,7 @@ numbered images when its screening list doesn't fit in a single image."""
 import base64
 import logging
 import os
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import date
 from functools import lru_cache
@@ -67,13 +67,14 @@ WATERMARK_TEXT = "cinemaempoa.com.br"
 COVER_TITLE_TEXT = "Programação Final de Semana"
 FONT_SIZE_COVER_TITLE = 64
 FONT_SIZE_COVER_SUBTITLE = 34
-COVER_BLUR_RADIUS = 6
+COVER_BLUR_RADIUS = 4
 COVER_SCRIM_PEAK_ALPHA = 170
 COVER_BG_COLOR = (25, 25, 25)
 
-POSTER_LOAD_TIMEOUT_SECONDS = 3
-COVER_POSTER_LOAD_BUDGET_SECONDS = 60
+POSTER_LOAD_TIMEOUT_SECONDS = 5
+COVER_POSTER_LOAD_BUDGET_SECONDS = 15
 MAX_COVER_TILES = 25
+POSTER_LOAD_POOL_SIZE = 8
 
 DAY_DEFS = [
     ("friday", "Sexta-feira"),
@@ -369,38 +370,62 @@ def _cover_crop(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
     return img.resize((target_w, target_h), Image.LANCZOS)
 
 
+def _load_and_decode_poster(
+    movie: CoverMovie, upload_folder: str
+) -> Optional[Image.Image]:
+    """Downloads and decodes a single candidate's poster. Returns None on
+    any download or decode failure (logged) rather than raising, so one bad
+    poster never breaks the whole cover image."""
+    poster_bytes = _load_poster_bytes(movie.image_path, upload_folder)
+    if poster_bytes is None:
+        return None
+    try:
+        return Image.open(BytesIO(poster_bytes)).convert("RGB")
+    except Exception as exc:
+        logger.warning(
+            "Poster inválido para o filme %d na capa do fim de semana: %s",
+            movie.movie_id,
+            exc,
+        )
+        return None
+
+
 def _load_cover_posters(
     movies: List[CoverMovie], upload_folder: str
 ) -> List[Image.Image]:
-    """Loads and decodes up to MAX_COVER_TILES candidate posters, in
-    weekend order, bounded by COVER_POSTER_LOAD_BUDGET_SECONDS of
-    wall-clock time so a slow/hanging image host can't pin the request
-    indefinitely - once the budget is exceeded, remaining candidates are
-    skipped without attempting them. A poster that fails to download or
-    fails to decode is skipped (logged) rather than counted, so the caller
-    sizes the grid to exactly how many posters actually loaded - a movie
-    with an unusable poster never becomes a blank cell."""
+    """Downloads and decodes candidate posters in parallel (up to
+    POSTER_LOAD_POOL_SIZE at a time), drawing from the full movie list -
+    not just the first MAX_COVER_TILES - so a run of broken posters early
+    in weekend order doesn't starve the grid. Order doesn't matter here:
+    the caller only cares about ending up with as many usable posters as
+    possible, as fast as possible. Stops as soon as MAX_COVER_TILES
+    posters have loaded, cancelling any candidates still queued. The whole
+    pass is bounded by COVER_POSTER_LOAD_BUDGET_SECONDS of wall-clock time
+    so a slow/hanging image host can't pin the request indefinitely -
+    whatever has already loaded by then is returned."""
     posters: List[Image.Image] = []
-    start_time = time.monotonic()
-    for movie in movies[:MAX_COVER_TILES]:
-        if time.monotonic() - start_time >= COVER_POSTER_LOAD_BUDGET_SECONDS:
+    executor = ThreadPoolExecutor(max_workers=POSTER_LOAD_POOL_SIZE)
+    try:
+        futures = [
+            executor.submit(_load_and_decode_poster, movie, upload_folder)
+            for movie in movies
+        ]
+        try:
+            for future in as_completed(
+                futures, timeout=COVER_POSTER_LOAD_BUDGET_SECONDS
+            ):
+                poster = future.result()
+                if poster is not None:
+                    posters.append(poster)
+                    if len(posters) >= MAX_COVER_TILES:
+                        break
+        except TimeoutError:
             logger.warning(
                 "Orçamento de tempo para carregar posters da capa do fim de "
-                "semana excedido; pulando os candidatos restantes."
+                "semana excedido; usando os posters já carregados."
             )
-            break
-
-        poster_bytes = _load_poster_bytes(movie.image_path, upload_folder)
-        if poster_bytes is None:
-            continue
-        try:
-            posters.append(Image.open(BytesIO(poster_bytes)).convert("RGB"))
-        except Exception as exc:
-            logger.warning(
-                "Poster inválido para o filme %d na capa do fim de semana: %s",
-                movie.movie_id,
-                exc,
-            )
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
     return posters
 
