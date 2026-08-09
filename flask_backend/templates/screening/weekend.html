@@ -20,8 +20,6 @@
 {% endblock header %}
 {% block content %}
     <p>Filmes que vão passar nos cinemas alternativos de Porto Alegre nesse fim de semana (sexta, sábado e domingo).</p>
-    <a href="{{ url_for("screening.weekend_export") }}"
-       class="btn btn-sm btn-outline-secondary mb-3">Gerar imagens para Instagram</a>
     {% set friday_screenings = [] %}
     {% set saturday_screenings = [] %}
     {% set sunday_screenings = [] %}

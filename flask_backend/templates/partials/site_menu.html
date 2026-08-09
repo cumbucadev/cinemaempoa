@@ -68,6 +68,10 @@
                    href="{{ url_for("admin_pipelines.index") }}">Pipelines</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.path == url_for("admin_weekend.index") %}active{% endif %}"
+                   href="{{ url_for("admin_weekend.index") }}">Programação FDS (Instagram)</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.path == url_for("screening.create") %}active{% endif %}"
                    href="{{ url_for("screening.create") }}">Nova sessão</a>
             </li>

@@ -180,6 +180,10 @@
                                    href="{{ url_for("admin_inspections.index") }}">Inspeções de Filmes</a>
                             </li>
                             <li>
+                                <a class="dropdown-item {% if request.path == url_for('admin_weekend.index') %}active{% endif %}"
+                                   href="{{ url_for("admin_weekend.index") }}">Programação FDS (Instagram)</a>
+                            </li>
+                            <li>
                                 <a class="dropdown-item {% if request.path == url_for('screening.create') %}active{% endif %}"
                                    href="{{ url_for("screening.create") }}">Nova sessão</a>
                             </li>
