@@ -1,4 +1,5 @@
 import io
+import os
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -655,6 +656,27 @@ class TestSaveImage:
             save_image(fake_file, fake_app)
         _, _, called_filename = mock_local.call_args[0]
         assert called_filename == "no-extension.webp"
+
+    def test_real_bytes_survive_full_local_disk_pipeline(self, tmp_path):
+        """End-to-end (no resize_for_display/upload_image_to_local_disk
+        mocking): proves real image bytes actually survive
+        save_image() -> resize_for_display() -> BytesIO ->
+        upload_image_to_local_disk() and land on disk as a readable webp
+        file, whose dimensions match what's returned."""
+        source_bytes = _make_png_bytes(width=50, height=30)
+        fake_file = io.BytesIO(source_bytes)
+        fake_file.filename = "poster.png"
+        fake_app = MagicMock()
+        fake_app.config.get.return_value = str(tmp_path)
+
+        result_url, width, height = save_image(fake_file, fake_app)
+
+        assert result_url.endswith(".webp")
+        saved_path = tmp_path / os.path.basename(result_url)
+        assert saved_path.exists()
+
+        with Image.open(saved_path) as saved_image:
+            assert saved_image.size == (width, height)
 
 
 class TestDownloadImageFromUrl:
