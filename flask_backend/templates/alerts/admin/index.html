@@ -211,6 +211,10 @@
                         </div>
                         <div class="modal-body">
                             <input type="hidden" name="status" id="alertActionModalStatus">
+                            <input type="hidden" name="cinema" value="{{ cinema or '' }}">
+                            <input type="hidden" name="categoria" value="{{ categoria or '' }}">
+                            <input type="hidden" name="page" value="{{ curr_page }}">
+                            <input type="hidden" name="limit" value="{{ limit }}">
                             <label for="alertActionModalRemindAt" class="form-label">Lembrar em (opcional)</label>
                             <input type="date"
                                    name="remind_at"

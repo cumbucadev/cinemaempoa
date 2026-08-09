@@ -134,7 +134,14 @@ def mark_posted(screening_id):
     flash("Marcado como postado!", "success")
 
     return redirect(
-        url_for("admin_alerts.index", status=request.form.get("status", "pending"))
+        url_for(
+            "admin_alerts.index",
+            status=request.form.get("status", "pending"),
+            cinema=request.form.get("cinema") or None,
+            categoria=request.form.get("categoria") or None,
+            page=request.form.get("page") or None,
+            limit=request.form.get("limit") or None,
+        )
     )
 
 
@@ -155,5 +162,12 @@ def dismiss(screening_id):
     flash("Descartado.", "success")
 
     return redirect(
-        url_for("admin_alerts.index", status=request.form.get("status", "pending"))
+        url_for(
+            "admin_alerts.index",
+            status=request.form.get("status", "pending"),
+            cinema=request.form.get("cinema") or None,
+            categoria=request.form.get("categoria") or None,
+            page=request.form.get("page") or None,
+            limit=request.form.get("limit") or None,
+        )
     )
