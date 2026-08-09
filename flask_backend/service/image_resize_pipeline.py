@@ -9,14 +9,20 @@ Usage (via CLI):
 """
 
 import logging
+import os
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Optional
 from urllib.parse import urlparse
 
 from flask_backend.db import db_session
 from flask_backend.repository.cinemas import get_cinemas_with_photo
 from flask_backend.repository.screenings import get_screenings_with_image
-from flask_backend.service.screening import download_image_from_url, save_image
+from flask_backend.service.screening import (
+    download_image_from_url,
+    get_img_path_from_filename,
+    save_image,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +51,17 @@ def _is_already_processed(
 
 
 def _reprocess(url: str, current_app):
-    image_bytes, filename = download_image_from_url(url)
-    if image_bytes is None:
-        raise RuntimeError(f"Falha ao baixar imagem: {url}")
+    if url.startswith("http://") or url.startswith("https://"):
+        image_bytes, filename = download_image_from_url(url)
+        if image_bytes is None:
+            raise RuntimeError(f"Falha ao baixar imagem: {url}")
+    else:
+        filename = os.path.basename(url)
+        img_path = get_img_path_from_filename(filename, current_app)
+        if img_path is None:
+            raise RuntimeError(f"Arquivo local não encontrado: {url}")
+        with open(img_path, "rb") as f:
+            image_bytes = BytesIO(f.read())
     return save_image(image_bytes, current_app, filename)
 
 

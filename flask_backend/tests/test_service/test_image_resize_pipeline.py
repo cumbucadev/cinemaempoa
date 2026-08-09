@@ -1,6 +1,6 @@
 import io
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, Screening, ScreeningDate
@@ -200,6 +200,67 @@ class TestRunPipeline:
             result = run_pipeline(MagicMock(), limit=1)
 
         assert result.processed == 1
+
+    def test_reprocesses_screening_with_relative_local_image_path(
+        self, app, setup_cinemas, tmp_path
+    ):
+        screening_id = _create_screening_with_image(
+            app, "local-relativa", "/screening/assets/poster.png", 2000, 1000
+        )
+        local_file = tmp_path / "poster.png"
+        local_file.write_bytes(b"local-bytes")
+
+        with (
+            app.app_context(),
+            patch(
+                "flask_backend.service.image_resize_pipeline.get_img_path_from_filename",
+                return_value=str(local_file),
+            ) as mock_get_path,
+            patch(
+                "flask_backend.service.image_resize_pipeline.download_image_from_url"
+            ) as mock_download,
+            patch(
+                "flask_backend.service.image_resize_pipeline.save_image",
+                return_value=("/screening/assets/poster.webp", 1200, 600),
+            ) as mock_save,
+        ):
+            result = run_pipeline(MagicMock())
+
+        mock_download.assert_not_called()
+        mock_get_path.assert_called_once_with("poster.png", ANY)
+        mock_save.assert_called_once()
+        assert result.resized == 1
+        assert result.errors == 0
+        with app.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.image == "/screening/assets/poster.webp"
+
+    def test_relative_local_image_missing_file_increments_errors(
+        self, app, setup_cinemas
+    ):
+        _create_screening_with_image(
+            app, "local-ausente", "/screening/assets/missing.png", 2000, 1000
+        )
+
+        with (
+            app.app_context(),
+            patch(
+                "flask_backend.service.image_resize_pipeline.get_img_path_from_filename",
+                return_value=None,
+            ),
+            patch(
+                "flask_backend.service.image_resize_pipeline.download_image_from_url"
+            ) as mock_download,
+            patch(
+                "flask_backend.service.image_resize_pipeline.save_image"
+            ) as mock_save,
+        ):
+            result = run_pipeline(MagicMock())
+
+        mock_download.assert_not_called()
+        mock_save.assert_not_called()
+        assert result.errors == 1
+        assert result.resized == 0
 
     def test_reprocesses_cinema_photo(self, app, setup_cinemas):
         with app.app_context():
