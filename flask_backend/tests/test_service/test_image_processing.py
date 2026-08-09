@@ -92,3 +92,22 @@ class TestResizeForDisplay:
 
         image = Image.open(io.BytesIO(result))
         assert image.size == (675, 1200)
+
+    def test_applies_exif_orientation_before_resizing(self):
+        # Source is landscape (200x100). EXIF orientation 6 ("rotate 90 CW
+        # to display correctly") means a viewer honoring EXIF renders this
+        # as a 100x200 portrait image. resize_for_display must bake that
+        # rotation into the pixels (via ImageOps.exif_transpose) before
+        # resizing/encoding, since WebP output carries no EXIF orientation.
+        buffer = io.BytesIO()
+        img = Image.new("RGB", (200, 100), color=(120, 60, 200))
+        exif = Image.Exif()
+        exif[0x0112] = 6  # Orientation tag
+        img.save(buffer, format="JPEG", exif=exif)
+        buffer.seek(0)
+        source = buffer.read()
+
+        result = resize_for_display(source, max_dimension=1200)
+
+        image = Image.open(io.BytesIO(result))
+        assert image.size == (100, 200)

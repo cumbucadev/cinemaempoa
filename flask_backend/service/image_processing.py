@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 # Modes WebP can't encode directly (or that would lose information encoding
 # it directly, e.g. palette-indexed) - flatten to RGBA first.
@@ -19,6 +19,7 @@ def resize_for_display(
     """
     image = Image.open(BytesIO(image_bytes))
     image.load()
+    image = ImageOps.exif_transpose(image)
 
     if image.mode in _MODES_NEEDING_CONVERSION or image.mode not in ("RGB", "RGBA"):
         image = image.convert("RGBA")
