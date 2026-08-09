@@ -4,6 +4,9 @@ from unittest.mock import patch
 
 from flask_backend.db import db_session
 from flask_backend.models import PipelineRun, Screening
+from flask_backend.service.image_resize_pipeline import (
+    ResizePipelineResult,
+)
 from flask_backend.service.movie_inspector import (
     PipelineResult as InspectionPipelineResult,
 )
@@ -354,6 +357,82 @@ class TestFetchPostersCommand:
             assert run.status == "error"
             assert run.error_message
             assert "tmdb indisponível" in run.error_message
+
+
+class TestResizeImagesCommand:
+    def test_prints_summary(self, runner):
+        result_obj = ResizePipelineResult(
+            processed=5, resized=3, skipped_already_processed=1, errors=1
+        )
+        with patch(
+            "flask_backend.service.image_resize_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            result = runner.invoke(args=["resize-images"])
+        assert "Processadas:            5" in result.output
+        assert "Reprocessadas:          3" in result.output
+        assert "Já otimizadas (pulado): 1" in result.output
+        assert "Erros:                  1" in result.output
+
+    def test_dry_run_prints_notice(self, runner):
+        result_obj = ResizePipelineResult()
+        with patch(
+            "flask_backend.service.image_resize_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            result = runner.invoke(args=["resize-images", "--dry-run"])
+        assert "Modo dry-run" in result.output
+
+    def test_creates_pipeline_run_with_success_status(self, app, runner):
+        result_obj = ResizePipelineResult(processed=3, resized=3, errors=0)
+        with patch(
+            "flask_backend.service.image_resize_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["resize-images"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="resize-images")
+                .one()
+            )
+            assert run.status == "success"
+
+    def test_creates_pipeline_run_with_warning_status_on_errors(self, app, runner):
+        result_obj = ResizePipelineResult(processed=3, resized=1, errors=2)
+        with patch(
+            "flask_backend.service.image_resize_pipeline.run_pipeline",
+            return_value=result_obj,
+        ):
+            runner.invoke(args=["resize-images"])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="resize-images")
+                .one()
+            )
+            assert run.status == "warning"
+
+    def test_creates_pipeline_run_with_error_status_on_exception(self, app, runner):
+        with patch(
+            "flask_backend.service.image_resize_pipeline.run_pipeline",
+            side_effect=RuntimeError("falha ao reprocessar"),
+        ):
+            result = runner.invoke(args=["resize-images"])
+
+        assert result.exception is not None
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="resize-images")
+                .one()
+            )
+            assert run.status == "error"
+            assert run.error_message
+            assert "falha ao reprocessar" in run.error_message
 
 
 class TestPosterReviewCommand:
