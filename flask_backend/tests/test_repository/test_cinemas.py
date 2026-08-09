@@ -2,7 +2,7 @@
 Tests flask_backend/repository/cinemas.py.
 """
 
-from flask_backend.repository.cinemas import get_by_slug, update
+from flask_backend.repository.cinemas import get_by_slug, get_cinemas_with_photo, update
 
 
 class TestUpdateCinema:
@@ -44,3 +44,23 @@ class TestUpdateCinema:
             assert updated.photo == "old.png"
             assert updated.photo_width == 100
             assert updated.photo_height == 200
+
+
+class TestGetCinemasWithPhoto:
+    def test_returns_only_cinemas_with_photo_set(self, app, setup_cinemas):
+        with app.app_context():
+            cinema = get_by_slug("capitolio")
+            update(
+                cinema,
+                name=cinema.name,
+                url=cinema.url,
+                photo="https://i.ibb.co/x/capitolio.webp",
+                photo_width=900,
+                photo_height=600,
+            )
+
+            result = get_cinemas_with_photo()
+
+        result_slugs = {c.slug for c in result}
+        assert "capitolio" in result_slugs
+        assert "sala-redencao" not in result_slugs

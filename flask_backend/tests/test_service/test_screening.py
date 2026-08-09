@@ -1,4 +1,5 @@
 import io
+import os
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -532,18 +533,27 @@ class TestValidateImage:
 
 class TestSaveImage:
     def test_development_env_saves_locally(self):
-        fake_file = MagicMock()
+        fake_file = io.BytesIO(b"original-bytes")
+        fake_file.filename = "poster.png"
         fake_app = MagicMock()
-        with patch(
-            "flask_backend.service.screening.upload_image_to_local_disk",
-            return_value=("local.png", 10, 20),
-        ) as mock_local:
+        with (
+            patch(
+                "flask_backend.service.screening.resize_for_display",
+                return_value=b"webp-bytes",
+            ) as mock_resize,
+            patch(
+                "flask_backend.service.screening.upload_image_to_local_disk",
+                return_value=("local.webp", 10, 20),
+            ) as mock_local,
+        ):
             result = save_image(fake_file, fake_app)
+        mock_resize.assert_called_once_with(b"original-bytes")
         mock_local.assert_called_once()
-        assert result == ("local.png", 10, 20)
+        assert result == ("local.webp", 10, 20)
 
     def test_production_env_uploads_to_api(self):
-        fake_file = MagicMock()
+        fake_file = io.BytesIO(b"original-bytes")
+        fake_file.filename = "poster.png"
         fake_app = MagicMock()
         with (
             patch(
@@ -551,23 +561,32 @@ class TestSaveImage:
                 EnvironmentEnum.PRODUCTION,
             ),
             patch(
+                "flask_backend.service.screening.resize_for_display",
+                return_value=b"webp-bytes",
+            ),
+            patch(
                 "flask_backend.service.screening.upload_image_to_api",
-                return_value=("https://imgbb.example/x.png", 30, 40),
+                return_value=("https://imgbb.example/x.webp", 30, 40),
             ) as mock_api,
         ):
             result = save_image(fake_file, fake_app)
         mock_api.assert_called_once()
-        assert result == ("https://imgbb.example/x.png", 30, 40)
+        assert result == ("https://imgbb.example/x.webp", 30, 40)
 
     def test_production_env_falls_back_to_local_on_http_error(self):
         import requests
 
-        fake_file = MagicMock()
+        fake_file = io.BytesIO(b"original-bytes")
+        fake_file.filename = "poster.png"
         fake_app = MagicMock()
         with (
             patch(
                 "flask_backend.service.screening.APP_ENVIRONMENT",
                 EnvironmentEnum.PRODUCTION,
+            ),
+            patch(
+                "flask_backend.service.screening.resize_for_display",
+                return_value=b"webp-bytes",
             ),
             patch(
                 "flask_backend.service.screening.upload_image_to_api",
@@ -575,12 +594,89 @@ class TestSaveImage:
             ),
             patch(
                 "flask_backend.service.screening.upload_image_to_local_disk",
-                return_value=("fallback.png", 5, 6),
+                return_value=("fallback.webp", 5, 6),
             ) as mock_local,
         ):
             result = save_image(fake_file, fake_app)
         mock_local.assert_called_once()
-        assert result == ("fallback.png", 5, 6)
+        assert result == ("fallback.webp", 5, 6)
+
+    def test_converts_filename_extension_to_webp_using_file_attribute(self):
+        fake_file = io.BytesIO(b"original-bytes")
+        fake_file.filename = "poster.png"
+        fake_app = MagicMock()
+        with (
+            patch(
+                "flask_backend.service.screening.resize_for_display",
+                return_value=b"webp-bytes",
+            ),
+            patch(
+                "flask_backend.service.screening.upload_image_to_local_disk",
+                return_value=("local.webp", 10, 20),
+            ) as mock_local,
+        ):
+            save_image(fake_file, fake_app)
+        called_file, called_app, called_filename = mock_local.call_args[0]
+        assert called_filename == "poster.webp"
+        assert called_app is fake_app
+        assert called_file.read() == b"webp-bytes"
+
+    def test_explicit_filename_argument_overrides_file_attribute(self):
+        fake_file = io.BytesIO(b"original-bytes")
+        fake_file.filename = "ignored.png"
+        fake_app = MagicMock()
+        with (
+            patch(
+                "flask_backend.service.screening.resize_for_display",
+                return_value=b"webp-bytes",
+            ),
+            patch(
+                "flask_backend.service.screening.upload_image_to_local_disk",
+                return_value=("local.webp", 1, 1),
+            ) as mock_local,
+        ):
+            save_image(fake_file, fake_app, filename="explicit.jpg")
+        _, _, called_filename = mock_local.call_args[0]
+        assert called_filename == "explicit.webp"
+
+    def test_filename_without_extension_still_gets_webp_suffix(self):
+        fake_file = io.BytesIO(b"original-bytes")
+        fake_file.filename = "no-extension"
+        fake_app = MagicMock()
+        with (
+            patch(
+                "flask_backend.service.screening.resize_for_display",
+                return_value=b"webp-bytes",
+            ),
+            patch(
+                "flask_backend.service.screening.upload_image_to_local_disk",
+                return_value=("local.webp", 1, 1),
+            ) as mock_local,
+        ):
+            save_image(fake_file, fake_app)
+        _, _, called_filename = mock_local.call_args[0]
+        assert called_filename == "no-extension.webp"
+
+    def test_real_bytes_survive_full_local_disk_pipeline(self, tmp_path):
+        """End-to-end (no resize_for_display/upload_image_to_local_disk
+        mocking): proves real image bytes actually survive
+        save_image() -> resize_for_display() -> BytesIO ->
+        upload_image_to_local_disk() and land on disk as a readable webp
+        file, whose dimensions match what's returned."""
+        source_bytes = _make_png_bytes(width=50, height=30)
+        fake_file = io.BytesIO(source_bytes)
+        fake_file.filename = "poster.png"
+        fake_app = MagicMock()
+        fake_app.config.get.return_value = str(tmp_path)
+
+        result_url, width, height = save_image(fake_file, fake_app)
+
+        assert result_url.endswith(".webp")
+        saved_path = tmp_path / os.path.basename(result_url)
+        assert saved_path.exists()
+
+        with Image.open(saved_path) as saved_image:
+            assert saved_image.size == (width, height)
 
 
 class TestDownloadImageFromUrl:

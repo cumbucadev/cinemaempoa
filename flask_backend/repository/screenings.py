@@ -387,3 +387,15 @@ def get_latest_screening_images_for_movies(
             latest[screening.movie_id] = (screening, last_shown)
 
     return {movie_id: screening for movie_id, (screening, _) in latest.items()}
+
+
+def get_screenings_with_image() -> List[Screening]:
+    """Return screenings that have an image set. Used by the resize-images
+    backfill (flask_backend.service.image_resize_pipeline) to find
+    candidates for reprocessing."""
+    return (
+        db_session.query(Screening)
+        .filter(Screening.image.isnot(None), Screening.image != "")
+        .order_by(Screening.id)
+        .all()
+    )

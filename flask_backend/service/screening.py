@@ -30,6 +30,7 @@ from flask_backend.repository.screenings import (
     update_screening_dates,
     update_title_cleaning_info,
 )
+from flask_backend.service.image_processing import resize_for_display
 from flask_backend.service.shared import is_screening_date_upcoming
 from flask_backend.service.title_cleaning import clean_title
 from flask_backend.service.upload import upload_image_to_api, upload_image_to_local_disk
@@ -87,18 +88,29 @@ def validate_image(file) -> tuple[bool, str]:
 
 
 def save_image(file, app, filename: Optional[str] = None) -> Tuple[str, int, int]:
-    """Saves the received `file` into disk or uploads it to imgBB API,
-    depending on the current environment"""
+    """Resizes the received `file` for display (see resize_for_display), then
+    saves it into disk or uploads it to imgBB API, depending on the current
+    environment"""
+    source_filename = filename or getattr(file, "filename", None)
+    resized_bytes = resize_for_display(file.read())
+    resized_file = BytesIO(resized_bytes)
+    webp_filename = _to_webp_filename(source_filename)
+
     # always save images locally on development
     if APP_ENVIRONMENT != EnvironmentEnum.PRODUCTION:
-        return upload_image_to_local_disk(file, app, filename)
+        return upload_image_to_local_disk(resized_file, app, webp_filename)
     # on production, attempt to save to the imgBB API
     try:
-        return upload_image_to_api(app, file)
+        return upload_image_to_api(app, resized_file)
     # on failure, save locally
     except requests.exceptions.HTTPError:
-        file.seek(0)
-        return upload_image_to_local_disk(file, app, filename)
+        resized_file.seek(0)
+        return upload_image_to_local_disk(resized_file, app, webp_filename)
+
+
+def _to_webp_filename(filename: Optional[str]) -> str:
+    base = filename.rsplit(".", 1)[0] if filename and "." in filename else filename
+    return f"{base or 'image'}.webp"
 
 
 def build_dates(screening_dates: List[str]) -> List[ScreeningDate]:
