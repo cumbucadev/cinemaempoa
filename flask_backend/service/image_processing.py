@@ -14,8 +14,8 @@ def resize_for_display(
     pixels (never upscaling smaller images) and re-encodes it as WebP.
 
     This is the single normalization point every image the app stores
-    passes through - see issue #229 and
-    docs/superpowers/specs/2026-08-08-poster-image-resize-design.md.
+    passes through - see issue #229 and the design rationale at
+    https://github.com/cumbucadev/cinemaempoa/pull/313#issuecomment-5229285256.
     """
     image = Image.open(BytesIO(image_bytes))
     image.load()
