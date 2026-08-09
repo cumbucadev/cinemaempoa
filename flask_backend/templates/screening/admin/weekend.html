@@ -25,6 +25,21 @@
     <p>
         Imagens prontas para compartilhar no Instagram. Toque e segure (ou clique com o botão direito) em cada imagem para salvar.
     </p>
+    {% if cover_image_base64 %}
+        <div class="mb-5">
+            <h3 class="mb-3">Capa</h3>
+            <figure class="mb-0">
+                {# djlint:off #}
+                <img src="data:image/png;base64,{{ cover_image_base64 }}"
+                     alt="Capa da programação de fim de semana"
+                     width="1080"
+                     height="1350"
+                     class="img-fluid border rounded"
+                     style="max-width: 360px;">
+                {# djlint:on #}
+            </figure>
+        </div>
+    {% endif %}
     {% for day_export in day_exports %}
         <div class="mb-5">
             <h3 class="mb-3">{{ day_export.day_label }} {{ day_export.day_date.strftime("%d/%m") }}</h3>

@@ -89,6 +89,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(admin_inspections.bp)
 
+    from .routes.admin import weekend as admin_weekend
+
+    app.register_blueprint(admin_weekend.bp)
+
     from .routes import page
 
     app.register_blueprint(page.bp)
