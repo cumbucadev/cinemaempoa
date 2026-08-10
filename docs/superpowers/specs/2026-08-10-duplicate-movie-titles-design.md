@@ -73,15 +73,10 @@ currently lines 435-461): accept a new boolean field in the JSON payload,
 `get_movie_by_title_or_create(new_title)`, then `reattach_movie` as today.
 Plain `new_title` without the flag is unchanged.
 
-**Slug upgrade on metadata fetch**, `flask_backend/service/movie_metadata_pipeline.py`
-(`apply_tmdb_details`, lines 79-124): after setting `movie.release_year`, if
-the movie's current slug is not the canonical slug for its title
-(`movie.slug != slugify(movie.title)` — true only for a `create_distinct`-born
-duplicate) and `f"{slugify(movie.title)}-{release_year}"` is not already
-taken by another movie, rename `movie.slug` to that value. Otherwise leave
-the numeric-suffix slug as-is. No redirect is created for the old
-numeric-suffix URL — it simply stops resolving, which is acceptable since the
-movie was only just created and has few if any external links yet.
+The numeric-suffix slug (`foo-2`, `foo-3`, ...) is permanent — it is not
+upgraded to a year-based slug later when TMDB metadata is fetched. This
+keeps the change minimal: one code path decides the slug, once, at creation
+time.
 
 **Side effect (no code change, but worth a regression test):** because the
 two movies now have genuinely different slugs, `run-dedupper` — which groups
@@ -117,10 +112,6 @@ same confirm-before-submit pattern already in the file.
   movie even when an exact-title movie exists, and reattaches the screening
   to the *new* movie, not the existing one. Without the flag, behavior is
   unchanged.
-- Metadata pipeline test for the slug upgrade: a `create_distinct`-born movie
-  (`slug="foo-2"`) that gets `release_year=2015` via `apply_tmdb_details` →
-  slug becomes `foo-2015` if free; stays `foo-2` if `foo-2015` is already
-  taken.
 - Dedupper regression test: two movies with the same title but disambiguated
   slugs are not merged by `run-dedupper`.
 
