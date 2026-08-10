@@ -3,6 +3,7 @@ from flask_backend.models import Movie
 from flask_backend.repository import pipeline_runs
 from flask_backend.repository.movies import (
     create,
+    create_distinct,
     get_by_title_or_create,
     get_movies_with_similar_titles,
 )
@@ -87,3 +88,46 @@ class TestGetMoviesWithSimilarTitles:
             )
 
             assert [m.id for m in results] == [keep.id]
+
+
+class TestCreateDistinct:
+    def test_creates_a_new_movie_with_base_slug_when_none_exists(self, app):
+        with app.app_context():
+            movie = create_distinct("Filme Único")
+
+            assert movie.id is not None
+            assert movie.slug == "filme-unico"
+
+    def test_disambiguates_slug_on_first_collision(self, app):
+        with app.app_context():
+            first = create_distinct("Filme Repetido")
+            second = create_distinct("Filme Repetido")
+
+            assert second.id != first.id
+            assert first.slug == "filme-repetido"
+            assert second.slug == "filme-repetido-2"
+
+    def test_disambiguates_slug_on_second_collision(self, app):
+        with app.app_context():
+            create_distinct("Filme Triplo")
+            create_distinct("Filme Triplo")
+            third = create_distinct("Filme Triplo")
+
+            assert third.slug == "filme-triplo-3"
+
+    def test_both_movies_keep_the_same_title(self, app):
+        with app.app_context():
+            first = create_distinct("Filme Igual")
+            second = create_distinct("Filme Igual")
+
+            assert first.title == second.title == "Filme Igual"
+            assert db_session.query(Movie).filter_by(title="Filme Igual").count() == 2
+
+    def test_threads_pipeline_run_id_through_to_the_created_movie(self, app):
+        with app.app_context():
+            run = pipeline_runs.start("import-json")
+            movie = create_distinct(
+                "Filme Via Pipeline Distinto", pipeline_run_id=run.id
+            )
+
+            assert movie.pipeline_run_id == run.id

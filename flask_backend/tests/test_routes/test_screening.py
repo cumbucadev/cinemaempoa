@@ -542,6 +542,82 @@ class TestScreeningChangeMovie:
                 db_session.query(Movie).filter_by(slug="filme-existente").count() == 1
             )
 
+    def test_creates_a_second_movie_when_forced_despite_matching_title(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo 4")
+            existing = Movie(title="Filme Colidido", slug="filme-colidido")
+            db_session.add(existing)
+            db_session.commit()
+            existing_id = existing.id
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Filme Colidido", "force_new_movie": True},
+        )
+        assert response.status_code == 200
+        new_movie_id = response.get_json()["movie"]["id"]
+        assert new_movie_id != existing_id
+
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie_id == new_movie_id
+            assert screening.movie.slug == "filme-colidido-2"
+            assert (
+                db_session.query(Movie).filter_by(title="Filme Colidido").count() == 2
+            )
+
+    def test_creates_a_second_movie_when_forced_with_own_current_title(
+        self, auth_headers, setup_cinemas
+    ):
+        # covers the "Uma mulher diferente" scenario: the colliding title
+        # belongs to the screening's OWN current movie (one Movie row
+        # wrongly holding two different films), not some other
+        # pre-existing movie. The exact-match search excludes the current
+        # movie (exclude_movie_id), so this case must still work when
+        # forced from the client.
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Uma Mulher Diferente")
+            screening = db_session.get(Screening, screening_id)
+            original_movie_id = screening.movie_id
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Uma Mulher Diferente", "force_new_movie": True},
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        new_movie_id = payload["movie"]["id"]
+        assert new_movie_id != original_movie_id
+        assert payload["movie"]["slug"] == "uma-mulher-diferente-2"
+        assert payload["created"] is True
+
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie_id == new_movie_id
+            assert screening.movie.slug == "uma-mulher-diferente-2"
+            assert (
+                db_session.query(Movie).filter_by(title="Uma Mulher Diferente").count()
+                == 2
+            )
+
+    def test_force_new_movie_without_collision_creates_a_single_movie(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo 5")
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Filme Sem Colisao", "force_new_movie": True},
+        )
+        assert response.status_code == 200
+        with auth_headers.application.app_context():
+            assert (
+                db_session.query(Movie).filter_by(slug="filme-sem-colisao").count() == 1
+            )
+
     def test_is_a_noop_when_target_equals_current_movie(
         self, auth_headers, setup_cinemas
     ):

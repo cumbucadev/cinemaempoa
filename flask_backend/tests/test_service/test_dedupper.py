@@ -194,3 +194,33 @@ class TestDedupper:
 
         with app.app_context():
             assert db_session.query(Movie).filter_by(slug="filme-unico").count() == 1
+
+    def test_does_not_merge_movies_with_disambiguated_slugs(self, app, setup_cinemas):
+        with app.app_context():
+            capitolio_id = _cinema_id("capitolio")
+
+            first = Movie(title="Filme Ambiguo", slug="filme-ambiguo")
+            first.screenings = [
+                Screening(
+                    cinema_id=capitolio_id,
+                    description="primeiro filme com este titulo",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            ]
+            second = Movie(title="Filme Ambiguo", slug="filme-ambiguo-2")
+            second.screenings = [
+                Screening(
+                    cinema_id=capitolio_id,
+                    description="segundo filme, mesmo titulo, filme diferente",
+                    dates=[ScreeningDate(date=date(2026, 8, 2), time="21:00")],
+                )
+            ]
+            db_session.add_all([first, second])
+            db_session.commit()
+            first_id, second_id = first.id, second.id
+
+            dedupper()
+
+            assert db_session.get(Movie, first_id) is not None
+            assert db_session.get(Movie, second_id) is not None
+            assert db_session.query(Movie).filter_by(title="Filme Ambiguo").count() == 2

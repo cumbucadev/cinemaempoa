@@ -329,6 +329,8 @@
 
                 function fetchMovieCandidates() {
                     clearTimeout(trocarFilmeDebounce);
+                    document.getElementById("trocar-filme-confirm").classList.add("d-none");
+                    pendingMovieChange = null;
                     const query = document.getElementById("trocar-filme-query").value.trim();
                     const resultsEl = document.getElementById("trocar-filme-results");
                     resultsEl.innerHTML = "";
@@ -344,10 +346,14 @@
                                 movies.forEach((movie) => {
                                     resultsEl.appendChild(createMovieResultItem(movie));
                                 });
-                                const hasExactMatch = movies.some(
-                                    (movie) => movie.title.trim().toLowerCase() === query.toLowerCase()
-                                );
-                                if (!hasExactMatch) {
+                                const hasExactMatch =
+                                    currentMovieTitle.trim().toLowerCase() === query.toLowerCase() ||
+                                    movies.some(
+                                        (movie) => movie.title.trim().toLowerCase() === query.toLowerCase()
+                                    );
+                                if (hasExactMatch) {
+                                    resultsEl.appendChild(createForceCreateItem(query));
+                                } else {
                                     resultsEl.appendChild(createCreateNewItem(query));
                                 }
                             });
@@ -362,7 +368,7 @@
                     btn.textContent = movie.release_year ? `${movie.title} (${movie.release_year})` : movie.title;
                     btn.addEventListener("click", () => showMovieChangeConfirm({
                         movie_id: movie.id
-                    }, movie.title, false));
+                    }, movie.title, false, false));
                     li.appendChild(btn);
                     return li;
                 }
@@ -375,16 +381,35 @@
                     btn.textContent = `Criar novo filme "${query}"`;
                     btn.addEventListener("click", () => showMovieChangeConfirm({
                         new_title: query
-                    }, query, true));
+                    }, query, true, false));
                     li.appendChild(btn);
                     return li;
                 }
 
-                function showMovieChangeConfirm(change, targetTitle, isNew) {
+                function createForceCreateItem(query) {
+                    const li = document.createElement("li");
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "btn btn-link text-warning";
+                    btn.textContent = `Criar um segundo filme "${query}" (filme diferente)`;
+                    btn.addEventListener("click", () => showMovieChangeConfirm({
+                        new_title: query,
+                        force_new_movie: true
+                    }, query, true, true));
+                    li.appendChild(btn);
+                    return li;
+                }
+
+                function showMovieChangeConfirm(change, targetTitle, isNew, isForceNew) {
                     pendingMovieChange = change;
-                    const text = isNew ?
-                        `Nenhum filme encontrado — será criado um novo filme "${targetTitle}".` :
-                        `Esta sessão será desvinculada de "${currentMovieTitle}" e associada a "${targetTitle}". Outras sessões de "${currentMovieTitle}" não são afetadas.`;
+                    let text;
+                    if (isForceNew) {
+                        text = `Já existe um filme "${targetTitle}" cadastrado. Isso criará um SEGUNDO filme com o mesmo título — use apenas se forem filmes diferentes. Esta sessão será desvinculada de "${currentMovieTitle}".`;
+                    } else if (isNew) {
+                        text = `Nenhum filme encontrado — será criado um novo filme "${targetTitle}".`;
+                    } else {
+                        text = `Esta sessão será desvinculada de "${currentMovieTitle}" e associada a "${targetTitle}". Outras sessões de "${currentMovieTitle}" não são afetadas.`;
+                    }
                     document.getElementById("trocar-filme-confirm-text").textContent = text;
                     document.getElementById("trocar-filme-confirm").classList.remove("d-none");
                 }
