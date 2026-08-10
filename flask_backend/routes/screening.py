@@ -452,16 +452,21 @@ def change_movie(id):
         movie = get_movie_by_id(movie_id)
         if not movie:
             abort(404)
+        created = False
     elif force_new_movie:
         movie = create_distinct_movie(new_title)
+        created = True
     else:
-        movie, _ = get_movie_by_title_or_create(new_title)
+        movie, created = get_movie_by_title_or_create(new_title)
 
     if movie.id != screening.movie_id:
         reattach_movie(screening, movie.id)
 
     return jsonify(
-        {"movie": {"id": movie.id, "title": movie.title, "slug": movie.slug}}
+        {
+            "movie": {"id": movie.id, "title": movie.title, "slug": movie.slug},
+            "created": created,
+        }
     )
 
 

@@ -329,6 +329,8 @@
 
                 function fetchMovieCandidates() {
                     clearTimeout(trocarFilmeDebounce);
+                    document.getElementById("trocar-filme-confirm").classList.add("d-none");
+                    pendingMovieChange = null;
                     const query = document.getElementById("trocar-filme-query").value.trim();
                     const resultsEl = document.getElementById("trocar-filme-results");
                     resultsEl.innerHTML = "";
@@ -344,9 +346,11 @@
                                 movies.forEach((movie) => {
                                     resultsEl.appendChild(createMovieResultItem(movie));
                                 });
-                                const hasExactMatch = movies.some(
-                                    (movie) => movie.title.trim().toLowerCase() === query.toLowerCase()
-                                );
+                                const hasExactMatch =
+                                    currentMovieTitle.trim().toLowerCase() === query.toLowerCase() ||
+                                    movies.some(
+                                        (movie) => movie.title.trim().toLowerCase() === query.toLowerCase()
+                                    );
                                 if (hasExactMatch) {
                                     resultsEl.appendChild(createForceCreateItem(query));
                                 } else {

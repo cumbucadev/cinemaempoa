@@ -99,6 +99,13 @@ def title_cleaning_backfill(apply: bool = False) -> None:
             if entries[0][1].changed:
                 renames.append(entries[0])
         else:
+            # NOTE: groups whose members already have differing slugs (e.g.
+            # "foo" and "foo-2") may be deliberately-disambiguated movies
+            # that were split via the screening "Trocar filme" force-create
+            # path (see create_distinct / force_new_movie in
+            # flask_backend/routes/screening.py) rather than accidental
+            # duplicates. Blindly merging here would silently undo that
+            # repair. Not changed for now — flagged for future attention.
             merge_groups.append((slug, entries))
 
     _print_plan(renames, merge_groups)
