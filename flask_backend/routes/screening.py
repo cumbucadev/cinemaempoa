@@ -24,6 +24,7 @@ from flask_backend.repository.cinemas import (
     get_by_id as get_cinema_by_id,
 )
 from flask_backend.repository.movies import (
+    create_distinct as create_distinct_movie,
     get_by_id as get_movie_by_id,
     get_by_title_or_create as get_movie_by_title_or_create,
 )
@@ -442,6 +443,7 @@ def change_movie(id):
     payload = request.get_json(silent=True) or {}
     movie_id = payload.get("movie_id")
     new_title = payload.get("new_title")
+    force_new_movie = payload.get("force_new_movie", False)
 
     if bool(movie_id) == bool(new_title):
         return jsonify({"error": "Envie exatamente um de movie_id ou new_title."}), 400
@@ -450,6 +452,8 @@ def change_movie(id):
         movie = get_movie_by_id(movie_id)
         if not movie:
             abort(404)
+    elif force_new_movie:
+        movie = create_distinct_movie(new_title)
     else:
         movie, _ = get_movie_by_title_or_create(new_title)
 

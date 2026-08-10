@@ -542,6 +542,48 @@ class TestScreeningChangeMovie:
                 db_session.query(Movie).filter_by(slug="filme-existente").count() == 1
             )
 
+    def test_creates_a_second_movie_when_forced_despite_matching_title(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo 4")
+            existing = Movie(title="Filme Colidido", slug="filme-colidido")
+            db_session.add(existing)
+            db_session.commit()
+            existing_id = existing.id
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Filme Colidido", "force_new_movie": True},
+        )
+        assert response.status_code == 200
+        new_movie_id = response.get_json()["movie"]["id"]
+        assert new_movie_id != existing_id
+
+        with auth_headers.application.app_context():
+            screening = db_session.get(Screening, screening_id)
+            assert screening.movie_id == new_movie_id
+            assert screening.movie.slug == "filme-colidido-2"
+            assert (
+                db_session.query(Movie).filter_by(title="Filme Colidido").count() == 2
+            )
+
+    def test_force_new_movie_without_collision_creates_a_single_movie(
+        self, auth_headers, setup_cinemas
+    ):
+        with auth_headers.application.app_context():
+            screening_id = _create_screening(movie_title="Filme Antigo 5")
+
+        response = auth_headers.post(
+            f"/screening/{screening_id}/movie",
+            json={"new_title": "Filme Sem Colisao", "force_new_movie": True},
+        )
+        assert response.status_code == 200
+        with auth_headers.application.app_context():
+            assert (
+                db_session.query(Movie).filter_by(slug="filme-sem-colisao").count() == 1
+            )
+
     def test_is_a_noop_when_target_equals_current_movie(
         self, auth_headers, setup_cinemas
     ):
