@@ -111,6 +111,16 @@ def get_by_title_or_create(
     return movie, True
 
 
+def create_distinct(title: str, pipeline_run_id: Optional[int] = None) -> Movie:
+    base_slug = slugify(title)
+    slug = base_slug
+    suffix = 2
+    while get_by_slug(slug) is not None:
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
+    return create(title=title, slug=slug, pipeline_run_id=pipeline_run_id)
+
+
 def get_movies_with_similar_titles(
     title: str, exclude_movie_id: Optional[int] = None
 ) -> List[Movie]:
