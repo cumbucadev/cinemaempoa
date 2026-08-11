@@ -2,7 +2,7 @@ import hashlib
 import logging
 import os
 from collections import OrderedDict, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from typing import Dict, List, Optional, Set, Tuple
@@ -19,7 +19,7 @@ from flask_backend.import_json import ScrappedCinema, ScrappedFeature, ScrappedR
 from flask_backend.models import Screening, ScreeningDate
 from flask_backend.repository.cinemas import get_by_slug as get_cinema_by_slug
 from flask_backend.repository.movies import (
-    get_by_title_or_create as get_movie_by_title_or_create,
+    resolve_for_screening as resolve_movie_for_screening,
 )
 from flask_backend.repository.screenings import (
     create as create_screening,
@@ -382,6 +382,7 @@ class ImportSummary:
     movies_created: int
     screenings_created: int
     dates_registered: int
+    ambiguous_collisions: List[dict] = field(default_factory=list)
 
 
 def import_scrapped_results(
@@ -390,6 +391,7 @@ def import_scrapped_results(
     movies_created = 0
     screenings_created = 0
     screenings_with_new_dates: Set[int] = set()
+    ambiguous_collisions: List[dict] = []
     scrapped_cinema: ScrappedCinema
     for scrapped_cinema in scrapped_results.cinemas:
         cinema = get_cinema_by_slug(scrapped_cinema.slug)
@@ -403,8 +405,12 @@ def import_scrapped_results(
                     title_cleaning_result.cleaned_title,
                     ", ".join(title_cleaning_result.matched_rules),
                 )
-            movie, movie_created = get_movie_by_title_or_create(
-                title_cleaning_result.cleaned_title, pipeline_run_id=pipeline_run_id
+            movie, movie_created, ambiguous, candidate_movie_ids = (
+                resolve_movie_for_screening(
+                    title_cleaning_result.cleaned_title,
+                    cinema.id,
+                    pipeline_run_id=pipeline_run_id,
+                )
             )
             if movie_created:
                 movies_created += 1
@@ -447,7 +453,7 @@ def import_scrapped_results(
                         img, current_app, filename
                     )
 
-                create_screening(
+                new_screening = create_screening(
                     movie_id=movie.id,
                     description=description,
                     cinema_id=cinema.id,
@@ -464,6 +470,16 @@ def import_scrapped_results(
                     pipeline_run_id=pipeline_run_id,
                 )
                 screenings_created += 1
+                if ambiguous:
+                    ambiguous_collisions.append(
+                        {
+                            "screening_id": new_screening.id,
+                            "title": title_cleaning_result.cleaned_title,
+                            "cinema": cinema.slug,
+                            "attached_movie_id": movie.id,
+                            "candidate_movie_ids": candidate_movie_ids,
+                        }
+                    )
             else:
                 update_title_cleaning_info(
                     screening,
@@ -531,9 +547,20 @@ def import_scrapped_results(
                 if got_new_date:
                     screenings_with_new_dates.add(screening.id)
 
+                if ambiguous:
+                    ambiguous_collisions.append(
+                        {
+                            "screening_id": screening.id,
+                            "title": title_cleaning_result.cleaned_title,
+                            "cinema": cinema.slug,
+                            "attached_movie_id": movie.id,
+                            "candidate_movie_ids": candidate_movie_ids,
+                        }
+                    )
                 update_screening_dates(screening, existing_dates)
     return ImportSummary(
         movies_created=movies_created,
         screenings_created=screenings_created,
         dates_registered=len(screenings_with_new_dates),
+        ambiguous_collisions=ambiguous_collisions,
     )

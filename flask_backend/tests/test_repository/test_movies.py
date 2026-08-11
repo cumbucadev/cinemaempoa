@@ -1,11 +1,14 @@
+from datetime import date
+
 from flask_backend.db import db_session
-from flask_backend.models import Movie
+from flask_backend.models import Movie, Screening, ScreeningDate
 from flask_backend.repository import pipeline_runs
 from flask_backend.repository.movies import (
     create,
     create_distinct,
     get_by_title_or_create,
     get_movies_with_similar_titles,
+    resolve_for_screening,
 )
 
 
@@ -131,3 +134,190 @@ class TestCreateDistinct:
             )
 
             assert movie.pipeline_run_id == run.id
+
+
+class TestResolveForScreening:
+    def test_creates_a_new_movie_when_none_exists(self, app):
+        with app.app_context():
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Filme Inédito", cinema_id=1
+            )
+
+            assert created is True
+            assert ambiguous is False
+            assert candidate_ids == []
+            assert movie.slug == "filme-inedito"
+
+    def test_returns_base_movie_when_no_siblings_exist(self, app):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Filme Solo")
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Filme Solo", cinema_id=1
+            )
+
+            assert created is False
+            assert ambiguous is False
+            assert candidate_ids == []
+            assert movie.id == base.id
+
+    def test_resolves_to_sibling_with_matching_cinema_screening(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            get_by_title_or_create("Noite")
+            sibling = create_distinct("Noite")
+            db_session.add(
+                Screening(
+                    movie_id=sibling.id,
+                    cinema_id=2,  # sala-redencao
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                )
+            )
+            db_session.commit()
+            sibling_id = sibling.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Noite", cinema_id=2
+            )
+
+            assert created is False
+            assert ambiguous is False
+            assert candidate_ids == []
+            assert movie.id == sibling_id
+
+    def test_resolves_to_base_movie_when_base_has_the_matching_cinema_screening(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Noite")
+            db_session.add(
+                Screening(
+                    movie_id=base.id,
+                    cinema_id=1,  # capitolio
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                )
+            )
+            create_distinct("Noite")
+            db_session.commit()
+            base_id = base.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Noite", cinema_id=1
+            )
+
+            assert created is False
+            assert ambiguous is False
+            assert candidate_ids == []
+            assert movie.id == base_id
+
+    def test_flags_ambiguous_when_no_candidate_has_the_cinema_screening(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Noite")
+            sibling = create_distinct("Noite")
+            db_session.add(
+                Screening(
+                    movie_id=base.id,
+                    cinema_id=1,  # capitolio
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                )
+            )
+            db_session.commit()
+            base_id, sibling_id = base.id, sibling.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Noite",
+                cinema_id=3,  # cinebancarios: neither candidate plays here
+            )
+
+            assert created is False
+            assert ambiguous is True
+            assert movie.id == base_id
+            assert set(candidate_ids) == {base_id, sibling_id}
+
+    def test_flags_ambiguous_when_more_than_one_candidate_matches_the_cinema(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Noite")
+            sibling = create_distinct("Noite")
+            db_session.add_all(
+                [
+                    Screening(
+                        movie_id=base.id,
+                        cinema_id=1,
+                        description="",
+                        dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                    ),
+                    Screening(
+                        movie_id=sibling.id,
+                        cinema_id=1,
+                        description="",
+                        dates=[ScreeningDate(date=date(2026, 8, 11), time="21:00")],
+                    ),
+                ]
+            )
+            db_session.commit()
+            base_id = base.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Noite", cinema_id=1
+            )
+
+            assert ambiguous is True
+            assert movie.id == base_id
+
+    def test_does_not_treat_a_same_substring_title_as_a_sibling(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Noite")
+            db_session.add(Movie(title="Noites Paraguayas", slug="noites-paraguayas"))
+            db_session.add(
+                Screening(
+                    movie_id=base.id,
+                    cinema_id=1,
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                )
+            )
+            db_session.commit()
+            base_id = base.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Noite", cinema_id=1
+            )
+
+            assert ambiguous is False
+            assert movie.id == base_id
+
+    def test_does_not_treat_an_unrelated_numbered_title_as_a_sibling(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Toy Story")
+            sequel = create("Toy Story 2", slug="toy-story-2")
+            db_session.add(
+                Screening(
+                    movie_id=sequel.id,
+                    cinema_id=1,
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                )
+            )
+            db_session.commit()
+            base_id = base.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Toy Story", cinema_id=1
+            )
+
+            assert created is False
+            assert ambiguous is False
+            assert candidate_ids == []
+            assert movie.id == base_id

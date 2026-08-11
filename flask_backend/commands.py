@@ -83,7 +83,11 @@ def _run_import_json(run, json_path):
         len(cinema.features) for cinema in runner.scrapped_results.cinemas
     )
     summary = runner.import_scrapped_results(current_app, pipeline_run_id=run.id)
-    status = "warning" if features_processed == 0 else "success"
+    status = (
+        "warning"
+        if features_processed == 0 or summary.ambiguous_collisions
+        else "success"
+    )
     pipeline_runs.finish(
         run.id,
         status=status,
@@ -92,6 +96,7 @@ def _run_import_json(run, json_path):
                 "movies_created": summary.movies_created,
                 "screenings_created": summary.screenings_created,
                 "dates_registered": summary.dates_registered,
+                "ambiguous_collisions": summary.ambiguous_collisions,
             }
         ),
     )

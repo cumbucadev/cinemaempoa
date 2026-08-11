@@ -1386,3 +1386,149 @@ class TestBuildFavoritesFeed:
             assert cards[0]["no_sessions"] is True
             assert cards[0]["image"] == "antigo.jpg"
             assert cards[0]["draft"] is False
+
+
+class TestImportScrappedResultsTitleCollisions:
+    def test_attaches_to_the_disambiguated_sibling_with_a_matching_cinema_screening(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            base = Movie(
+                title="Noite",
+                slug="noite",
+                screenings=[
+                    Screening(
+                        cinema_id=1,  # capitolio
+                        description="",
+                        dates=[
+                            ScreeningDate(date=_get_date("2025-12-01"), time="19:00")
+                        ],
+                    )
+                ],
+            )
+            sibling = Movie(
+                title="Noite",
+                slug="noite-2",
+                screenings=[
+                    Screening(
+                        cinema_id=2,  # sala-redencao
+                        description="",
+                        dates=[
+                            ScreeningDate(date=_get_date("2025-12-02"), time="21:00")
+                        ],
+                    )
+                ],
+            )
+            db_session.add_all([base, sibling])
+            db_session.commit()
+            base_id, sibling_id = base.id, sibling.id
+
+        summary = import_scrapped_results(
+            _create_scrapped_results_with_title(
+                "Sala Redenção", "sala-redencao", "Noite"
+            ),
+            app,
+        )
+
+        assert summary.movies_created == 0
+        assert summary.ambiguous_collisions == []
+        with client.application.app_context():
+            sibling_screenings = (
+                db_session.query(Screening).filter_by(movie_id=sibling_id).all()
+            )
+            assert len(sibling_screenings) == 1
+            base_screenings = (
+                db_session.query(Screening).filter_by(movie_id=base_id).all()
+            )
+            assert len(base_screenings) == 1
+
+    def test_flags_ambiguous_collision_when_no_sibling_matches_the_cinema(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            base = Movie(
+                title="Noite",
+                slug="noite",
+                screenings=[
+                    Screening(
+                        cinema_id=1,  # capitolio
+                        description="",
+                        dates=[
+                            ScreeningDate(date=_get_date("2025-12-01"), time="19:00")
+                        ],
+                    )
+                ],
+            )
+            sibling = Movie(title="Noite", slug="noite-2")
+            db_session.add_all([base, sibling])
+            db_session.commit()
+            base_id, sibling_id = base.id, sibling.id
+
+        summary = import_scrapped_results(
+            _create_scrapped_results_with_title(
+                "Paulo Amorim", "paulo-amorim", "Noite"
+            ),
+            app,
+        )
+
+        assert len(summary.ambiguous_collisions) == 1
+        collision = summary.ambiguous_collisions[0]
+        assert collision["attached_movie_id"] == base_id
+        assert set(collision["candidate_movie_ids"]) == {base_id, sibling_id}
+        assert collision["cinema"] == "paulo-amorim"
+        with client.application.app_context():
+            screening = db_session.get(Screening, collision["screening_id"])
+            assert screening.movie_id == base_id
+
+    def test_flags_ambiguous_collision_on_the_update_branch(
+        self, client, app, setup_cinemas
+    ):
+        with client.application.app_context():
+            base = Movie(
+                title="Noite",
+                slug="noite",
+                screenings=[
+                    Screening(
+                        cinema_id=1,  # capitolio
+                        description="",
+                        dates=[
+                            ScreeningDate(date=_get_date("2025-12-01"), time="19:00")
+                        ],
+                    )
+                ],
+            )
+            sibling = Movie(
+                title="Noite",
+                slug="noite-2",
+                screenings=[
+                    Screening(
+                        cinema_id=1,  # capitolio: same cinema as base's screening
+                        description="",
+                        dates=[
+                            ScreeningDate(date=_get_date("2025-12-02"), time="21:00")
+                        ],
+                    )
+                ],
+            )
+            db_session.add_all([base, sibling])
+            db_session.commit()
+            base_id, sibling_id = base.id, sibling.id
+            existing_screening_id = base.screenings[0].id
+
+        summary = import_scrapped_results(
+            _create_scrapped_results_with_title("Capitólio", "capitolio", "Noite"),
+            app,
+        )
+
+        assert summary.screenings_created == 0
+        assert len(summary.ambiguous_collisions) == 1
+        collision = summary.ambiguous_collisions[0]
+        assert collision["screening_id"] == existing_screening_id
+        assert collision["attached_movie_id"] == base_id
+        assert set(collision["candidate_movie_ids"]) == {base_id, sibling_id}
+        assert collision["cinema"] == "capitolio"
+        with client.application.app_context():
+            base_screenings = (
+                db_session.query(Screening).filter_by(movie_id=base_id).all()
+            )
+            assert len(base_screenings) == 1
