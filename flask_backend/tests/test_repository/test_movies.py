@@ -295,3 +295,29 @@ class TestResolveForScreening:
 
             assert ambiguous is False
             assert movie.id == base_id
+
+    def test_does_not_treat_an_unrelated_numbered_title_as_a_sibling(
+        self, app, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Toy Story")
+            sequel = create("Toy Story 2", slug="toy-story-2")
+            db_session.add(
+                Screening(
+                    movie_id=sequel.id,
+                    cinema_id=1,
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 10), time="19:00")],
+                )
+            )
+            db_session.commit()
+            base_id = base.id
+
+            movie, created, ambiguous, candidate_ids = resolve_for_screening(
+                "Toy Story", cinema_id=1
+            )
+
+            assert created is False
+            assert ambiguous is False
+            assert candidate_ids == []
+            assert movie.id == base_id

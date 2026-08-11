@@ -547,7 +547,6 @@ def import_scrapped_results(
                 if got_new_date:
                     screenings_with_new_dates.add(screening.id)
 
-                update_screening_dates(screening, existing_dates)
                 if ambiguous:
                     ambiguous_collisions.append(
                         {
@@ -558,6 +557,7 @@ def import_scrapped_results(
                             "candidate_movie_ids": candidate_movie_ids,
                         }
                     )
+                update_screening_dates(screening, existing_dates)
     return ImportSummary(
         movies_created=movies_created,
         screenings_created=screenings_created,

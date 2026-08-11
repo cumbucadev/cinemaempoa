@@ -130,10 +130,20 @@ def _get_disambiguated_siblings(base_slug: str) -> List[Movie]:
     exact pattern create_distinct() produces (e.g. `noite-2`, `noite-3`).
     Deliberately not the fuzzy ilike match used by
     get_movies_with_similar_titles, which also matches unrelated titles
-    that merely contain the same substring."""
+    that merely contain the same substring.
+
+    Slug shape alone isn't enough: an unrelated numbered title (e.g. "Toy
+    Story 2") can coincidentally slugify to `{base_slug}-2`. create_distinct()
+    always copies the base movie's exact title onto every sibling it
+    creates, so a genuine disambiguation's title slugifies back to
+    base_slug - require that too."""
     candidates = db_session.query(Movie).filter(Movie.slug.like(f"{base_slug}-%")).all()
     pattern = re.compile(rf"^{re.escape(base_slug)}-\d+$")
-    return [movie for movie in candidates if pattern.match(movie.slug)]
+    return [
+        movie
+        for movie in candidates
+        if pattern.match(movie.slug) and slugify(movie.title) == base_slug
+    ]
 
 
 def resolve_for_screening(
