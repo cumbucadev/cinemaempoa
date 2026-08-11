@@ -1,9 +1,11 @@
 import json
 import logging
+from datetime import date
 from unittest.mock import patch
 
 from flask_backend.db import db_session
-from flask_backend.models import PipelineRun, Screening
+from flask_backend.models import PipelineRun, Screening, ScreeningDate
+from flask_backend.repository.movies import create_distinct, get_by_title_or_create
 from flask_backend.service.image_resize_pipeline import (
     ResizePipelineResult,
 )
@@ -188,6 +190,62 @@ class TestImportJsonCommand:
             assert '"movies_created": 0' in runs[1].summary
             assert '"screenings_created": 0' in runs[1].summary
             assert '"dates_registered": 0' in runs[1].summary
+
+    def test_ambiguous_title_collision_marks_run_as_warning(
+        self, app, runner, tmp_path, setup_cinemas
+    ):
+        with app.app_context():
+            base, _ = get_by_title_or_create("Noite")
+            db_session.add(
+                Screening(
+                    movie_id=base.id,
+                    cinema_id=1,  # capitolio
+                    description="",
+                    dates=[ScreeningDate(date=date(2026, 8, 1), time="19:00")],
+                )
+            )
+            create_distinct("Noite")
+            db_session.commit()
+            base_id = base.id
+
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cine Cinco",
+                "slug": "cine-cinco",
+                "features": [
+                    {
+                        "poster": "",
+                        "time": ["2026-08-15T20:00"],
+                        "title": "Noite",
+                        "original_title": "",
+                        "price": "",
+                        "director": "",
+                        "classification": "",
+                        "general_info": "",
+                        "excerpt": "",
+                        "read_more": "",
+                    }
+                ],
+            }
+        ]
+        json_path = tmp_path / "ambiguous.json"
+        json_path.write_text(json.dumps(payload))
+
+        runner.invoke(args=["import-json", str(json_path)])
+
+        with app.app_context():
+            run = (
+                db_session.query(PipelineRun)
+                .filter_by(pipeline_name="import-json")
+                .one()
+            )
+            assert run.status == "warning"
+            summary_obj = json.loads(run.summary)
+            assert len(summary_obj["ambiguous_collisions"]) == 1
+            collision = summary_obj["ambiguous_collisions"][0]
+            assert collision["attached_movie_id"] == base_id
+            assert collision["cinema"] == "cine-cinco"
 
     def test_invalid_json_marks_run_as_error(self, app, runner, tmp_path):
         json_path = tmp_path / "bad.json"
