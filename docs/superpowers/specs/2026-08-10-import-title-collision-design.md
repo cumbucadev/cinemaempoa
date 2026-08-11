@@ -50,8 +50,8 @@ New function `resolve_for_screening`:
 ```python
 def resolve_for_screening(
     title: str, cinema_id: int, pipeline_run_id: Optional[int] = None
-) -> Tuple[Movie, bool, bool]:
-    """Returns (movie, created, ambiguous)."""
+) -> Tuple[Movie, bool, bool, List[int]]:
+    """Returns (movie, created, ambiguous, candidate_movie_ids)."""
 ```
 
 Behavior:
