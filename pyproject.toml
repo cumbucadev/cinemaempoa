@@ -81,7 +81,7 @@ dependencies = [
     "mypy-extensions==1.1.0",
     "nest-asyncio==1.6.0",
     "networkx==3.4.2",
-    "nltk==3.9.2",
+    "nltk==3.10.3",
     "nodeenv==1.9.1",
     "numpy==2.3.5",
     "openai==2.9.0",
