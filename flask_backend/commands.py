@@ -48,26 +48,29 @@ def register_commands(app):
     app.cli.add_command(detect_motifs_command)
 
 
+def _fail_import(run, message):
+    from flask_backend.repository import pipeline_runs
+
+    pipeline_runs.finish(run.id, status="error", error_message=message)
+    click.echo(message, err=True)
+    return False
+
+
 def _run_import_json(run, json_path):
+    """Returns False when the file is rejected (run already marked "error")."""
     from flask_backend.repository import pipeline_runs
 
     with open(json_path) as json_file:
         try:
             parsed_json = json.load(json_file)
         except (json.decoder.JSONDecodeError, UnicodeDecodeError):
-            message = "Arquivo .json inválido ou não encontrado"
-            pipeline_runs.finish(run.id, status="error", error_message=message)
-            click.echo(message, err=True)
-            return
+            return _fail_import(run, "Arquivo .json inválido ou não encontrado")
 
     runner = Runner()
     try:
         runner.parse_scrapped_json(parsed_json)
     except Exception:
-        message = "Arquivo .json com estrutura inválida para importação"
-        pipeline_runs.finish(run.id, status="error", error_message=message)
-        click.echo(message, err=True)
-        return
+        return _fail_import(run, "Arquivo .json com estrutura inválida para importação")
 
     slugs = sorted({c.slug for c in runner.scrapped_results.cinemas})
     pipeline_runs.set_source(run.id, ",".join(slugs))
@@ -76,10 +79,7 @@ def _run_import_json(run, json_path):
     for json_cinema in runner.scrapped_results.cinemas:
         cinema = get_cinema_by_slug(json_cinema.slug)
         if cinema is None:
-            message = f"Sala {json_cinema.slug} não encontrada."
-            pipeline_runs.finish(run.id, status="error", error_message=message)
-            click.echo(message, err=True)
-            return
+            return _fail_import(run, f"Sala {json_cinema.slug} não encontrada.")
 
     # all validations passed, import screenings :)
     features_by_cinema = {
@@ -104,6 +104,7 @@ def _run_import_json(run, json_path):
         f"«{summary.movies_created}» filmes, «{summary.screenings_created}» sessões "
         f"e «{summary.dates_registered}» novos horários registrados!"
     )
+    return True
 
 
 @click.command("import-json")
@@ -113,10 +114,12 @@ def import_json(json_path):
 
     run = pipeline_runs.start("import-json")
     try:
-        _run_import_json(run, json_path)
+        imported = _run_import_json(run, json_path)
     except Exception as exc:
         pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
         raise
+    if not imported:
+        raise click.exceptions.Exit(1)
 
 
 PIPELINE_HEALTH_ISSUE_LABELS = {
@@ -124,7 +127,6 @@ PIPELINE_HEALTH_ISSUE_LABELS = {
     "last_import_failed": "última importação falhou",
     "no_features_scraped": "scraper não retornou nenhum filme",
     "no_upcoming_screenings": "nenhuma sessão nos próximos dias",
-    "unattributed_import_failed": "última importação falhou antes de ler o .json",
 }
 
 
@@ -169,10 +171,6 @@ def pipeline_health(slugs, horizon_days, stale_after_days, as_json):
 
 
 def _echo_health_report(report):
-    for issue in report.issues:
-        click.echo(
-            f"✗ {PIPELINE_HEALTH_ISSUE_LABELS[issue]}: {report.last_error_message}"
-        )
     for cinema in report.cinemas:
         mark = "✗" if cinema.issues else "✓"
         details = (
@@ -184,7 +182,7 @@ def _echo_health_report(report):
         click.echo(f"{mark} {cinema.slug}: {details}")
         for issue in cinema.issues:
             click.echo(f"    - {PIPELINE_HEALTH_ISSUE_LABELS[issue]}")
-    if not report.cinemas and not report.issues:
+    if not report.cinemas:
         click.echo("Nenhuma importação encontrada.")
 
 
