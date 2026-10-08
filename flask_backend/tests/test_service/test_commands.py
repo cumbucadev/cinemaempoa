@@ -24,6 +24,7 @@ class TestImportJsonCommand:
 
         result = runner.invoke(args=["import-json", str(json_path)])
         assert "Arquivo .json inválido ou não encontrado" in result.output
+        assert result.exit_code == 1
 
     def test_invalid_structure_shows_error(self, runner, tmp_path):
         json_path = tmp_path / "bad-structure.json"
@@ -31,6 +32,7 @@ class TestImportJsonCommand:
 
         result = runner.invoke(args=["import-json", str(json_path)])
         assert "estrutura inválida" in result.output
+        assert result.exit_code == 1
 
     def test_unknown_cinema_shows_error(self, runner, tmp_path, setup_cinemas):
         payload = [
@@ -46,6 +48,7 @@ class TestImportJsonCommand:
 
         result = runner.invoke(args=["import-json", str(json_path)])
         assert "não encontrada" in result.output
+        assert result.exit_code == 1
 
     def test_success_imports_screenings(self, runner, tmp_path, setup_cinemas):
         payload = [
@@ -74,6 +77,7 @@ class TestImportJsonCommand:
 
         result = runner.invoke(args=["import-json", str(json_path)])
         assert "novos horários registrados" in result.output
+        assert result.exit_code == 0
 
     def test_success_creates_pipeline_run_with_source_and_summary(
         self, app, runner, tmp_path, setup_cinemas

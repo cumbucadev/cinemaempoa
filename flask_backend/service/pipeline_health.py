@@ -31,9 +31,6 @@ NO_RECENT_IMPORT = "no_recent_import"
 LAST_IMPORT_FAILED = "last_import_failed"
 NO_FEATURES_SCRAPED = "no_features_scraped"
 NO_UPCOMING_SCREENINGS = "no_upcoming_screenings"
-# The latest import failed before the JSON was parsed (e.g. the scraper
-# crashed and wrote an empty file), so it can't be attributed to a cinema.
-UNATTRIBUTED_IMPORT_FAILED = "unattributed_import_failed"
 
 _FAILED_STATUSES = ("error", "interrupted")
 
@@ -52,12 +49,10 @@ class CinemaHealth:
 @dataclass
 class HealthReport:
     cinemas: List[CinemaHealth]
-    issues: List[str] = field(default_factory=list)
-    last_error_message: Optional[str] = None
 
     @property
     def healthy(self) -> bool:
-        return not self.issues and not any(c.issues for c in self.cinemas)
+        return not any(c.issues for c in self.cinemas)
 
 
 def check_import_health(
@@ -78,7 +73,7 @@ def check_import_health(
     today = now.date()
     upcoming = count_dates_by_cinema_slug(today, today + timedelta(days=horizon_days))
 
-    report = HealthReport(
+    return HealthReport(
         cinemas=[
             _check_cinema(
                 slug, latest_by_slug.get(slug), upcoming.get(slug, 0), now, stale_after
@@ -87,11 +82,6 @@ def check_import_health(
         ]
     )
 
-    if finished_runs and _is_unattributed_failure(finished_runs[0]):
-        report.issues.append(UNATTRIBUTED_IMPORT_FAILED)
-        report.last_error_message = finished_runs[0].error_message
-    return report
-
 
 def _latest_run_by_slug(runs_newest_first: List[PipelineRun]) -> dict:
     latest_by_slug: dict[str, PipelineRun] = {}
@@ -99,10 +89,6 @@ def _latest_run_by_slug(runs_newest_first: List[PipelineRun]) -> dict:
         for slug in filter(None, (run.source or "").split(",")):
             latest_by_slug.setdefault(slug, run)
     return latest_by_slug
-
-
-def _is_unattributed_failure(run: PipelineRun) -> bool:
-    return run.source is None and pipeline_runs.display_status(run) in _FAILED_STATUSES
 
 
 def _check_cinema(

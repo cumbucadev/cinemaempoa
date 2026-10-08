@@ -14,7 +14,6 @@ from flask_backend.service.pipeline_health import (
     NO_FEATURES_SCRAPED,
     NO_RECENT_IMPORT,
     NO_UPCOMING_SCREENINGS,
-    UNATTRIBUTED_IMPORT_FAILED,
     check_import_health,
 )
 
@@ -194,20 +193,3 @@ class TestCheckImportHealth:
             _add_screening_date("capitolio", date(2026, 10, 9))
 
             assert check_import_health(now=NOW).healthy
-
-    def test_latest_failure_before_parsing_is_a_global_issue(self, app, setup_cinemas):
-        with app.app_context():
-            _add_run(
-                "capitolio",
-                started_at=NOW - timedelta(hours=2),
-                features_by_cinema={"capitolio": 2},
-            )
-            _add_run(None, status="error", error_message="Arquivo .json inválido")
-            _add_screening_date("capitolio", date(2026, 10, 9))
-
-            report = check_import_health(now=NOW)
-
-            assert report.issues == [UNATTRIBUTED_IMPORT_FAILED]
-            assert report.last_error_message == "Arquivo .json inválido"
-            assert _cinema(report, "capitolio").issues == []
-            assert not report.healthy

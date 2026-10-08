@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 
 from llama_index.core import Settings
@@ -55,10 +56,10 @@ class CineBancariosExtractorLLM:
         try:
             response = call_with_fallback(call, classify_gemini_rate_limit)
         except AllGeminiModelsExhausted:
-            print("All Gemini models rate-limited. Exiting...")
+            print("All Gemini models rate-limited. Exiting...", file=sys.stderr)
             return
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", file=sys.stderr)
             return
         return response.raw.model_dump_json()
 
@@ -106,10 +107,10 @@ class CineCincoExtractorLLM:
         try:
             response = call_with_fallback(call, classify_gemini_rate_limit)
         except AllGeminiModelsExhausted:
-            print("All Gemini models rate-limited. Exiting...")
+            print("All Gemini models rate-limited. Exiting...", file=sys.stderr)
             return
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", file=sys.stderr)
             return
         return response.raw.model_dump_json()
 
