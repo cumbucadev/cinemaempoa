@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from flask_backend.db import db_session
@@ -115,6 +116,7 @@ class TestImportJsonCommand:
             assert '"movies_created": 1' in run.summary
             assert '"screenings_created": 1' in run.summary
             assert '"dates_registered": 0' in run.summary
+            assert json.loads(run.summary)["features_by_cinema"] == {"capitolio": 1}
 
             screening = (
                 db_session.query(Screening).filter_by(pipeline_run_id=run.id).one()
@@ -227,6 +229,70 @@ class TestImportJsonCommand:
             )
             assert run.status == "error"
             assert "não encontrada" in run.error_message
+
+
+class TestPipelineHealthCommand:
+    def _import(self, runner, tmp_path, features):
+        payload = [
+            {
+                "url": "",
+                "cinema": "Cinemateca Capitólio",
+                "slug": "capitolio",
+                "features": features,
+            }
+        ]
+        json_path = tmp_path / "import.json"
+        json_path.write_text(json.dumps(payload))
+        runner.invoke(args=["import-json", str(json_path)])
+
+    def test_exits_zero_when_import_is_healthy(self, runner, tmp_path, setup_cinemas):
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        self._import(
+            runner,
+            tmp_path,
+            [
+                {
+                    "poster": "",
+                    "time": [f"{tomorrow}T19:00"],
+                    "title": "Filme Saudável",
+                    "original_title": "",
+                    "price": "",
+                    "director": "",
+                    "classification": "",
+                    "general_info": "",
+                    "excerpt": "um filme",
+                    "read_more": "",
+                }
+            ],
+        )
+
+        result = runner.invoke(args=["pipeline-health", "capitolio"])
+
+        assert result.exit_code == 0
+        assert "✓ capitolio" in result.output
+
+    def test_exits_one_and_names_issues_when_scraper_returns_nothing(
+        self, runner, tmp_path, setup_cinemas
+    ):
+        self._import(runner, tmp_path, [])
+
+        result = runner.invoke(args=["pipeline-health", "capitolio"])
+
+        assert result.exit_code == 1
+        assert "✗ capitolio" in result.output
+        assert "scraper não retornou nenhum filme" in result.output
+        assert "nenhuma sessão nos próximos dias" in result.output
+
+    def test_json_output(self, runner, tmp_path, setup_cinemas):
+        self._import(runner, tmp_path, [])
+
+        result = runner.invoke(args=["pipeline-health", "--json"])
+
+        payload = json.loads(result.output)
+        assert payload["healthy"] is False
+        assert payload["cinemas"][0]["slug"] == "capitolio"
+        assert payload["cinemas"][0]["features_scraped"] == 0
+        assert "no_features_scraped" in payload["cinemas"][0]["issues"]
 
 
 class TestThinWrapperCommands:

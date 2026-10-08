@@ -21,3 +21,4 @@ jobs:
           script: |
             docker exec cinemaempoa_flask bash -c "python cinemaempoa.py -r capitolio sala-redencao paulo-amorim > /app/import.json"
             docker exec cinemaempoa_flask bash -c "flask --app flask_backend import-json /app/import.json"
+            docker exec cinemaempoa_flask bash -c "flask --app flask_backend pipeline-health capitolio sala-redencao paulo-amorim"
