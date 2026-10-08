@@ -64,6 +64,17 @@ def get_latest_by_pipeline(
     return query.order_by(PipelineRun.started_at.desc()).first()
 
 
+def get_started_since(pipeline_name: str, since: datetime) -> list[PipelineRun]:
+    """Runs of `pipeline_name` started at or after `since`, newest first."""
+    return (
+        db_session.query(PipelineRun)
+        .filter(PipelineRun.pipeline_name == pipeline_name)
+        .filter(PipelineRun.started_at >= since)
+        .order_by(PipelineRun.started_at.desc(), PipelineRun.id.desc())
+        .all()
+    )
+
+
 def get_paginated(
     pipeline_name: str,
     current_page: int,

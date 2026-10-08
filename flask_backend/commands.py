@@ -2,6 +2,7 @@ import dataclasses
 import json
 import logging
 import os
+from datetime import timedelta
 
 import click
 from flask import current_app
@@ -22,11 +23,13 @@ from flask_backend.scripts.title_cleaning_report import (
 from flask_backend.scripts.tmdb_id_backfill import (
     tmdb_id_backfill as run_tmdb_id_backfill,
 )
+from flask_backend.service import pipeline_health as pipeline_health_service
 from flask_backend.service.runner import Runner
 
 
 def register_commands(app):
     app.cli.add_command(import_json)
+    app.cli.add_command(pipeline_health)
     app.cli.add_command(dupe_check)
     app.cli.add_command(run_dedupper)
     app.cli.add_command(generate_sitemap)
@@ -79,9 +82,10 @@ def _run_import_json(run, json_path):
             return
 
     # all validations passed, import screenings :)
-    features_processed = sum(
-        len(cinema.features) for cinema in runner.scrapped_results.cinemas
-    )
+    features_by_cinema = {
+        cinema.slug: len(cinema.features) for cinema in runner.scrapped_results.cinemas
+    }
+    features_processed = sum(features_by_cinema.values())
     summary = runner.import_scrapped_results(current_app, pipeline_run_id=run.id)
     status = "warning" if features_processed == 0 else "success"
     pipeline_runs.finish(
@@ -92,6 +96,7 @@ def _run_import_json(run, json_path):
                 "movies_created": summary.movies_created,
                 "screenings_created": summary.screenings_created,
                 "dates_registered": summary.dates_registered,
+                "features_by_cinema": features_by_cinema,
             }
         ),
     )
@@ -112,6 +117,79 @@ def import_json(json_path):
     except Exception as exc:
         pipeline_runs.finish(run.id, status="error", error_message=str(exc)[:500])
         raise
+
+
+PIPELINE_HEALTH_ISSUE_LABELS = {
+    "no_recent_import": "nenhuma importação recente",
+    "last_import_failed": "última importação falhou",
+    "no_features_scraped": "scraper não retornou nenhum filme",
+    "no_upcoming_screenings": "nenhuma sessão nos próximos dias",
+    "unattributed_import_failed": "última importação falhou antes de ler o .json",
+}
+
+
+@click.command("pipeline-health")
+@click.argument("slugs", nargs=-1)
+@click.option(
+    "--horizon-days",
+    type=int,
+    default=pipeline_health_service.DEFAULT_HORIZON_DAYS,
+    show_default=True,
+    help="Quantos dias à frente procurar sessões.",
+)
+@click.option(
+    "--stale-after-days",
+    type=int,
+    default=pipeline_health_service.DEFAULT_STALE_AFTER.days,
+    show_default=True,
+    help="Dias sem importação até a sala ser sinalizada.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Saída em JSON.")
+def pipeline_health(slugs, horizon_days, stale_after_days, as_json):
+    """Verifica se as importações de cada sala ainda funcionam. Sai com
+    código 1 se algum problema for encontrado.
+
+    Sem SLUGS, verifica todas as salas importadas nos últimos 90 dias.
+    """
+    report = pipeline_health_service.check_import_health(
+        slugs or None,
+        horizon_days=horizon_days,
+        stale_after=timedelta(days=stale_after_days),
+    )
+
+    if as_json:
+        payload = dataclasses.asdict(report)
+        payload["healthy"] = report.healthy
+        click.echo(json.dumps(payload, default=str, ensure_ascii=False, indent=2))
+    else:
+        _echo_health_report(report)
+
+    if not report.healthy:
+        raise click.exceptions.Exit(1)
+
+
+def _echo_health_report(report):
+    for issue in report.issues:
+        click.echo(
+            f"✗ {PIPELINE_HEALTH_ISSUE_LABELS[issue]}: {report.last_error_message}"
+        )
+    for cinema in report.cinemas:
+        mark = "✗" if cinema.issues else "✓"
+        details = (
+            f"última importação {cinema.last_import_at or '-'} "
+            f"({cinema.last_import_status or '-'}), "
+            f"{_or_dash(cinema.features_scraped)} filmes raspados, "
+            f"{cinema.upcoming_dates} horários futuros"
+        )
+        click.echo(f"{mark} {cinema.slug}: {details}")
+        for issue in cinema.issues:
+            click.echo(f"    - {PIPELINE_HEALTH_ISSUE_LABELS[issue]}")
+    if not report.cinemas and not report.issues:
+        click.echo("Nenhuma importação encontrada.")
+
+
+def _or_dash(value):
+    return "-" if value is None else value
 
 
 @click.command("dupe-check")

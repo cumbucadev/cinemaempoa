@@ -217,6 +217,20 @@ def get_screenings_with_upcoming_dates(
     return query.distinct().all()
 
 
+def count_dates_by_cinema_slug(start_date: date, end_date: date) -> Dict[str, int]:
+    """ScreeningDate count per cinema slug within [start_date, end_date],
+    drafts included. Cinemas with no dates in the range are absent."""
+    rows = (
+        db_session.query(Cinema.slug, func.count(ScreeningDate.id))
+        .join(Screening, Screening.cinema_id == Cinema.id)
+        .join(ScreeningDate, ScreeningDate.screening_id == Screening.id)
+        .filter(func.date(ScreeningDate.date).between(start_date, end_date))
+        .group_by(Cinema.slug)
+        .all()
+    )
+    return dict(rows)
+
+
 def get_latest_screening_for_movie(
     movie_id: int, include_drafts: bool = False
 ) -> Optional[Screening]:

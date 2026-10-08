@@ -32,7 +32,7 @@ is the Flask app (routes, services, templates, CLI, migrations).
 | Find dead code | `uv run vulture flask_backend scrapers cinemaempoa.py vulture_whitelist.py --exclude "*/tests/*" --min-confidence 80` |
 | Check complexity | `uv run xenon --max-absolute B --max-modules A --max-average A flask_backend scrapers --exclude "*/tests/*"` |
 
-Other CLI commands (see `flask_backend/commands.py`): `dupe-check`, `run-dedupper`,
+Other CLI commands (see `flask_backend/commands.py`): `pipeline-health`, `dupe-check`, `run-dedupper`,
 `generate-sitemap`, `fetch-posters`, `poster-review`, `fetch-movie-metadata`,
 `movie-metadata-review`, `inspect-movies`, `title-cleaning-report`, `title-cleaning-backfill`,
 `delete-movie`, `sync-graph`, `graph-query`.
