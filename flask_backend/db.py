@@ -5,6 +5,7 @@ from flask.cli import with_appcontext
 from sqlalchemy import create_engine, event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABASE_URL
 
@@ -37,7 +38,14 @@ def configure_sqlite_pragmas(engine):
 # see https://github.com/pytest-dev/pytest/issues/9502#issuecomment-2063572916
 # we should be able to change this in conftest.py app fixture
 if os.environ.get("PYTEST_VERSION"):
-    engine = create_engine("sqlite:///:memory:")
+    # One connection shared by every thread: the default pool gives each
+    # thread its own (empty) in-memory database, and the MCP server runs its
+    # sync tools in a threadpool.
+    engine = create_engine(
+        "sqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
 else:
     engine = create_engine(DATABASE_URL)
     configure_sqlite_pragmas(engine)
