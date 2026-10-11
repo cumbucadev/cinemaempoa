@@ -6,6 +6,11 @@ applying a verdict given the tmdb ids the agent actually observed.
 Observation tools never raise on TMDB/network failures: the error comes back
 as observation text, so the agent can keep reasoning or conclude
 `needs_review`.
+
+The per-request layer (`get_movie_context`, ...) is what the MCP server in
+flask_backend/mcp_server.py exposes: each function takes a `request_id` and
+raises InspectionRequestError, with a pt-BR message, when that request
+cannot be worked on.
 """
 
 import logging
@@ -14,9 +19,11 @@ from typing import Iterable, Literal, Optional
 
 import requests
 from bs4 import BeautifulSoup
+from pydantic import BaseModel
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie
+from flask_backend.models import Movie, MovieInspectionRequest
+from flask_backend.repository import movie_inspection_requests
 from flask_backend.repository.screenings import get_screening_by_id
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
@@ -162,3 +169,59 @@ def resolve_verdict(
             after_snapshot=after,
         )
     return InspectionOutcome(status=status, reasoning=reasoning)
+
+
+class InspectionRequestError(Exception):
+    """A tool was called for a request that cannot be worked on. The message
+    is pt-BR and meant for the agent: it should stop, not retry."""
+
+
+class ScreeningContextData(BaseModel):
+    screening_id: int
+    cinema_name: str
+    description: str
+
+
+class MovieContext(BaseModel):
+    """The movie's title, its current TMDB match and what the cinemas showing
+    it published - the same fields as the in-process agent's input."""
+
+    movie_title: str
+    tmdb_original_title: Optional[str]
+    tmdb_release_year: Optional[int]
+    tmdb_original_language: Optional[str]
+    tmdb_directors: list[str]
+    tmdb_countries: list[str]
+    tmdb_genres: list[str]
+    screenings: list[ScreeningContextData]
+
+
+def _get_dispatched_request(request_id: int) -> MovieInspectionRequest:
+    request = movie_inspection_requests.get_by_id(request_id)
+    if request is None:
+        raise InspectionRequestError(f"Pedido de inspeção #{request_id} não existe.")
+    if request.status != "dispatched":
+        raise InspectionRequestError(
+            f"Pedido de inspeção #{request_id} não está mais ativo "
+            f"(status: {request.status})."
+        )
+    return request
+
+
+def get_movie_context(request_id: int) -> MovieContext:
+    movie = _get_dispatched_request(request_id).movie
+    return MovieContext(
+        movie_title=movie.title,
+        tmdb_original_title=movie.original_title,
+        tmdb_release_year=movie.release_year,
+        tmdb_original_language=movie.original_language,
+        tmdb_directors=[d.name for d in movie.directors],
+        tmdb_countries=[c.name for c in movie.countries],
+        tmdb_genres=[g.name for g in movie.genres],
+        screenings=[
+            ScreeningContextData(
+                screening_id=s.id, cinema_name=s.cinema.name, description=s.description
+            )
+            for s in movie.screenings
+        ],
+    )
