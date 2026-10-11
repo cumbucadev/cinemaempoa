@@ -31,6 +31,7 @@ from flask_backend.service.gemini_quota import RateLimitInfo, classify_gemini_ra
 from flask_backend.service.movie_inspection_tools import (
     InspectionOutcome,
     apply_rematch,
+    build_movie_context,
     resolve_verdict,
     run_fetch_screening_source,
     run_get_tmdb_details,
@@ -311,21 +312,7 @@ def inspect_movie(movie: Movie) -> InspectionOutcome:
 def _run_inspection_loop(
     model_id: str, movie: Movie, allowed_screening_ids: set
 ) -> InspectionOutcome:
-    agent_input = OrchestratorInput(
-        movie_title=movie.title,
-        tmdb_original_title=movie.original_title,
-        tmdb_release_year=movie.release_year,
-        tmdb_original_language=movie.original_language,
-        tmdb_directors=[d.name for d in movie.directors],
-        tmdb_countries=[c.name for c in movie.countries],
-        tmdb_genres=[g.name for g in movie.genres],
-        screenings=[
-            ScreeningContext(
-                screening_id=s.id, cinema_name=s.cinema.name, description=s.description
-            )
-            for s in movie.screenings
-        ],
-    )
+    agent_input = OrchestratorInput(**build_movie_context(movie).model_dump())
     observed_tmdb_ids: set = set()
     agent = _build_agent(model_id)
     _attach_debug_hooks(agent, movie)

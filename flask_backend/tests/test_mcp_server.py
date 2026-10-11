@@ -82,7 +82,12 @@ async def _post_mcp(http_app, headers):
         return await client.post(
             mcp_server.MCP_PATH,
             headers=headers,
-            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "get_movie_context", "arguments": {"request_id": 1}},
+            },
         )
 
 

@@ -208,8 +208,7 @@ def _get_dispatched_request(request_id: int) -> MovieInspectionRequest:
     return request
 
 
-def get_movie_context(request_id: int) -> MovieContext:
-    movie = _get_dispatched_request(request_id).movie
+def build_movie_context(movie: Movie) -> MovieContext:
     return MovieContext(
         movie_title=movie.title,
         tmdb_original_title=movie.original_title,
@@ -225,3 +224,7 @@ def get_movie_context(request_id: int) -> MovieContext:
             for s in movie.screenings
         ],
     )
+
+
+def get_movie_context(request_id: int) -> MovieContext:
+    return build_movie_context(_get_dispatched_request(request_id).movie)
