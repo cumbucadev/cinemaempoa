@@ -144,6 +144,16 @@ class TestDisplayStatus:
             assert pipeline_runs.is_interrupted(run) is True
             assert pipeline_runs.display_status(run) == "interrupted"
 
+    def test_staleness_is_measured_against_the_given_now(self, app):
+        with app.app_context():
+            run = pipeline_runs.start("fetch-posters")
+            run.started_at = datetime.now() - timedelta(hours=2)
+            db_session.commit()
+            just_after_start = run.started_at + timedelta(minutes=5)
+
+            assert pipeline_runs.is_interrupted(run, now=just_after_start) is False
+            assert pipeline_runs.display_status(run, now=just_after_start) == "running"
+
     def test_finished_status_passes_through(self, app):
         with app.app_context():
             run = pipeline_runs.start("fetch-posters")
