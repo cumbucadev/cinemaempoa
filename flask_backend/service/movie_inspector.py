@@ -12,19 +12,15 @@ from dataclasses import dataclass
 from typing import List, Literal, Optional
 
 import instructor
-import requests
 from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema
 from atomic_agents.context import ChatHistory, SystemPromptGenerator
-from bs4 import BeautifulSoup
 from instructor.core import InstructorRetryException
 from pydantic import Field
 
-from flask_backend.db import db_session
 from flask_backend.env_config import GEMINI_API_KEY
 from flask_backend.models import Movie
 from flask_backend.repository import movie_inspections
 from flask_backend.repository.movies import get_by_id as get_movie_by_id
-from flask_backend.repository.screenings import get_screening_by_id
 from flask_backend.service import gemini_quota
 from flask_backend.service.gemini_models import (
     GEMINI_MODEL_PRIORITY,
@@ -32,11 +28,15 @@ from flask_backend.service.gemini_models import (
     call_with_fallback,
 )
 from flask_backend.service.gemini_quota import RateLimitInfo, classify_gemini_rate_limit
-from flask_backend.service.movie_metadata_pipeline import (
-    apply_tmdb_details,
-    clear_tmdb_metadata,
+from flask_backend.service.movie_inspection_tools import (
+    InspectionOutcome,
+    apply_rematch,
+    resolve_verdict,
+    run_fetch_screening_source,
+    run_get_tmdb_details,
+    run_search_tmdb_candidates,
+    snapshot,
 )
-from flask_backend.service.tmdb import TMDBClient
 
 logger = logging.getLogger(__name__)
 
@@ -46,83 +46,6 @@ logger = logging.getLogger(__name__)
 # longer, or unknown, means the batch genuinely can't make progress right now.
 SHORT_COOLDOWN_CAP_SECONDS = 90
 MAX_EXHAUSTION_RETRIES = 1
-
-
-def _snapshot(movie: Movie) -> dict:
-    """Captures the movie's current TMDB-derived identity, for the
-    before/after audit trail on MovieInspection rows."""
-    return {
-        "tmdb_id": movie.tmdb_id,
-        "title": movie.title,
-        "original_title": movie.original_title,
-        "release_year": movie.release_year,
-        "directors": [d.name for d in movie.directors],
-        "countries": [c.name for c in movie.countries],
-    }
-
-
-def _apply_rematch(movie: Movie, tmdb_id: Optional[int]) -> None:
-    """Re-links `movie` to `tmdb_id`, or clears its TMDB link entirely if
-    `tmdb_id` is None (used when reverting a fix back to "unmatched").
-    Commits."""
-    if tmdb_id is None:
-        clear_tmdb_metadata(movie)
-        movie.tmdb_id = None
-        movie.tmdb_excluded = False
-    else:
-        details = TMDBClient().get_movie_details(tmdb_id)
-        apply_tmdb_details(movie, tmdb_id, details)
-    db_session.add(movie)
-    db_session.commit()
-
-
-def _run_search_tmdb_candidates(title: str) -> tuple[str, list[int]]:
-    """Returns the observation text plus every tmdb id it exposed, so the
-    loop can record which ids the agent actually saw (see `inspect_movie`)."""
-    try:
-        results = TMDBClient().search_movies(title)
-    except requests.RequestException as exc:
-        return f"Erro ao buscar '{title}' no TMDB: {exc}", []
-    if not results:
-        return f"Nenhum resultado no TMDB para '{title}'.", []
-    ids = [r["id"] for r in results]
-    lines = [
-        "- tmdb_id={} título='{}' ano={}".format(
-            r["id"], r.get("title"), (r.get("release_date") or "????")[:4]
-        )
-        for r in results
-    ]
-    return "Candidatos no TMDB para '{}':\n{}".format(title, "\n".join(lines)), ids
-
-
-def _run_get_tmdb_details(tmdb_id: int) -> tuple[str, list[int]]:
-    try:
-        details = TMDBClient().get_movie_details(tmdb_id)
-    except requests.RequestException as exc:
-        return f"Erro ao buscar detalhes do TMDB id={tmdb_id}: {exc}", []
-    directors = ", ".join(d["name"] for d in details["directors"]) or "desconhecido"
-    countries = ", ".join(c["name"] for c in details["countries"]) or "desconhecido"
-    observation = (
-        f"Detalhes do TMDB id={tmdb_id}: título original="
-        f"'{details['original_title']}', ano={details['release_year']}, "
-        f"diretor(es)={directors}, país(es)={countries}"
-    )
-    return observation, [tmdb_id]
-
-
-def _run_fetch_screening_source(screening_id: int) -> str:
-    screening = get_screening_by_id(screening_id)
-    if screening is None:
-        return f"Sessão #{screening_id} não encontrada."
-    if not screening.url:
-        return f"Sessão #{screening_id} não tem URL de origem cadastrada."
-    try:
-        response = requests.get(screening.url, timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        return f"Erro ao buscar {screening.url}: {exc}"
-    text = BeautifulSoup(response.text, "html.parser").get_text(" ", strip=True)
-    return f"Conteúdo de {screening.url}:\n{text[:4000]}"
 
 
 MAX_TOOL_CALLS = 4
@@ -222,14 +145,6 @@ class OrchestratorDecision(BaseIOSchema):
     )
 
 
-@dataclass
-class InspectionOutcome:
-    status: str
-    reasoning: str
-    before_snapshot: Optional[dict] = None
-    after_snapshot: Optional[dict] = None
-
-
 def _classify_rate_limit(exc: Exception) -> Optional[RateLimitInfo]:
     if isinstance(exc, InstructorRetryException) and exc.args:
         exc = exc.args[0]
@@ -273,7 +188,7 @@ def _attach_debug_hooks(agent: AtomicAgent, movie: Movie) -> None:
     agent makes is logged: request kwargs, response/token usage, and
     errors. INFO carries short summaries; DEBUG carries raw prompt/response
     content, which may include untrusted scraped text (see
-    `_run_fetch_screening_source`) and so is gated behind --verbose."""
+    `run_fetch_screening_source`) and so is gated behind --verbose."""
 
     def on_completion_kwargs(**kwargs):
         messages = kwargs.get("messages") or []
@@ -361,11 +276,11 @@ def _dispatch_tool(
     if decision.action == "search_tmdb_candidates":
         if not decision.search_title:
             return "Ação 'search_tmdb_candidates' sem 'search_title'.", []
-        return _run_search_tmdb_candidates(decision.search_title)
+        return run_search_tmdb_candidates(decision.search_title)
     if decision.action == "get_tmdb_details":
         if decision.tmdb_id is None:
             return "Ação 'get_tmdb_details' sem 'tmdb_id'.", []
-        return _run_get_tmdb_details(decision.tmdb_id)
+        return run_get_tmdb_details(decision.tmdb_id)
     if decision.action == "fetch_screening_source":
         if decision.screening_id is None:
             return "Ação 'fetch_screening_source' sem 'screening_id'.", []
@@ -374,45 +289,8 @@ def _dispatch_tool(
                 f"Sessão #{decision.screening_id} não pertence ao filme em inspeção.",
                 [],
             )
-        return _run_fetch_screening_source(decision.screening_id), []
+        return run_fetch_screening_source(decision.screening_id), []
     return f"Ação desconhecida: {decision.action}", []
-
-
-def _apply_verdict(
-    movie: Movie, verdict: InspectionVerdict, observed_tmdb_ids: set
-) -> InspectionOutcome:
-    """Applies a verdict, refusing to write a `fixed` tmdb_id the agent
-    never actually observed through one of its own tool calls - the agent's
-    context includes untrusted scraped text, so "never invent an id" is
-    enforced here rather than only asked for in the prompt."""
-    if verdict.status == "fixed":
-        if verdict.new_tmdb_id is None or verdict.new_tmdb_id not in observed_tmdb_ids:
-            logger.warning(
-                "Filme %d ('%s') – veredito 'fixed' com tmdb_id=%s que não foi "
-                "observado por nenhuma ferramenta desta inspeção; rebaixado para "
-                "needs_review",
-                movie.id,
-                movie.title,
-                verdict.new_tmdb_id,
-            )
-            return InspectionOutcome(
-                status="needs_review",
-                reasoning=(
-                    "Veredito 'fixed' com um tmdb_id que não foi observado por "
-                    "nenhuma ferramenta nesta inspeção; tratado como revisão "
-                    f"manual. Raciocínio original: {verdict.reasoning}"
-                ),
-            )
-        before = _snapshot(movie)
-        _apply_rematch(movie, verdict.new_tmdb_id)
-        after = _snapshot(movie)
-        return InspectionOutcome(
-            status="fixed",
-            reasoning=verdict.reasoning,
-            before_snapshot=before,
-            after_snapshot=after,
-        )
-    return InspectionOutcome(status=verdict.status, reasoning=verdict.reasoning)
 
 
 def inspect_movie(movie: Movie) -> InspectionOutcome:
@@ -469,7 +347,13 @@ def _run_inspection_loop(
                     "Ação 'conclude' enviada sem veredito; forneça o veredito."
                 )
                 continue
-            return _apply_verdict(movie, decision.verdict, observed_tmdb_ids)
+            return resolve_verdict(
+                movie,
+                decision.verdict.status,
+                decision.verdict.reasoning,
+                decision.verdict.new_tmdb_id,
+                observed_tmdb_ids,
+            )
 
         observation, ids = _dispatch_tool(decision, allowed_screening_ids)
         logger.debug(
@@ -638,9 +522,9 @@ def revert_inspection(inspection_id: int):
         )
 
     previous = json.loads(inspection.previous_snapshot)
-    before = _snapshot(movie)
-    _apply_rematch(movie, previous.get("tmdb_id"))
-    after = _snapshot(movie)
+    before = snapshot(movie)
+    apply_rematch(movie, previous.get("tmdb_id"))
+    after = snapshot(movie)
 
     return movie_inspections.create(
         movie_id=movie.id,
