@@ -43,6 +43,7 @@ def clean_db(app):
             Genre,
             Movie,
             MovieInspection,
+            MovieInspectionRequest,
             MovieMetadataFetchAttempt,
             PipelineRun,
             PosterFetchAttempt,
@@ -58,6 +59,7 @@ def clean_db(app):
         db_session.query(AlertAction).delete()
         db_session.query(BlogPost).delete()
         db_session.query(User).delete()
+        db_session.query(MovieInspectionRequest).delete()
         db_session.query(MovieInspection).delete()
         db_session.query(MovieMetadataFetchAttempt).delete()
         db_session.query(PosterFetchAttempt).delete()

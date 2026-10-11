@@ -32,6 +32,8 @@ ALERT_ACTIONS = ["posted", "dismissed"]
 
 MOVIE_INSPECTION_STATUSES = ["consistent", "fixed", "needs_review", "error", "reverted"]
 
+MOVIE_INSPECTION_REQUEST_STATUSES = ["dispatched", "done", "expired"]
+
 
 class User(Base):
     __tablename__ = "users"
@@ -325,6 +327,35 @@ class MovieInspection(Base):
         Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
     )
     created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    movie: Mapped["Movie"] = relationship()
+
+
+class MovieInspectionRequest(Base):
+    """One inspection of a movie run from outside the Flask process (the
+    Orbit agent, through the MCP server in flask_backend/mcp_server.py),
+    identified by its id as `request_id`. Carries the state that inspection
+    needs between tool calls: which tmdb_id it set out to check and which
+    tmdb ids the agent has observed so far. The MCP tools only answer for
+    `dispatched` requests."""
+
+    __tablename__ = "movie_inspection_requests"
+
+    id = Column(Integer, primary_key=True)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False, index=True)
+    # The movie's tmdb_id when the request was created.
+    checked_tmdb_id = Column(Integer, nullable=True)
+    # JSON-encoded list of the tmdb ids the agent's tools exposed, starts "[]".
+    observed_tmdb_ids = Column(Text, nullable=False, default="[]")
+    # The Orbit execution handling this request, once dispatched to it.
+    execution_id = Column(String, nullable=True)
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
+    # see MOVIE_INSPECTION_REQUEST_STATUSES
+    status = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    finished_at = Column(DateTime, nullable=True)
 
     movie: Mapped["Movie"] = relationship()
 
