@@ -28,20 +28,73 @@ def _create_request_with_screening():
     return movie_inspection_requests.create_for_movie(movie), screening
 
 
+def _argument_types(schema):
+    return {name: prop["type"] for name, prop in schema["properties"].items()}
+
+
 async def _with_client(app, fn):
     async with Client(mcp_server.create_mcp_server(app)) as client:
         return await fn(client)
 
 
 class TestTools:
-    def test_lists_get_movie_context_with_a_typed_request_id(self, app):
+    def test_lists_the_tools_with_typed_schemas(self, app):
         tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
 
-        assert [t.name for t in tools] == ["get_movie_context"]
-        tool = tools[0]
-        assert tool.inputSchema["properties"]["request_id"]["type"] == "integer"
-        assert tool.inputSchema["required"] == ["request_id"]
-        assert "request_id` é obrigatório" in tool.description
+        schemas = {t.name: t.inputSchema for t in tools}
+        assert schemas.keys() == {
+            "get_movie_context",
+            "search_tmdb_candidates",
+            "get_tmdb_details",
+            "fetch_screening_source",
+        }
+        assert _argument_types(schemas["get_movie_context"]) == {
+            "request_id": "integer"
+        }
+        assert _argument_types(schemas["search_tmdb_candidates"]) == {
+            "request_id": "integer",
+            "title": "string",
+        }
+        assert _argument_types(schemas["get_tmdb_details"]) == {
+            "request_id": "integer",
+            "tmdb_id": "integer",
+        }
+        assert _argument_types(schemas["fetch_screening_source"]) == {
+            "request_id": "integer",
+            "screening_id": "integer",
+        }
+        for tool in tools:
+            assert set(tool.inputSchema["required"]) == set(
+                tool.inputSchema["properties"]
+            )
+            assert "`request_id` é obrigatório" in " ".join(tool.description.split())
+
+    def test_an_observation_tool_end_to_end(self, app):
+        with app.app_context():
+            request, _ = _create_request_with_screening()
+            request_id = request.id
+
+        results = [{"id": 573412, "title": "A Capela", "release_date": "1979-01-01"}]
+        with patch.object(
+            mcp_server.tools.TMDBClient, "search_movies", return_value=results
+        ), patch("flask_backend.service.tmdb.TMDB_API_TOKEN", "fake-token"):
+            result = asyncio.run(
+                _with_client(
+                    app,
+                    lambda c: c.call_tool(
+                        "search_tmdb_candidates",
+                        {"request_id": request_id, "title": "A Capela"},
+                    ),
+                )
+            )
+
+        assert result.data == (
+            "Candidatos no TMDB para 'A Capela':\n"
+            "- tmdb_id=573412 título='A Capela' ano=1979"
+        )
+        with app.app_context():
+            observed = movie_inspection_requests.get_by_id(request_id)
+            assert observed.observed_tmdb_ids == "[573412]"
 
     def test_get_movie_context_end_to_end(self, app):
         with app.app_context():
