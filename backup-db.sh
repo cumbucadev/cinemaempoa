@@ -41,8 +41,10 @@ echo "Creating $TARGET_DB from $SOURCE_DB";
 
 # The source runs in WAL mode (flask_backend/db.py): readers see every committed
 # write, including those still in the -wal file, and never block the writers.
-# A single transaction makes every table come from the same snapshot.
+# A single transaction makes every table come from the same snapshot, and the
+# timeout makes it wait on a busy lock (as the app does) instead of failing.
 sqlite3 "$TARGET_DB" <<EOF
+.timeout 5000
 ATTACH '$SOURCE_DB' AS old;
 BEGIN;
 $(for tbl in "${WITH_DATA[@]}"; do

@@ -19,6 +19,7 @@ It is up to the developer to decide how much functionality each test should inte
 - `test_service` - General testing for the service submodule
 - `test_routes` - General testing for the application routes: focused on validation, error handling and responses
 - `test_database_isolation.py` - Tests to ensure database isolation and cleanup
+- `test_db` - Engine configuration (SQLite WAL and `busy_timeout` pragmas)
 
 ### Test Configuration
 
