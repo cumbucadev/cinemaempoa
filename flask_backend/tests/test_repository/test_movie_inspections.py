@@ -90,6 +90,70 @@ class TestGetMoviesNeedingInspection:
 
             assert [m.id for m in result] == [movie.id]
 
+    def test_excludes_movie_whose_latest_row_is_fixed(self, app):
+        """A `fixed` row's checked_tmdb_id is the id it replaced; the id the
+        movie now carries is the one in new_snapshot, already vetted."""
+        with app.app_context():
+            movie = _create_movie(title="Corrigido", tmdb_id=42)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="fixed",
+                reasoning="Diretor não coincidia.",
+                checked_tmdb_id=1,
+                previous_snapshot='{"tmdb_id": 1}',
+                new_snapshot='{"tmdb_id": 42}',
+            )
+
+            assert movie_inspections.get_movies_needing_inspection() == []
+
+    def test_excludes_movie_whose_latest_row_is_reverted(self, app):
+        with app.app_context():
+            movie = _create_movie(title="Revertido", tmdb_id=1)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="reverted",
+                reasoning="Correção desfeita pelo admin.",
+                checked_tmdb_id=42,
+                previous_snapshot='{"tmdb_id": 42}',
+                new_snapshot='{"tmdb_id": 1}',
+            )
+
+            assert movie_inspections.get_movies_needing_inspection() == []
+
+    def test_excludes_movie_whose_latest_error_follows_a_valid_check(self, app):
+        with app.app_context():
+            movie = _create_movie(title="Erro Depois", tmdb_id=42)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="consistent",
+                reasoning="Ok.",
+                checked_tmdb_id=42,
+            )
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="error",
+                reasoning="Gemini indisponível.",
+                checked_tmdb_id=42,
+            )
+
+            assert movie_inspections.get_movies_needing_inspection() == []
+
+    def test_includes_movie_relinked_after_a_consistent_check(self, app):
+        with app.app_context():
+            movie = _create_movie(title="Religado", tmdb_id=42)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="consistent",
+                reasoning="Ok.",
+                checked_tmdb_id=42,
+            )
+            movie.tmdb_id = 7
+            db_session.commit()
+
+            result = movie_inspections.get_movies_needing_inspection()
+
+            assert [m.id for m in result] == [movie.id]
+
 
 class TestGetPaginated:
     def test_filters_by_status(self, app):
