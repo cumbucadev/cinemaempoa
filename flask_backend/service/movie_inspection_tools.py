@@ -10,7 +10,7 @@ as observation text, so the agent can keep reasoning or conclude
 
 import logging
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable, Literal, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -27,6 +27,8 @@ from flask_backend.service.tmdb import TMDBClient
 logger = logging.getLogger(__name__)
 
 SCREENING_SOURCE_MAX_CHARS = 4000
+
+VerdictStatus = Literal["consistent", "fixed", "needs_review"]
 
 
 @dataclass
@@ -122,7 +124,7 @@ def run_fetch_screening_source(screening_id: int) -> str:
 
 def resolve_verdict(
     movie: Movie,
-    status: str,
+    status: VerdictStatus,
     reasoning: str,
     new_tmdb_id: Optional[int],
     observed_tmdb_ids: Iterable[int],
