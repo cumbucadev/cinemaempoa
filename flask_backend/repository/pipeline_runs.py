@@ -107,14 +107,14 @@ def get_paginated(
     return (runs, total_pages, total_count)
 
 
-def is_interrupted(run: PipelineRun) -> bool:
+def is_interrupted(run: PipelineRun, now: Optional[datetime] = None) -> bool:
     return run.status == "running" and (
-        datetime.now() - run.started_at > INTERRUPTED_THRESHOLD
+        (now or datetime.now()) - run.started_at > INTERRUPTED_THRESHOLD
     )
 
 
-def display_status(run: PipelineRun) -> str:
+def display_status(run: PipelineRun, now: Optional[datetime] = None) -> str:
     """Status to show in the UI - "running" becomes "interrupted" once stale."""
-    if is_interrupted(run):
+    if is_interrupted(run, now):
         return "interrupted"
     return run.status

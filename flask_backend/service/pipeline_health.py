@@ -65,7 +65,7 @@ def check_import_health(
     finished_runs = [
         run
         for run in pipeline_runs.get_started_since(IMPORT_PIPELINE, now - LOOKBACK)
-        if pipeline_runs.display_status(run) != "running"
+        if pipeline_runs.display_status(run, now) != "running"
     ]
 
     latest_by_slug = _latest_run_by_slug(finished_runs)
@@ -101,7 +101,7 @@ def _check_cinema(
     health = CinemaHealth(
         slug=slug,
         last_import_at=run.started_at if run else None,
-        last_import_status=pipeline_runs.display_status(run) if run else None,
+        last_import_status=pipeline_runs.display_status(run, now) if run else None,
         features_scraped=_features_scraped(run, slug) if run else None,
         upcoming_dates=upcoming_dates,
     )

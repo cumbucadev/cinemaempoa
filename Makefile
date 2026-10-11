@@ -5,3 +5,11 @@ pr:
 	@uv run djlint flask_backend/templates --lint --profile=jinja
 	@uv run djlint --reformat flask_backend/templates --format-css --format-js
 	@uv run vulture flask_backend scrapers cinemaempoa.py vulture_whitelist.py --exclude "*/tests/*" --min-confidence 80
+
+verify:
+	@uv run ruff check
+	@uv run ruff format --check
+	@uv run djlint flask_backend/templates --lint --profile=jinja
+	@uv run djlint flask_backend/templates --check --format-css --format-js
+	@uv run coverage run -m pytest
+	@uv run coverage report -m --fail-under=90
