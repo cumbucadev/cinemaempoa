@@ -66,9 +66,7 @@ class TestAddObservedTmdbIds:
             request = movie_inspection_requests.create_for_movie(_create_movie(42))
 
             movie_inspection_requests.add_observed_tmdb_ids(request.id, [7, 8, 7])
-            merged = movie_inspection_requests.add_observed_tmdb_ids(
-                request.id, [8, 9]
-            )
+            merged = movie_inspection_requests.add_observed_tmdb_ids(request.id, [8, 9])
 
             assert merged == [7, 8, 9]
             stored = movie_inspection_requests.get_by_id(request.id)
