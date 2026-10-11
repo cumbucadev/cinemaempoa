@@ -5,7 +5,8 @@ import pytest
 import requests
 
 from flask_backend.db import db_session
-from flask_backend.models import Director, Movie
+from flask_backend.models import Cinema, Country, Director, Genre, Movie, Screening
+from flask_backend.repository import movie_inspection_requests
 from flask_backend.service import movie_inspection_tools as tools
 
 TMDB_DETAILS = {
@@ -376,3 +377,77 @@ class TestResolveVerdict:
                 str(movie.id) in m and "999999" in m and "não foi observado" in m
                 for m in messages
             )
+
+
+def _create_linked_movie_with_screening():
+    """A movie linked to TMDB with directors, countries, genres and one
+    screening, so get_movie_context has every field to report."""
+    movie = _create_movie(tmdb_id=42)
+    movie.original_title = "A Capela"
+    movie.release_year = 1979
+    movie.original_language = "fr"
+    movie.directors.append(Director(tmdb_id=1, name="Jean-Michel Tchissoukou"))
+    movie.countries.append(Country(iso_3166_1="CG", name="Congo"))
+    movie.genres.append(Genre(tmdb_id=18, name="Drama"))
+    cinema = Cinema(slug="cine-teste", name="Cine Teste", url="https://example.com")
+    db_session.add_all([movie, cinema])
+    db_session.commit()
+    screening = Screening(
+        movie_id=movie.id,
+        cinema_id=cinema.id,
+        description="Drama congolês de 1979.",
+        url="https://example.com/sessao",
+    )
+    db_session.add(screening)
+    db_session.commit()
+    return movie, screening
+
+
+def _set_request_status(request, status):
+    request.status = status
+    db_session.add(request)
+    db_session.commit()
+
+
+class TestGetMovieContext:
+    def test_returns_the_movie_match_and_screenings(self, app):
+        with app.app_context():
+            movie, screening = _create_linked_movie_with_screening()
+            request = movie_inspection_requests.create_for_movie(movie)
+
+            context = tools.get_movie_context(request.id)
+
+            assert context.model_dump() == {
+                "movie_title": "Filme de Teste",
+                "tmdb_original_title": "A Capela",
+                "tmdb_release_year": 1979,
+                "tmdb_original_language": "fr",
+                "tmdb_directors": ["Jean-Michel Tchissoukou"],
+                "tmdb_countries": ["Congo"],
+                "tmdb_genres": ["Drama"],
+                "screenings": [
+                    {
+                        "screening_id": screening.id,
+                        "cinema_name": "Cine Teste",
+                        "description": "Drama congolês de 1979.",
+                    }
+                ],
+            }
+
+    def test_refuses_an_unknown_request(self, app):
+        with app.app_context(), pytest.raises(
+            tools.InspectionRequestError, match="Pedido de inspeção #999 não existe"
+        ):
+            tools.get_movie_context(999)
+
+    @pytest.mark.parametrize("status", ["done", "expired"])
+    def test_refuses_a_request_no_longer_dispatched(self, app, status):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            _set_request_status(request, status)
+
+            with pytest.raises(
+                tools.InspectionRequestError,
+                match=f"Pedido de inspeção #{request.id} não está mais ativo",
+            ):
+                tools.get_movie_context(request.id)

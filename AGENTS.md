@@ -15,6 +15,7 @@ is the Flask app (routes, services, templates, CLI, migrations).
 | Task | Command |
 |------|---------|
 | Run dev server | `flask --app flask_backend run --debug` |
+| Run MCP server (inspector tools, needs `ORBIT_MCP_TOKEN`) | `uv run python -m flask_backend.mcp_server` (`MCP_HOST`/`MCP_PORT`, default `127.0.0.1:8001`, path `/mcp`) |
 | Init DB | `flask --app flask_backend init-db` |
 | Seed DB | `flask --app flask_backend seed-db` |
 | Create migration | `flask --app flask_backend db-revision --autogenerate -m "message"` |

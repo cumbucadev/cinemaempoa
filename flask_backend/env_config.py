@@ -19,3 +19,8 @@ GEMINI_API_KEY = config("GEMINI_API_KEY", None)
 TMDB_API_TOKEN = config(
     "TMDB_API_TOKEN", default=None
 )  # Read Access Token from https://www.themoviedb.org/settings/api
+# Static bearer token the Orbit agent sends to the MCP server
+# (flask_backend/mcp_server.py), which refuses to start while it is empty.
+ORBIT_MCP_TOKEN = config("ORBIT_MCP_TOKEN", default="")
+MCP_HOST = config("MCP_HOST", default="127.0.0.1")
+MCP_PORT = config("MCP_PORT", default=8001, cast=int)
