@@ -1,3 +1,4 @@
+import json
 import logging
 from unittest.mock import MagicMock, patch
 
@@ -451,3 +452,178 @@ class TestGetMovieContext:
                 match=f"Pedido de inspeção #{request.id} não está mais ativo",
             ):
                 tools.get_movie_context(request.id)
+
+
+def _observed_ids(request_id):
+    return json.loads(movie_inspection_requests.get_by_id(request_id).observed_tmdb_ids)
+
+
+SEARCH_RESULTS = [
+    {"id": 573412, "title": "A Capela", "release_date": "1979-01-01"},
+    {"id": 999, "title": "A Capela (remake)", "release_date": ""},
+]
+
+# Each observation tool, called for `request_id` with arguments that are
+# valid for any request, so the request checks can run over all three.
+OBSERVATION_TOOLS = {
+    "search_tmdb_candidates": lambda request_id: tools.search_tmdb_candidates(
+        request_id, "A Capela"
+    ),
+    "get_tmdb_details": lambda request_id: tools.get_tmdb_details(request_id, 1),
+    "fetch_screening_source": lambda request_id: tools.fetch_screening_source(
+        request_id, 1
+    ),
+}
+
+
+class TestObservationToolsRequestChecks:
+    @pytest.mark.parametrize("tool", OBSERVATION_TOOLS)
+    def test_refuses_an_unknown_request(self, app, tool):
+        with app.app_context(), pytest.raises(
+            tools.InspectionRequestError, match="Pedido de inspeção #999 não existe"
+        ):
+            OBSERVATION_TOOLS[tool](999)
+
+    @pytest.mark.parametrize("tool", OBSERVATION_TOOLS)
+    @pytest.mark.parametrize("status", ["done", "expired"])
+    def test_refuses_a_request_no_longer_dispatched(self, app, tool, status):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            _set_request_status(request, status)
+
+            with pytest.raises(
+                tools.InspectionRequestError,
+                match=f"Pedido de inspeção #{request.id} não está mais ativo",
+            ):
+                OBSERVATION_TOOLS[tool](request.id)
+
+
+class TestSearchTmdbCandidates:
+    def test_returns_the_core_text_and_records_the_exposed_ids(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            with patch.object(
+                tools.TMDBClient, "search_movies", return_value=SEARCH_RESULTS
+            ):
+                observation = tools.search_tmdb_candidates(request.id, "A Capela")
+                expected, _ = tools.run_search_tmdb_candidates("A Capela")
+
+            assert observation == expected
+            assert _observed_ids(request.id) == [573412, 999]
+
+    def test_a_tmdb_error_comes_back_as_observation_text(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            with patch.object(
+                tools.TMDBClient,
+                "search_movies",
+                side_effect=requests.RequestException("timeout"),
+            ):
+                observation = tools.search_tmdb_candidates(request.id, "A Capela")
+
+            assert observation.startswith("Erro ao buscar 'A Capela' no TMDB")
+            assert _observed_ids(request.id) == []
+
+
+class TestGetTmdbDetails:
+    def test_returns_the_core_text_and_records_the_id(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            with patch.object(
+                tools.TMDBClient, "get_movie_details", return_value=TMDB_DETAILS
+            ):
+                observation = tools.get_tmdb_details(request.id, 573412)
+                expected, _ = tools.run_get_tmdb_details(573412)
+
+            assert observation == expected
+            assert _observed_ids(request.id) == [573412]
+
+    def test_a_tmdb_error_comes_back_as_observation_text(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            with patch.object(
+                tools.TMDBClient,
+                "get_movie_details",
+                side_effect=requests.RequestException("timeout"),
+            ):
+                observation = tools.get_tmdb_details(request.id, 573412)
+
+            assert observation.startswith("Erro ao buscar detalhes do TMDB")
+            assert _observed_ids(request.id) == []
+
+
+class TestObservedIdsAcrossTools:
+    def test_accumulate_between_calls_without_duplicates(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+            with patch.object(
+                tools.TMDBClient, "search_movies", return_value=SEARCH_RESULTS
+            ), patch.object(
+                tools.TMDBClient, "get_movie_details", return_value=TMDB_DETAILS
+            ):
+                tools.search_tmdb_candidates(request.id, "A Capela")
+                tools.get_tmdb_details(request.id, 573412)
+                tools.get_tmdb_details(request.id, 12)
+                tools.search_tmdb_candidates(request.id, "A Capela")
+
+            assert _observed_ids(request.id) == [573412, 999, 12]
+
+
+class TestFetchScreeningSource:
+    def test_returns_the_source_of_a_screening_of_the_requests_movie(self, app):
+        with app.app_context():
+            movie, screening = _create_linked_movie_with_screening()
+            request = movie_inspection_requests.create_for_movie(movie)
+            response = MagicMock()
+            response.text = "<p>Jean-Michel Tchissoukou, 1979</p>"
+            with patch(
+                "flask_backend.service.movie_inspection_tools.requests.get",
+                return_value=response,
+            ):
+                observation = tools.fetch_screening_source(request.id, screening.id)
+
+            assert observation == (
+                "Conteúdo de https://example.com/sessao:\n"
+                "Jean-Michel Tchissoukou, 1979"
+            )
+
+    def test_a_network_error_comes_back_as_observation_text(self, app):
+        with app.app_context():
+            movie, screening = _create_linked_movie_with_screening()
+            request = movie_inspection_requests.create_for_movie(movie)
+            with patch(
+                "flask_backend.service.movie_inspection_tools.requests.get",
+                side_effect=requests.RequestException("timeout"),
+            ):
+                observation = tools.fetch_screening_source(request.id, screening.id)
+
+            assert observation.startswith("Erro ao buscar https://example.com/sessao")
+
+    def test_refuses_a_screening_of_another_movie(self, app):
+        with app.app_context():
+            _, screening = _create_linked_movie_with_screening()
+            other = Movie(title="Outro Filme", slug="outro-filme", tmdb_id=7)
+            db_session.add(other)
+            db_session.commit()
+            request = movie_inspection_requests.create_for_movie(other)
+
+            with patch(
+                "flask_backend.service.movie_inspection_tools.requests.get"
+            ) as fetch, pytest.raises(
+                tools.InspectionRequestError,
+                match=(
+                    f"Sessão #{screening.id} não pertence ao filme do pedido "
+                    f"de inspeção #{request.id}"
+                ),
+            ):
+                tools.fetch_screening_source(request.id, screening.id)
+            fetch.assert_not_called()
+
+    def test_refuses_an_unknown_screening(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie(42))
+
+            with pytest.raises(
+                tools.InspectionRequestError, match="Sessão #999 não pertence"
+            ):
+                tools.fetch_screening_source(request.id, 999)

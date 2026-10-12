@@ -46,6 +46,13 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
     context, whose teardown removes the thread's db_session."""
     mcp = FastMCP("cinemaempoa")
 
+    def run_in_app_context(tool, *args):
+        with flask_app.app_context():
+            try:
+                return tool(*args)
+            except tools.InspectionRequestError as exc:
+                raise ToolError(str(exc)) from exc
+
     @mcp.tool
     def get_movie_context(request_id: int) -> tools.MovieContext:
         """Devolve o título do filme do pedido de inspeção, o vínculo TMDB
@@ -53,11 +60,33 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         gêneros) e as sessões publicadas pelos cinemas (screening_id, cinema,
         descrição). `request_id` é obrigatório: é o id do pedido de inspeção
         recebido no disparo."""
-        with flask_app.app_context():
-            try:
-                return tools.get_movie_context(request_id)
-            except tools.InspectionRequestError as exc:
-                raise ToolError(str(exc)) from exc
+        return run_in_app_context(tools.get_movie_context, request_id)
+
+    @mcp.tool
+    def search_tmdb_candidates(request_id: int, title: str) -> str:
+        """Busca `title` no TMDB e devolve os candidatos encontrados
+        (tmdb_id, título e ano). `request_id` é obrigatório: é o id do pedido
+        de inspeção recebido no disparo. Os tmdb_ids devolvidos ficam
+        registrados como observados neste pedido."""
+        return run_in_app_context(tools.search_tmdb_candidates, request_id, title)
+
+    @mcp.tool
+    def get_tmdb_details(request_id: int, tmdb_id: int) -> str:
+        """Devolve os detalhes de um filme no TMDB: título original, ano,
+        diretores e países. `request_id` é obrigatório: é o id do pedido de
+        inspeção recebido no disparo. O tmdb_id consultado fica registrado
+        como observado neste pedido."""
+        return run_in_app_context(tools.get_tmdb_details, request_id, tmdb_id)
+
+    @mcp.tool
+    def fetch_screening_source(request_id: int, screening_id: int) -> str:
+        """Devolve o texto da página de origem de uma sessão do filme do
+        pedido, sem HTML e cortado em 4000 caracteres. `request_id` é
+        obrigatório: é o id do pedido de inspeção recebido no disparo. Só
+        aceita sessões do filme do pedido (veja get_movie_context)."""
+        return run_in_app_context(
+            tools.fetch_screening_source, request_id, screening_id
+        )
 
     return mcp
 

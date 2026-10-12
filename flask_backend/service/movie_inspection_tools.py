@@ -228,3 +228,35 @@ def build_movie_context(movie: Movie) -> MovieContext:
 
 def get_movie_context(request_id: int) -> MovieContext:
     return build_movie_context(_get_dispatched_request(request_id).movie)
+
+
+def search_tmdb_candidates(request_id: int, title: str) -> str:
+    """Searches TMDB for `title` and records every id the result exposed as
+    observed by the request."""
+    request = _get_dispatched_request(request_id)
+    observation, ids = run_search_tmdb_candidates(title)
+    movie_inspection_requests.add_observed_tmdb_ids(request.id, ids)
+    return observation
+
+
+def get_tmdb_details(request_id: int, tmdb_id: int) -> str:
+    """Looks up `tmdb_id` on TMDB and, when it was found, records it as
+    observed by the request."""
+    request = _get_dispatched_request(request_id)
+    observation, ids = run_get_tmdb_details(tmdb_id)
+    movie_inspection_requests.add_observed_tmdb_ids(request.id, ids)
+    return observation
+
+
+def fetch_screening_source(request_id: int, screening_id: int) -> str:
+    """Fetches the source page of one of the request's movie's screenings.
+    Refuses a screening of any other movie, so another movie's page cannot
+    pass as evidence."""
+    request = _get_dispatched_request(request_id)
+    screening = get_screening_by_id(screening_id)
+    if screening is None or screening.movie_id != request.movie_id:
+        raise InspectionRequestError(
+            f"Sessão #{screening_id} não pertence ao filme do pedido de "
+            f"inspeção #{request_id}."
+        )
+    return run_fetch_screening_source(screening_id)
