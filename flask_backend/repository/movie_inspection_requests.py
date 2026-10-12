@@ -8,7 +8,7 @@ from typing import Iterable, Optional
 from sqlalchemy import select, update
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie, MovieInspectionRequest
+from flask_backend.models import Movie, MovieInspection, MovieInspectionRequest
 
 
 def create_for_movie(
@@ -42,26 +42,32 @@ def _merge_ids(current: list[int], new_ids: list[int]) -> list[int]:
     return list(dict.fromkeys(current + new_ids))
 
 
+def _take_write_lock(request_id: int) -> None:
+    """Commits whatever transaction the session has open, then starts a
+    fresh one with a no-op UPDATE on the request row, which takes SQLite's
+    write lock. A concurrent caller blocks on its own no-op UPDATE
+    (busy_timeout) until this transaction commits, so every read made after
+    this sees the latest committed state and nobody else can change it
+    before the commit."""
+    db_session.commit()
+    db_session.execute(
+        update(MovieInspectionRequest)
+        .where(MovieInspectionRequest.id == request_id)
+        .values(observed_tmdb_ids=MovieInspectionRequest.observed_tmdb_ids)
+    )
+
+
 def add_observed_tmdb_ids(request_id: int, tmdb_ids: Iterable[int]) -> list[int]:
     """Appends `tmdb_ids` to the request's observed ids, skipping those
     already there, and returns the resulting list. Commits.
 
-    Atomic: the read-modify-write runs inside one write transaction, so two
-    tool calls from the same agent turn running in parallel cannot drop each
-    other's ids. A no-op UPDATE comes first to take SQLite's write lock
-    before the read; a concurrent caller blocks on its own first UPDATE
-    (busy_timeout) until this one commits, and then reads the merged list.
+    Atomic: the read-modify-write runs under the request's write lock, so
+    two tool calls from the same agent turn running in parallel cannot drop
+    each other's ids.
     """
     new_ids = list(tmdb_ids)
     by_id = MovieInspectionRequest.id == request_id
-    # Close whatever transaction the session has open, so the lock below
-    # starts a fresh one whose read sees the latest committed list.
-    db_session.commit()
-    db_session.execute(
-        update(MovieInspectionRequest)
-        .where(by_id)
-        .values(observed_tmdb_ids=MovieInspectionRequest.observed_tmdb_ids)
-    )
+    _take_write_lock(request_id)
     current = db_session.execute(
         select(MovieInspectionRequest.observed_tmdb_ids).where(by_id)
     ).scalar_one()
@@ -73,3 +79,25 @@ def add_observed_tmdb_ids(request_id: int, tmdb_ids: Iterable[int]) -> list[int]
     )
     db_session.commit()
     return merged
+
+
+def get_for_update(request_id: int) -> Optional[MovieInspectionRequest]:
+    """The request, freshly read under its write lock (see
+    `_take_write_lock`), or None if it does not exist. The lock holds until
+    the caller commits or rolls back - `close_as_done` commits."""
+    _take_write_lock(request_id)
+    return db_session.get(MovieInspectionRequest, request_id, populate_existing=True)
+
+
+def close_as_done(
+    request: MovieInspectionRequest, inspection: MovieInspection
+) -> MovieInspectionRequest:
+    """Saves `inspection` and closes `request` as `done`, pointing at it, in
+    one commit - together with whatever else the open transaction carries
+    (a rematch of the movie)."""
+    request.status = "done"
+    request.finished_at = datetime.now()
+    request.inspection = inspection
+    db_session.add_all([inspection, request])
+    db_session.commit()
+    return request

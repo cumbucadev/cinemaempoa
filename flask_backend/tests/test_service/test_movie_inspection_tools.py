@@ -1,12 +1,22 @@
 import json
 import logging
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
 from flask_backend.db import db_session
-from flask_backend.models import Cinema, Country, Director, Genre, Movie, Screening
+from flask_backend.models import (
+    Cinema,
+    Country,
+    Director,
+    Genre,
+    Movie,
+    MovieInspection,
+    PipelineRun,
+    Screening,
+)
 from flask_backend.repository import movie_inspection_requests
 from flask_backend.service import movie_inspection_tools as tools
 
@@ -627,3 +637,176 @@ class TestFetchScreeningSource:
                 tools.InspectionRequestError, match="Sessão #999 não pertence"
             ):
                 tools.fetch_screening_source(request.id, 999)
+
+
+def _create_request(tmdb_id=1, observed=(), pipeline_run_id=None):
+    movie = _create_movie(tmdb_id=tmdb_id)
+    if pipeline_run_id is None:
+        run = PipelineRun(
+            pipeline_name="inspect-movies", started_at=datetime.now(), status="running"
+        )
+        db_session.add(run)
+        db_session.commit()
+        pipeline_run_id = run.id
+    request = movie_inspection_requests.create_for_movie(
+        movie, pipeline_run_id=pipeline_run_id
+    )
+    movie_inspection_requests.add_observed_tmdb_ids(request.id, observed)
+    return movie, request
+
+
+def _inspections():
+    return db_session.query(MovieInspection).order_by(MovieInspection.id).all()
+
+
+class TestApplyVerdict:
+    @pytest.mark.parametrize("status", ["consistent", "needs_review"])
+    def test_records_the_row_and_closes_the_request_without_touching_the_movie(
+        self, app, status
+    ):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=42)
+
+            result = tools.apply_verdict(request.id, status, "Raciocínio.", None)
+
+            [inspection] = _inspections()
+            assert result == tools.VerdictResult(
+                inspection_id=inspection.id, status=status, reasoning="Raciocínio."
+            )
+            assert inspection.movie_id == movie.id
+            assert inspection.checked_tmdb_id == 42
+            assert inspection.pipeline_run_id == request.pipeline_run_id
+            assert inspection.previous_snapshot is None
+            assert inspection.new_snapshot is None
+            closed = movie_inspection_requests.get_by_id(request.id)
+            assert closed.status == "done"
+            assert closed.finished_at is not None
+            assert closed.movie_inspection_id == inspection.id
+            assert db_session.get(Movie, movie.id).tmdb_id == 42
+
+    def test_fixed_with_an_observed_id_rematches_and_records_snapshots(self, app):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=1, observed=[573412])
+
+            with patch.object(
+                tools.TMDBClient, "get_movie_details", return_value=TMDB_DETAILS
+            ):
+                result = tools.apply_verdict(
+                    request.id, "fixed", "Diretor e ano batem.", 573412
+                )
+
+            [inspection] = _inspections()
+            assert result.status == "fixed"
+            assert inspection.status == "fixed"
+            assert inspection.checked_tmdb_id == 1
+            assert json.loads(inspection.previous_snapshot)["tmdb_id"] == 1
+            assert json.loads(inspection.new_snapshot)["tmdb_id"] == 573412
+            assert db_session.get(Movie, movie.id).tmdb_id == 573412
+            assert movie_inspection_requests.get_by_id(request.id).status == "done"
+
+    @pytest.mark.parametrize("new_tmdb_id", [None, 999999])
+    def test_fixed_without_an_observed_id_is_downgraded_to_needs_review(
+        self, app, new_tmdb_id
+    ):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=1, observed=[573412])
+
+            result = tools.apply_verdict(request.id, "fixed", "Confio.", new_tmdb_id)
+
+            [inspection] = _inspections()
+            assert result.status == inspection.status == "needs_review"
+            assert inspection.reasoning.endswith("Raciocínio original: Confio.")
+            assert db_session.get(Movie, movie.id).tmdb_id == 1
+            assert movie_inspection_requests.get_by_id(request.id).status == "done"
+
+    def test_fixed_after_the_link_changed_records_an_error_and_applies_nothing(
+        self, app
+    ):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=1, observed=[573412])
+            movie.tmdb_id = 7
+            db_session.add(movie)
+            db_session.commit()
+
+            with patch.object(tools.TMDBClient, "get_movie_details") as details:
+                result = tools.apply_verdict(request.id, "fixed", "Batem.", 573412)
+
+            details.assert_not_called()
+            [inspection] = _inspections()
+            assert result.status == inspection.status == "error"
+            assert "mudou desde a criação do pedido (de 1 para 7)" in (
+                inspection.reasoning
+            )
+            assert inspection.checked_tmdb_id == 1
+            assert inspection.new_snapshot is None
+            assert db_session.get(Movie, movie.id).tmdb_id == 7
+            assert movie_inspection_requests.get_by_id(request.id).status == "done"
+
+    def test_a_tmdb_failure_during_the_rematch_records_an_error(self, app):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=1, observed=[573412])
+
+            with patch.object(
+                tools.TMDBClient,
+                "get_movie_details",
+                side_effect=requests.ConnectionError("fora do ar"),
+            ):
+                result = tools.apply_verdict(request.id, "fixed", "Batem.", 573412)
+
+            [inspection] = _inspections()
+            assert result.status == inspection.status == "error"
+            assert "fora do ar" in inspection.reasoning
+            assert db_session.get(Movie, movie.id).tmdb_id == 1
+            assert movie_inspection_requests.get_by_id(request.id).status == "done"
+
+    def test_refuses_an_invalid_status(self, app):
+        with app.app_context():
+            _, request = _create_request()
+
+            with pytest.raises(tools.InspectionRequestError, match="'reverted'"):
+                tools.apply_verdict(request.id, "reverted", "Hm.", None)
+
+            assert _inspections() == []
+            assert (
+                movie_inspection_requests.get_by_id(request.id).status == "dispatched"
+            )
+
+    def test_refuses_an_expired_request(self, app):
+        with app.app_context():
+            _, request = _create_request()
+            _set_request_status(request, "expired")
+
+            with pytest.raises(
+                tools.InspectionRequestError,
+                match=f"Pedido de inspeção #{request.id} não está mais ativo",
+            ):
+                tools.apply_verdict(request.id, "consistent", "Ok.", None)
+
+            assert _inspections() == []
+
+    def test_refuses_an_unknown_request(self, app):
+        with app.app_context(), pytest.raises(
+            tools.InspectionRequestError, match="Pedido de inspeção #999 não existe"
+        ):
+            tools.apply_verdict(999, "consistent", "Ok.", None)
+
+    def test_a_second_call_returns_the_recorded_result_and_writes_nothing(self, app):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=1, observed=[573412])
+            with patch.object(
+                tools.TMDBClient, "get_movie_details", return_value=TMDB_DETAILS
+            ):
+                first = tools.apply_verdict(request.id, "fixed", "Batem.", 573412)
+            finished_at = movie_inspection_requests.get_by_id(request.id).finished_at
+
+            with patch.object(tools.TMDBClient, "get_movie_details") as details:
+                second = tools.apply_verdict(
+                    request.id, "needs_review", "Outra resposta.", None
+                )
+
+            details.assert_not_called()
+            assert second == first
+            assert len(_inspections()) == 1
+            closed = movie_inspection_requests.get_by_id(request.id)
+            assert closed.finished_at == finished_at
+            assert db_session.get(Movie, movie.id).tmdb_id == 573412

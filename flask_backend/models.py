@@ -377,8 +377,18 @@ class MovieInspectionRequest(Base):
     status = Column(String, nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     finished_at = Column(DateTime, nullable=True)
+    # The audit row apply_verdict recorded when it closed the request as
+    # `done`, so a retried call can answer with it instead of writing again.
+    movie_inspection_id = Column(
+        Integer, ForeignKey("movie_inspections.id"), nullable=True
+    )
 
     movie: Mapped["Movie"] = relationship()
+    inspection: Mapped[Optional["MovieInspection"]] = relationship()
+
+    @property
+    def observed_tmdb_id_list(self) -> list[int]:
+        return json.loads(self.observed_tmdb_ids)
 
 
 class AlertAction(Base):
