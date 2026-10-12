@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -30,7 +31,16 @@ PIPELINE_RUN_STATUSES = ["running", "success", "warning", "error"]
 
 ALERT_ACTIONS = ["posted", "dismissed"]
 
-MOVIE_INSPECTION_STATUSES = ["consistent", "fixed", "needs_review", "error", "reverted"]
+MOVIE_INSPECTION_STATUSES = [
+    "consistent",
+    "fixed",
+    "needs_review",
+    "error",
+    "reverted",
+    "verified",
+]
+
+MOVIE_INSPECTION_REQUEST_STATUSES = ["dispatched", "done", "expired"]
 
 
 class User(Base):
@@ -308,7 +318,8 @@ class MovieInspection(Base):
     match against what the cinema itself published about it (see
     flask_backend/service/movie_inspector.py). Append-only: reverting a
     "fixed" row creates a new row with status="reverted" instead of
-    mutating history - same log-not-mutate shape as AlertAction."""
+    mutating history - same log-not-mutate shape as AlertAction. A manual
+    link from /admin/movies/<id> appends a "verified" row."""
 
     __tablename__ = "movie_inspections"
 
@@ -327,6 +338,63 @@ class MovieInspection(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     movie: Mapped["Movie"] = relationship()
+
+    @property
+    def new_snapshot_data(self) -> Optional[dict]:
+        return json.loads(self.new_snapshot) if self.new_snapshot else None
+
+    @property
+    def new_snapshot_tmdb_id(self) -> Optional[int]:
+        """The tmdb_id this row left the movie on, for rows that changed or
+        confirmed the link (`fixed`, `reverted`, `verified`). None when the
+        row carries no after-snapshot."""
+        data = self.new_snapshot_data
+        return data.get("tmdb_id") if data else None
+
+
+class MovieInspectionRequest(Base):
+    """One inspection of a movie run from outside the Flask process (the
+    Orbit agent, through the MCP server in flask_backend/mcp_server.py),
+    identified by its id as `request_id`. Carries the state that inspection
+    needs between tool calls: which tmdb_id it set out to check and which
+    tmdb ids the agent has observed so far. The MCP tools only answer for
+    `dispatched` requests."""
+
+    __tablename__ = "movie_inspection_requests"
+
+    id = Column(Integer, primary_key=True)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False, index=True)
+    # The movie's tmdb_id when the request was created.
+    checked_tmdb_id = Column(Integer, nullable=True)
+    # JSON-encoded list of the tmdb ids the agent's tools exposed, starts "[]".
+    observed_tmdb_ids = Column(Text, nullable=False, default="[]")
+    # The Orbit execution handling this request, once dispatched to it.
+    execution_id = Column(String, nullable=True)
+    pipeline_run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id"), nullable=True, index=True
+    )
+    # see MOVIE_INSPECTION_REQUEST_STATUSES
+    status = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    finished_at = Column(DateTime, nullable=True)
+    # The audit row apply_verdict recorded when it closed the request as
+    # `done`, so a retried call can answer with it instead of writing again.
+    movie_inspection_id = Column(
+        Integer, ForeignKey("movie_inspections.id"), nullable=True
+    )
+
+    movie: Mapped["Movie"] = relationship()
+    inspection: Mapped[Optional["MovieInspection"]] = relationship()
+
+    @property
+    def observed_tmdb_id_list(self) -> list[int]:
+        return json.loads(self.observed_tmdb_ids)
+
+    @property
+    def movie_link_changed(self) -> bool:
+        """Whether the movie's tmdb_id moved since the request was created,
+        which makes a `fixed` verdict for it stale."""
+        return self.movie.tmdb_id != self.checked_tmdb_id
 
 
 class AlertAction(Base):

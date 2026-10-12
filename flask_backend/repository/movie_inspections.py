@@ -11,6 +11,29 @@ from flask_backend.db import db_session
 from flask_backend.models import Movie, MovieInspection
 
 
+def build(
+    movie_id: int,
+    status: str,
+    reasoning: str,
+    checked_tmdb_id: Optional[int] = None,
+    previous_snapshot: Optional[str] = None,
+    new_snapshot: Optional[str] = None,
+    pipeline_run_id: Optional[int] = None,
+) -> MovieInspection:
+    """An unsaved row, for callers that must commit it together with other
+    changes (see movie_inspection_requests.close_as_done)."""
+    return MovieInspection(
+        movie_id=movie_id,
+        status=status,
+        reasoning=reasoning,
+        checked_tmdb_id=checked_tmdb_id,
+        previous_snapshot=previous_snapshot,
+        new_snapshot=new_snapshot,
+        pipeline_run_id=pipeline_run_id,
+        created_at=datetime.now(),
+    )
+
+
 def create(
     movie_id: int,
     status: str,
@@ -20,15 +43,14 @@ def create(
     new_snapshot: Optional[str] = None,
     pipeline_run_id: Optional[int] = None,
 ) -> MovieInspection:
-    inspection = MovieInspection(
-        movie_id=movie_id,
-        status=status,
-        reasoning=reasoning,
+    inspection = build(
+        movie_id,
+        status,
+        reasoning,
         checked_tmdb_id=checked_tmdb_id,
         previous_snapshot=previous_snapshot,
         new_snapshot=new_snapshot,
         pipeline_run_id=pipeline_run_id,
-        created_at=datetime.now(),
     )
     db_session.add(inspection)
     db_session.commit()
@@ -44,12 +66,19 @@ def get_by_id(inspection_id: int) -> Optional[MovieInspection]:
     )
 
 
+# Rows whose outcome left the movie on an id this row already vouches for:
+# `fixed` applied the agent's replacement, `reverted` restored the admin's
+# choice, `verified` is the admin's manual link. For them the checked id is
+# the one in new_snapshot, not the checked_tmdb_id they replaced.
+_SNAPSHOT_CHECKED_STATUSES = ("fixed", "reverted", "verified")
+
+
 def _get_latest_checked_tmdb_id(movie_id: int) -> Optional[int]:
     """Ignores `error` rows: a transient failure (Gemini rate limit, network
     blip) still records the id it was about to check, and counting it as
     "already checked" would retire the movie from the queue forever."""
     row = (
-        db_session.query(MovieInspection.checked_tmdb_id)
+        db_session.query(MovieInspection)
         .filter(
             MovieInspection.movie_id == movie_id,
             MovieInspection.status != "error",
@@ -57,7 +86,11 @@ def _get_latest_checked_tmdb_id(movie_id: int) -> Optional[int]:
         .order_by(MovieInspection.id.desc())
         .first()
     )
-    return row[0] if row else None
+    if row is None:
+        return None
+    if row.status in _SNAPSHOT_CHECKED_STATUSES:
+        return row.new_snapshot_tmdb_id
+    return row.checked_tmdb_id
 
 
 def get_movies_needing_inspection() -> List[Movie]:

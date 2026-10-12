@@ -15,6 +15,7 @@ is the Flask app (routes, services, templates, CLI, migrations).
 | Task | Command |
 |------|---------|
 | Run dev server | `flask --app flask_backend run --debug` |
+| Run MCP server (inspector tools, needs `ORBIT_MCP_TOKEN`) | `uv run python -m flask_backend.mcp_server` (`MCP_HOST`/`MCP_PORT`, default `127.0.0.1:8001`, path `/mcp`) |
 | Init DB | `flask --app flask_backend init-db` |
 | Seed DB | `flask --app flask_backend seed-db` |
 | Create migration | `flask --app flask_backend db-revision --autogenerate -m "message"` |
@@ -47,7 +48,7 @@ Other CLI commands (see `flask_backend/commands.py`): `pipeline-health`, `dupe-c
 | CI pipeline | `.github/workflows/ci.yml` |
 | Deployment | `.github/workflows/deploy-server.yml` |
 | Scheduled jobs | `.github/workflows/fetch-movie-metadata.yml`, `fetch-posters.yml`, `import-cinebancarios.yml`, `import-cine-cinco.yml`, `run-spiders.yml`, `update-sitemaps.yml` |
-| Production runtime | `docker-compose.production.yml`, `Dockerfile.prod` |
+| Production runtime | `docker-compose.shared.yml` (what deploy uses; includes the `cinemaempoa_mcp` MCP server service), `Dockerfile.prod`; `docker-compose.production.yml` is the standalone variant with its own Traefik and no MCP service |
 | DB backups | `backup-db.sh` |
 
 ## Key Conventions
@@ -55,6 +56,9 @@ Other CLI commands (see `flask_backend/commands.py`): `pipeline-health`, `dupe-c
 - `development.sqlite` and `flask_backend.sqlite` are local databases; never treat
 their contents as authoritative or commit changes to them as data.
 - `pre-commit` runs ruff and djlint on commit: install with `pre-commit install`.
+- Running the compose stack mounts the checkout as `.:/app`, so containers leave
+root-owned `__pycache__/` and `instance/` behind. Clean them with
+`docker run --rm -v "$PWD":/w alpine chown -R "$(id -u):$(id -g)" /w`.
 - Run all four lint/format commands above before opening a PR; CI fails on unformatted code.
 - `requests==2.32.3`, `jiter==0.11.1` and `jinja2==3.1.6` are pinned to satisfy
 `atomic-agents==2.9.1` (used by the `inspect-movies` inspector agent) and its

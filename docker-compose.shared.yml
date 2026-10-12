@@ -16,6 +16,39 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # MCP server the Orbit inspection agent calls (flask_backend/mcp_server.py).
+  # Same image and SQLite volume as `flask`; Traefik routes
+  # https://cinemaempoa.com.br/mcp straight here, bypassing nginx.
+  cinemaempoa_mcp:
+    container_name: cinemaempoa_mcp
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    command: ["python", "-m", "flask_backend.mcp_server"]
+    volumes:
+      - .:/app
+    environment:
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8001
+    expose:
+      - 8001
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cinema-mcp.rule=Host(`cinemaempoa.com.br`) && (Path(`/mcp`) || PathPrefix(`/mcp/`))"
+      - "traefik.http.routers.cinema-mcp.entrypoints=websecure"
+      - "traefik.http.routers.cinema-mcp.tls.certresolver=lets-encrypt"
+      - "traefik.http.routers.cinema-mcp.priority=100"
+      - "traefik.http.routers.cinema-mcp.service=cinema-mcp"
+      - "traefik.http.services.cinema-mcp.loadbalancer.server.port=8001"
+    networks:
+      - traefik_proxy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   nginx:
     image: nginx:stable-alpine
     container_name: cinemaempoa_nginx

@@ -2,19 +2,53 @@ import os
 
 import click
 from flask.cli import with_appcontext
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from flask_backend.env_config import ADMIN_PROD_PWD, ADMIN_PROD_USERNAME, DATABASE_URL
+
+SQLITE_BUSY_TIMEOUT_MS = 5000
+
+
+def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
+    cursor.close()
+
+
+def configure_sqlite_pragmas(engine):
+    """Make concurrent writers wait instead of failing with "database is locked".
+
+    Applies WAL journal mode and a busy timeout on every new connection, but only
+    for file-backed SQLite URLs. Returns whether the listener was registered.
+    """
+    url = engine.url
+    database = url.database or ""
+    in_memory = database in ("", ":memory:") or database.startswith("file::memory:")
+    if url.get_backend_name() != "sqlite" or in_memory:
+        return False
+    event.listen(engine, "connect", _set_sqlite_pragmas)
+    return True
+
 
 # TODO: This is a hack to get the database to work with pytest
 # see https://github.com/pytest-dev/pytest/issues/9502#issuecomment-2063572916
 # we should be able to change this in conftest.py app fixture
 if os.environ.get("PYTEST_VERSION"):
-    engine = create_engine("sqlite:///:memory:")
+    # One connection shared by every thread: the default pool gives each
+    # thread its own (empty) in-memory database, and the MCP server runs its
+    # sync tools in a threadpool.
+    engine = create_engine(
+        "sqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
 else:
     engine = create_engine(DATABASE_URL)
+    configure_sqlite_pragmas(engine)
 
 db_session = scoped_session(
     sessionmaker(autocommit=False, autoflush=False, bind=engine)

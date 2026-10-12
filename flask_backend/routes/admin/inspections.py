@@ -29,7 +29,7 @@ def _build_row(inspection):
         "previous": json.loads(inspection.previous_snapshot)
         if inspection.previous_snapshot
         else None,
-        "new": json.loads(inspection.new_snapshot) if inspection.new_snapshot else None,
+        "new": inspection.new_snapshot_data,
         "cinemas": sorted({s.cinema.name for s in inspection.movie.screenings}),
     }
 
