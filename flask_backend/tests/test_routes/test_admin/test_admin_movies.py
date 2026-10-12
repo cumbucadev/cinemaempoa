@@ -2,12 +2,37 @@
 Tests the basic functionality of /admin/movies/* endpoints.
 """
 
+import json
 from unittest.mock import patch
 
 import requests
 
 from flask_backend.db import db_session
-from flask_backend.models import Collection, Country, Director, Genre, Movie
+from flask_backend.models import (
+    Collection,
+    Country,
+    Director,
+    Genre,
+    Movie,
+    MovieInspection,
+)
+
+_LINK_DETAILS = {
+    "genres": [],
+    "directors": [{"id": 42, "name": "Jane Director"}],
+    "countries": [],
+    "original_title": "Original",
+    "release_year": 2021,
+    "original_language": "en",
+}
+
+
+def _inspections(movie_id):
+    return (
+        db_session.query(MovieInspection)
+        .filter(MovieInspection.movie_id == movie_id)
+        .all()
+    )
 
 
 def _create_movie(title="Filme de Teste", slug="filme-de-teste", tmdb_id=None):
@@ -307,6 +332,66 @@ class TestAdminMoviesTmdbLink:
             updated = db_session.query(Movie).filter(Movie.id == movie_id).first()
             assert updated.tmdb_id is None
 
+    def test_records_a_verified_inspection_with_before_and_after(
+        self, client, auth_headers
+    ):
+        with client.application.app_context():
+            movie_id = _create_movie(tmdb_id=111).id
+
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = _LINK_DETAILS
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 555}
+            )
+
+        assert response.status_code == 200
+        with client.application.app_context():
+            [inspection] = _inspections(movie_id)
+            assert inspection.status == "verified"
+            assert inspection.reasoning == "Vínculo confirmado manualmente pelo admin."
+            assert inspection.checked_tmdb_id == 111
+            assert inspection.pipeline_run_id is None
+            assert json.loads(inspection.previous_snapshot)["tmdb_id"] == 111
+            new_snapshot = json.loads(inspection.new_snapshot)
+            assert new_snapshot["tmdb_id"] == 555
+            assert new_snapshot["directors"] == ["Jane Director"]
+
+    def test_records_verified_when_relinking_to_the_same_tmdb_id(
+        self, client, auth_headers
+    ):
+        with client.application.app_context():
+            movie_id = _create_movie(tmdb_id=555).id
+
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.return_value = _LINK_DETAILS
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 555}
+            )
+
+        assert response.status_code == 200
+        assert response.json["tmdb_id"] == 555
+        with client.application.app_context():
+            [inspection] = _inspections(movie_id)
+            assert inspection.status == "verified"
+            assert inspection.checked_tmdb_id == 555
+            assert inspection.new_snapshot_tmdb_id == 555
+
+    def test_records_no_inspection_on_tmdb_failure(self, client, auth_headers):
+        with client.application.app_context():
+            movie_id = _create_movie(tmdb_id=111).id
+
+        with patch("flask_backend.routes.admin.movies.TMDBClient") as mock_client_cls:
+            mock_client_cls.return_value.get_movie_details.side_effect = (
+                requests.RequestException("boom")
+            )
+            response = auth_headers.post(
+                f"/admin/movies/{movie_id}/tmdb-link", json={"tmdb_id": 555}
+            )
+
+        assert response.status_code == 502
+        with client.application.app_context():
+            assert _inspections(movie_id) == []
+
 
 class TestAdminMoviesTmdbUnlink:
     def test_requires_login(self, client):
@@ -389,3 +474,13 @@ class TestAdminMoviesTmdbUnlink:
         with client.application.app_context():
             relinked = db_session.query(Movie).filter(Movie.id == movie_id).first()
             assert relinked.tmdb_excluded is False
+
+    def test_records_no_inspection(self, client, auth_headers):
+        with client.application.app_context():
+            movie_id = _create_movie(tmdb_id=555).id
+
+        response = auth_headers.post(f"/admin/movies/{movie_id}/tmdb-unlink")
+
+        assert response.status_code == 200
+        with client.application.app_context():
+            assert _inspections(movie_id) == []

@@ -492,10 +492,10 @@ def revert_inspection(inspection_id: int):
         raise ValueError(f"Inspeção #{inspection_id} não pode ser revertida.")
 
     movie = get_movie_by_id(inspection.movie_id)
-    new_snapshot = (
-        json.loads(inspection.new_snapshot) if inspection.new_snapshot else None
-    )
-    if new_snapshot is None or movie.tmdb_id != new_snapshot.get("tmdb_id"):
+    if (
+        inspection.new_snapshot_data is None
+        or movie.tmdb_id != inspection.new_snapshot_tmdb_id
+    ):
         logger.warning(
             "Inspeção #%d – revert recusado: filme %d não reflete mais o "
             "snapshot desta inspeção (uma correção mais recente já foi aplicada)",

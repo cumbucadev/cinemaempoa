@@ -1,7 +1,6 @@
 """Data access for MovieInspection rows - the append-only audit log
 behind the movie inspector agent and /admin/movies/inspections."""
 
-import json
 from datetime import datetime
 from math import ceil
 from typing import List, Optional, Tuple
@@ -47,9 +46,9 @@ def get_by_id(inspection_id: int) -> Optional[MovieInspection]:
 
 # Rows whose outcome left the movie on an id this row already vouches for:
 # `fixed` applied the agent's replacement, `reverted` restored the admin's
-# choice. For them the checked id is the one in new_snapshot, not the
-# checked_tmdb_id they replaced.
-_SNAPSHOT_CHECKED_STATUSES = ("fixed", "reverted")
+# choice, `verified` is the admin's manual link. For them the checked id is
+# the one in new_snapshot, not the checked_tmdb_id they replaced.
+_SNAPSHOT_CHECKED_STATUSES = ("fixed", "reverted", "verified")
 
 
 def _get_latest_checked_tmdb_id(movie_id: int) -> Optional[int]:
@@ -57,11 +56,7 @@ def _get_latest_checked_tmdb_id(movie_id: int) -> Optional[int]:
     blip) still records the id it was about to check, and counting it as
     "already checked" would retire the movie from the queue forever."""
     row = (
-        db_session.query(
-            MovieInspection.status,
-            MovieInspection.checked_tmdb_id,
-            MovieInspection.new_snapshot,
-        )
+        db_session.query(MovieInspection)
         .filter(
             MovieInspection.movie_id == movie_id,
             MovieInspection.status != "error",
@@ -71,10 +66,9 @@ def _get_latest_checked_tmdb_id(movie_id: int) -> Optional[int]:
     )
     if row is None:
         return None
-    status, checked_tmdb_id, new_snapshot = row
-    if status in _SNAPSHOT_CHECKED_STATUSES:
-        return json.loads(new_snapshot).get("tmdb_id") if new_snapshot else None
-    return checked_tmdb_id
+    if row.status in _SNAPSHOT_CHECKED_STATUSES:
+        return row.new_snapshot_tmdb_id
+    return row.checked_tmdb_id
 
 
 def get_movies_needing_inspection() -> List[Movie]:

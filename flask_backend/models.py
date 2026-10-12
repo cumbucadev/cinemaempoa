@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -30,7 +31,14 @@ PIPELINE_RUN_STATUSES = ["running", "success", "warning", "error"]
 
 ALERT_ACTIONS = ["posted", "dismissed"]
 
-MOVIE_INSPECTION_STATUSES = ["consistent", "fixed", "needs_review", "error", "reverted"]
+MOVIE_INSPECTION_STATUSES = [
+    "consistent",
+    "fixed",
+    "needs_review",
+    "error",
+    "reverted",
+    "verified",
+]
 
 MOVIE_INSPECTION_REQUEST_STATUSES = ["dispatched", "done", "expired"]
 
@@ -310,7 +318,8 @@ class MovieInspection(Base):
     match against what the cinema itself published about it (see
     flask_backend/service/movie_inspector.py). Append-only: reverting a
     "fixed" row creates a new row with status="reverted" instead of
-    mutating history - same log-not-mutate shape as AlertAction."""
+    mutating history - same log-not-mutate shape as AlertAction. A manual
+    link from /admin/movies/<id> appends a "verified" row."""
 
     __tablename__ = "movie_inspections"
 
@@ -329,6 +338,18 @@ class MovieInspection(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     movie: Mapped["Movie"] = relationship()
+
+    @property
+    def new_snapshot_data(self) -> Optional[dict]:
+        return json.loads(self.new_snapshot) if self.new_snapshot else None
+
+    @property
+    def new_snapshot_tmdb_id(self) -> Optional[int]:
+        """The tmdb_id this row left the movie on, for rows that changed or
+        confirmed the link (`fixed`, `reverted`, `verified`). None when the
+        row carries no after-snapshot."""
+        data = self.new_snapshot_data
+        return data.get("tmdb_id") if data else None
 
 
 class MovieInspectionRequest(Base):
