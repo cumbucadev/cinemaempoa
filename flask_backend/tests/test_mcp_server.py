@@ -117,12 +117,21 @@ class TestTools:
             }
         ]
 
-    def test_an_invalid_request_comes_back_as_a_tool_error(self, app):
+    @pytest.mark.parametrize(
+        "name, arguments",
+        [
+            ("get_movie_context", {}),
+            ("search_tmdb_candidates", {"title": "A Capela"}),
+            ("get_tmdb_details", {"tmdb_id": 1}),
+            ("fetch_screening_source", {"screening_id": 1}),
+        ],
+    )
+    def test_an_invalid_request_comes_back_as_a_tool_error(self, app, name, arguments):
         with pytest.raises(ToolError, match="Pedido de inspeção #999 não existe"):
             asyncio.run(
                 _with_client(
                     app,
-                    lambda c: c.call_tool("get_movie_context", {"request_id": 999}),
+                    lambda c: c.call_tool(name, {"request_id": 999, **arguments}),
                 )
             )
 
