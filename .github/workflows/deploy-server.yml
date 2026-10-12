@@ -30,14 +30,37 @@ jobs:
             echo "✅ Pre-build cleanup complete."
 
             echo "🔄 Building Docker image..."
-            docker compose -f docker-compose.shared.yml build flask
+            docker compose -f docker-compose.shared.yml build flask cinemaempoa_mcp
 
             echo "🔄 Running database migrations..."
             docker compose -f docker-compose.shared.yml run --rm flask flask --app flask_backend db-upgrade
             echo "✅ Migrations completed."
 
             echo "🚀 Starting application..."
-            docker compose -f docker-compose.shared.yml up -d flask
+            docker compose -f docker-compose.shared.yml up -d flask cinemaempoa_mcp
+
+            # The MCP server refuses to start without ORBIT_MCP_TOKEN in .env;
+            # fail the deploy loudly instead of leaving it in a restart loop.
+            # An unauthenticated request must get 401 once it is serving.
+            echo "🔎 Checking the MCP server answers..."
+            mcp_up=0
+            for attempt in 1 2 3 4 5 6; do
+              sleep 5
+              if docker compose -f docker-compose.shared.yml exec -T cinemaempoa_mcp \
+                python -c "import urllib.request as u, urllib.error as e
+            try: u.urlopen(u.Request('http://127.0.0.1:8001/mcp', method='POST'))
+            except e.HTTPError as err: raise SystemExit(err.code != 401)
+            raise SystemExit(1)" 2>/dev/null; then
+                mcp_up=1
+                break
+              fi
+            done
+            if [ "$mcp_up" != 1 ]; then
+              docker compose -f docker-compose.shared.yml logs --tail 50 cinemaempoa_mcp
+              echo "❌ cinemaempoa_mcp is not answering (is ORBIT_MCP_TOKEN set in .env?)"
+              exit 1
+            fi
+            echo "✅ MCP server answering."
 
             echo "📊 Disk usage before cleanup:"
             docker system df
