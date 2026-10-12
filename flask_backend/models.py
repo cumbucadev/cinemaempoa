@@ -390,6 +390,12 @@ class MovieInspectionRequest(Base):
     def observed_tmdb_id_list(self) -> list[int]:
         return json.loads(self.observed_tmdb_ids)
 
+    @property
+    def movie_link_changed(self) -> bool:
+        """Whether the movie's tmdb_id moved since the request was created,
+        which makes a `fixed` verdict for it stale."""
+        return self.movie.tmdb_id != self.checked_tmdb_id
+
 
 class AlertAction(Base):
     """One posted/dismissed action taken on a Screening from /admin/alerts

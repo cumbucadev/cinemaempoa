@@ -699,6 +699,7 @@ class TestApplyVerdict:
             assert result.status == "fixed"
             assert inspection.status == "fixed"
             assert inspection.checked_tmdb_id == 1
+            assert inspection.pipeline_run_id == request.pipeline_run_id
             assert json.loads(inspection.previous_snapshot)["tmdb_id"] == 1
             assert json.loads(inspection.new_snapshot)["tmdb_id"] == 573412
             assert db_session.get(Movie, movie.id).tmdb_id == 573412
@@ -738,6 +739,7 @@ class TestApplyVerdict:
                 inspection.reasoning
             )
             assert inspection.checked_tmdb_id == 1
+            assert inspection.pipeline_run_id == request.pipeline_run_id
             assert inspection.new_snapshot is None
             assert db_session.get(Movie, movie.id).tmdb_id == 7
             assert movie_inspection_requests.get_by_id(request.id).status == "done"
@@ -756,6 +758,8 @@ class TestApplyVerdict:
             [inspection] = _inspections()
             assert result.status == inspection.status == "error"
             assert "fora do ar" in inspection.reasoning
+            assert inspection.checked_tmdb_id == 1
+            assert inspection.pipeline_run_id == request.pipeline_run_id
             assert db_session.get(Movie, movie.id).tmdb_id == 1
             assert movie_inspection_requests.get_by_id(request.id).status == "done"
 
@@ -810,3 +814,30 @@ class TestApplyVerdict:
             closed = movie_inspection_requests.get_by_id(request.id)
             assert closed.finished_at == finished_at
             assert db_session.get(Movie, movie.id).tmdb_id == 573412
+
+    def test_a_done_request_without_a_recorded_inspection_is_refused(self, app):
+        with app.app_context():
+            _, request = _create_request()
+            _set_request_status(request, "done")
+
+            with pytest.raises(
+                tools.InspectionRequestError, match="sem veredito registrado"
+            ):
+                tools.apply_verdict(request.id, "consistent", "Ok.", None)
+
+    def test_an_unexpected_failure_leaves_the_request_open_and_the_movie_intact(
+        self, app
+    ):
+        with app.app_context():
+            movie, request = _create_request(tmdb_id=1, observed=[573412])
+
+            with patch.object(
+                tools.TMDBClient, "get_movie_details", return_value=None
+            ), pytest.raises(AttributeError):
+                tools.apply_verdict(request.id, "fixed", "Batem.", 573412)
+
+            assert _inspections() == []
+            assert (
+                movie_inspection_requests.get_by_id(request.id).status == "dispatched"
+            )
+            assert db_session.get(Movie, movie.id).tmdb_id == 1
