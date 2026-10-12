@@ -48,7 +48,7 @@ Other CLI commands (see `flask_backend/commands.py`): `pipeline-health`, `dupe-c
 | CI pipeline | `.github/workflows/ci.yml` |
 | Deployment | `.github/workflows/deploy-server.yml` |
 | Scheduled jobs | `.github/workflows/fetch-movie-metadata.yml`, `fetch-posters.yml`, `import-cinebancarios.yml`, `import-cine-cinco.yml`, `run-spiders.yml`, `update-sitemaps.yml` |
-| Production runtime | `docker-compose.production.yml`, `Dockerfile.prod` |
+| Production runtime (incl. the `cinemaempoa_mcp` MCP server service) | `docker-compose.shared.yml` (what deploy uses), `docker-compose.production.yml`, `Dockerfile.prod` |
 | DB backups | `backup-db.sh` |
 
 ## Key Conventions

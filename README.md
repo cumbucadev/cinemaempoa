@@ -187,11 +187,61 @@ Atualmente o projeto (em <https://cinemaempoa.com.br>) está hospedado em uma m�
 Os arquivos usados para o deployment são:
 
 - .env (deve ser criado a partir do example.env).
-- docker-compose.production.yml
+- docker-compose.shared.yml (atrás do Traefik compartilhado da máquina, rede `traefik_proxy`)
 - Dockerfile.prod
 
 A cada novo merge no branch principal, o workflow em `.github/workflows/deploy-server.yml`
 faz o processo de atualização do servidor.
+
+### Servidor MCP (inspeção de filmes)
+
+O serviço `cinemaempoa_mcp` roda `python -m flask_backend.mcp_server` com a mesma
+imagem e o mesmo volume (e portanto o mesmo SQLite) do `flask`. O Traefik manda
+`https://cinemaempoa.com.br/mcp` direto para ele; todo o resto continua indo
+para o nginx.
+
+O servidor não sobe sem `ORBIT_MCP_TOKEN` no `.env` do servidor. O deploy confere
+que ele responde 401 a uma chamada sem token e falha se não responder. Gere o
+token uma vez (`python -c "import secrets; print(secrets.token_urlsafe(32))"`),
+coloque no `.env` e cadastre o mesmo valor como credencial do tool-broker no Orbit.
+
+Ensaio, depois do deploy:
+
+1. Conferir que o endpoint está no ar e protegido:
+
+   ```sh
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST https://cinemaempoa.com.br/mcp
+   # 401
+   ```
+
+2. Criar um pedido de inspeção para um filme com `tmdb_id`:
+
+   ```sh
+   docker compose -f docker-compose.shared.yml exec flask flask --app flask_backend shell
+   ```
+
+   ```python
+   from flask_backend.db import db_session
+   from flask_backend.models import Movie
+   from flask_backend.repository import movie_inspection_requests
+
+   movie = db_session.query(Movie).filter(Movie.tmdb_id.isnot(None)).first()
+   request = movie_inspection_requests.create_for_movie(movie)
+   print(request.id, movie.id)
+   ```
+
+3. Disparar o Fluxo de inspeção no Orbit (webhook, via `curl`) passando
+   `request_id` e `movie_id`. O Agente chama as ferramentas em
+   `https://cinemaempoa.com.br/mcp` com `Authorization: Bearer <ORBIT_MCP_TOKEN>`,
+   e o passo final chama `apply_verdict`.
+
+4. Conferir a linha nova em `/admin/movies/inspections` e o pedido fechado:
+
+   ```python
+   db_session.expire_all()
+   movie_inspection_requests.get_by_id(request.id).status
+   # 'done'
+   ```
 
 ## Backups do banco de dados
 
