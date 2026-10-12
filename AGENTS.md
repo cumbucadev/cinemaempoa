@@ -56,6 +56,9 @@ Other CLI commands (see `flask_backend/commands.py`): `pipeline-health`, `dupe-c
 - `development.sqlite` and `flask_backend.sqlite` are local databases; never treat
 their contents as authoritative or commit changes to them as data.
 - `pre-commit` runs ruff and djlint on commit: install with `pre-commit install`.
+- Running the compose stack mounts the checkout as `.:/app`, so containers leave
+root-owned `__pycache__/` and `instance/` behind. Clean them with
+`docker run --rm -v "$PWD":/w alpine chown -R "$(id -u):$(id -g)" /w`.
 - Run all four lint/format commands above before opening a PR; CI fails on unformatted code.
 - `requests==2.32.3`, `jiter==0.11.1` and `jinja2==3.1.6` are pinned to satisfy
 `atomic-agents==2.9.1` (used by the `inspect-movies` inspector agent) and its
