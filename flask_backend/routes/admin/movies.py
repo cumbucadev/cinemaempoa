@@ -108,10 +108,10 @@ def tmdb_link(movie_id):
     before = snapshot(movie)
     apply_tmdb_details(movie, tmdb_id, details)
     db_session.add(movie)
-    db_session.commit()
 
     # The admin vouches for this link - even when it is the same id, which is
     # how a `needs_review` gets resolved - so it leaves the inspection queue.
+    # create() commits the link and its audit row together.
     movie_inspections.create(
         movie_id=movie.id,
         status="verified",
