@@ -1,9 +1,13 @@
+import json
+
 import requests
 from flask import Blueprint, abort, jsonify, render_template, request
 
 from flask_backend.db import db_session
+from flask_backend.repository import movie_inspections
 from flask_backend.repository.movies import get_by_id
 from flask_backend.routes.auth import login_required
+from flask_backend.service.movie_inspection_tools import snapshot
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
     clear_tmdb_metadata,
@@ -11,6 +15,8 @@ from flask_backend.service.movie_metadata_pipeline import (
 from flask_backend.service.tmdb import TMDB_IMAGE_BASE_URL, TMDBClient
 
 bp = Blueprint("admin_movies", __name__)
+
+VERIFIED_REASONING = "Vínculo confirmado manualmente pelo admin."
 
 
 def _movie_state(movie):
@@ -99,9 +105,21 @@ def tmdb_link(movie_id):
     except requests.RequestException as exc:
         return jsonify({"error": str(exc)}), 502
 
+    before = snapshot(movie)
     apply_tmdb_details(movie, tmdb_id, details)
     db_session.add(movie)
     db_session.commit()
+
+    # The admin vouches for this link - even when it is the same id, which is
+    # how a `needs_review` gets resolved - so it leaves the inspection queue.
+    movie_inspections.create(
+        movie_id=movie.id,
+        status="verified",
+        reasoning=VERIFIED_REASONING,
+        checked_tmdb_id=before["tmdb_id"],
+        previous_snapshot=json.dumps(before),
+        new_snapshot=json.dumps(snapshot(movie)),
+    )
 
     return jsonify(_movie_state(movie))
 

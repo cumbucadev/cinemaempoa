@@ -61,6 +61,27 @@ class TestAdminInspectionsIndex:
         )
         assert b"Reverter" in response.data
 
+    def test_verified_tab_lists_the_row_without_a_revert_button(
+        self, app, auth_headers
+    ):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="verified",
+                reasoning="Vínculo confirmado manualmente pelo admin.",
+                checked_tmdb_id=42,
+                previous_snapshot='{"tmdb_id": 42, "title": "Filme de Teste"}',
+                new_snapshot='{"tmdb_id": 42, "title": "Filme de Teste"}',
+            )
+
+        response = auth_headers.get("/admin/movies/inspections?status=verified")
+        assert response.status_code == 200
+        assert "Vínculo confirmado manualmente pelo admin.".encode() in response.data
+        assert b"Verificado manualmente" in response.data
+        assert b"/revert" not in response.data
+        assert b"Reverter" not in response.data
+
     def test_filters_by_status(self, app, auth_headers):
         # Uses non-"fixed" statuses simply because they're the simplest
         # rows to build; fixed-row rendering (Revert button included) is
@@ -118,6 +139,24 @@ class TestAdminInspectionsRevert:
                 status="consistent",
                 reasoning="ok",
                 checked_tmdb_id=42,
+            )
+            inspection_id = inspection.id
+
+        response = auth_headers.post(
+            f"/admin/movies/inspections/{inspection_id}/revert"
+        )
+        assert response.status_code == 400
+
+    def test_returns_400_for_a_verified_inspection(self, app, auth_headers):
+        with app.app_context():
+            movie = _create_movie(tmdb_id=42)
+            inspection = movie_inspections.create(
+                movie_id=movie.id,
+                status="verified",
+                reasoning="Vínculo confirmado manualmente pelo admin.",
+                checked_tmdb_id=1,
+                previous_snapshot='{"tmdb_id": 1}',
+                new_snapshot='{"tmdb_id": 42}',
             )
             inspection_id = inspection.id
 

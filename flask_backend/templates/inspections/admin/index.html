@@ -15,6 +15,7 @@
         "needs_review": "Revisão manual",
         "error": "Erro",
         "reverted": "Revertido",
+        "verified": "Verificado manualmente",
         "all": "Todos"
     } %}
     {% set status_classes = {
@@ -22,10 +23,11 @@
         "fixed": "bg-info text-dark",
         "needs_review": "bg-warning text-dark",
         "error": "bg-danger",
-        "reverted": "bg-secondary"
+        "reverted": "bg-secondary",
+        "verified": "bg-primary"
     } %}
     <ul class="nav nav-tabs mb-3">
-        {% for filter_status in ["all", "needs_review", "fixed", "consistent", "error", "reverted"] %}
+        {% for filter_status in ["all", "needs_review", "fixed", "consistent", "error", "reverted", "verified"] %}
             <li class="nav-item">
                 <a class="nav-link {% if status == filter_status %}active{% endif %}"
                    href="{{ url_for('admin_inspections.index', status=filter_status) }}">{{ status_labels[filter_status] }}</a>

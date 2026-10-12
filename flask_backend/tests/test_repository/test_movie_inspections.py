@@ -120,6 +120,20 @@ class TestGetMoviesNeedingInspection:
 
             assert movie_inspections.get_movies_needing_inspection() == []
 
+    def test_excludes_movie_whose_latest_row_is_verified(self, app):
+        with app.app_context():
+            movie = _create_movie(title="Verificado", tmdb_id=7)
+            movie_inspections.create(
+                movie_id=movie.id,
+                status="verified",
+                reasoning="Vínculo confirmado manualmente pelo admin.",
+                checked_tmdb_id=42,
+                previous_snapshot='{"tmdb_id": 42}',
+                new_snapshot='{"tmdb_id": 7}',
+            )
+
+            assert movie_inspections.get_movies_needing_inspection() == []
+
     def test_excludes_movie_whose_latest_error_follows_a_valid_check(self, app):
         with app.app_context():
             movie = _create_movie(title="Erro Depois", tmdb_id=42)
