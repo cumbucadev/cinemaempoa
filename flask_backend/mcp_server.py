@@ -46,7 +46,7 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
     context, whose teardown removes the thread's db_session."""
     mcp = FastMCP("cinemaempoa")
 
-    def call(tool, *args):
+    def run_in_app_context(tool, *args):
         with flask_app.app_context():
             try:
                 return tool(*args)
@@ -60,7 +60,7 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         gêneros) e as sessões publicadas pelos cinemas (screening_id, cinema,
         descrição). `request_id` é obrigatório: é o id do pedido de inspeção
         recebido no disparo."""
-        return call(tools.get_movie_context, request_id)
+        return run_in_app_context(tools.get_movie_context, request_id)
 
     @mcp.tool
     def search_tmdb_candidates(request_id: int, title: str) -> str:
@@ -68,7 +68,7 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         (tmdb_id, título e ano). `request_id` é obrigatório: é o id do pedido
         de inspeção recebido no disparo. Os tmdb_ids devolvidos ficam
         registrados como observados neste pedido."""
-        return call(tools.search_tmdb_candidates, request_id, title)
+        return run_in_app_context(tools.search_tmdb_candidates, request_id, title)
 
     @mcp.tool
     def get_tmdb_details(request_id: int, tmdb_id: int) -> str:
@@ -76,7 +76,7 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         diretores e países. `request_id` é obrigatório: é o id do pedido de
         inspeção recebido no disparo. O tmdb_id consultado fica registrado
         como observado neste pedido."""
-        return call(tools.get_tmdb_details, request_id, tmdb_id)
+        return run_in_app_context(tools.get_tmdb_details, request_id, tmdb_id)
 
     @mcp.tool
     def fetch_screening_source(request_id: int, screening_id: int) -> str:
@@ -84,7 +84,9 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         pedido, sem HTML e cortado em 4000 caracteres. `request_id` é
         obrigatório: é o id do pedido de inspeção recebido no disparo. Só
         aceita sessões do filme do pedido (veja get_movie_context)."""
-        return call(tools.fetch_screening_source, request_id, screening_id)
+        return run_in_app_context(
+            tools.fetch_screening_source, request_id, screening_id
+        )
 
     return mcp
 
