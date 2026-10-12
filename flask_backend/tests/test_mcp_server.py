@@ -29,7 +29,7 @@ def _create_request_with_screening():
 
 
 def _argument_types(schema):
-    return {name: prop["type"] for name, prop in schema["properties"].items()}
+    return {name: prop.get("type") for name, prop in schema["properties"].items()}
 
 
 async def _with_client(app, fn):
@@ -47,6 +47,7 @@ class TestTools:
             "search_tmdb_candidates",
             "get_tmdb_details",
             "fetch_screening_source",
+            "apply_verdict",
         }
         assert _argument_types(schemas["get_movie_context"]) == {
             "request_id": "integer"
@@ -63,6 +64,18 @@ class TestTools:
             "request_id": "integer",
             "screening_id": "integer",
         }
+        apply_verdict = schemas["apply_verdict"]["properties"]
+        assert apply_verdict["request_id"]["type"] == "integer"
+        assert apply_verdict["status"]["enum"] == [
+            "consistent",
+            "fixed",
+            "needs_review",
+        ]
+        assert apply_verdict["reasoning"]["type"] == "string"
+        assert apply_verdict["new_tmdb_id"]["anyOf"] == [
+            {"type": "integer"},
+            {"type": "null"},
+        ]
         for tool in tools:
             assert set(tool.inputSchema["required"]) == set(
                 tool.inputSchema["properties"]
@@ -124,6 +137,10 @@ class TestTools:
             ("search_tmdb_candidates", {"title": "A Capela"}),
             ("get_tmdb_details", {"tmdb_id": 1}),
             ("fetch_screening_source", {"screening_id": 1}),
+            (
+                "apply_verdict",
+                {"status": "consistent", "reasoning": "Ok.", "new_tmdb_id": None},
+            ),
         ],
     )
     def test_an_invalid_request_comes_back_as_a_tool_error(self, app, name, arguments):

@@ -7,15 +7,16 @@ Observation tools never raise on TMDB/network failures: the error comes back
 as observation text, so the agent can keep reasoning or conclude
 `needs_review`.
 
-The per-request layer (`get_movie_context`, ...) is what the MCP server in
+The per-request layer (`get_movie_context`, ..., `apply_verdict`) is what the MCP server in
 flask_backend/mcp_server.py exposes: each function takes a `request_id` and
 raises InspectionRequestError, with a pt-BR message, when that request
 cannot be worked on.
 """
 
+import json
 import logging
 from dataclasses import dataclass
-from typing import Iterable, Literal, Optional
+from typing import Callable, Iterable, Literal, Optional, get_args
 
 import requests
 from bs4 import BeautifulSoup
@@ -23,7 +24,7 @@ from pydantic import BaseModel
 
 from flask_backend.db import db_session
 from flask_backend.models import Movie, MovieInspectionRequest
-from flask_backend.repository import movie_inspection_requests
+from flask_backend.repository import movie_inspection_requests, movie_inspections
 from flask_backend.repository.screenings import get_screening_by_id
 from flask_backend.service.movie_metadata_pipeline import (
     apply_tmdb_details,
@@ -44,6 +45,12 @@ class InspectionOutcome:
     reasoning: str
     before_snapshot: Optional[dict] = None
     after_snapshot: Optional[dict] = None
+
+
+def _with_original_reasoning(message: str, reasoning: str) -> str:
+    """`message`, explaining why the agent's verdict was not recorded as
+    given, followed by the agent's own reasoning."""
+    return f"{message} Raciocínio original: {reasoning}"
 
 
 def snapshot(movie: Movie) -> dict:
@@ -135,12 +142,14 @@ def resolve_verdict(
     reasoning: str,
     new_tmdb_id: Optional[int],
     observed_tmdb_ids: Iterable[int],
+    rematch: Callable[[Movie, int], None] = apply_rematch,
 ) -> InspectionOutcome:
     """Applies a verdict, refusing to write a `fixed` tmdb_id the agent
     never actually observed through one of its own tool calls - the agent's
     context includes untrusted scraped text, so "never invent an id" is
     enforced here rather than only asked for in the prompt. A valid `fixed`
-    rematches the movie (committing) and captures before/after snapshots."""
+    rematches the movie through `rematch` (by default `apply_rematch`,
+    which commits) and captures before/after snapshots."""
     if status == "fixed":
         if new_tmdb_id is None or new_tmdb_id not in set(observed_tmdb_ids):
             logger.warning(
@@ -153,14 +162,15 @@ def resolve_verdict(
             )
             return InspectionOutcome(
                 status="needs_review",
-                reasoning=(
+                reasoning=_with_original_reasoning(
                     "Veredito 'fixed' com um tmdb_id que não foi observado por "
                     "nenhuma ferramenta nesta inspeção; tratado como revisão "
-                    f"manual. Raciocínio original: {reasoning}"
+                    "manual.",
+                    reasoning,
                 ),
             )
         before = snapshot(movie)
-        apply_rematch(movie, new_tmdb_id)
+        rematch(movie, new_tmdb_id)
         after = snapshot(movie)
         return InspectionOutcome(
             status="fixed",
@@ -196,8 +206,9 @@ class MovieContext(BaseModel):
     screenings: list[ScreeningContextData]
 
 
-def _get_dispatched_request(request_id: int) -> MovieInspectionRequest:
-    request = movie_inspection_requests.get_by_id(request_id)
+def _check_dispatched(
+    request: Optional[MovieInspectionRequest], request_id: int
+) -> MovieInspectionRequest:
     if request is None:
         raise InspectionRequestError(f"Pedido de inspeção #{request_id} não existe.")
     if request.status != "dispatched":
@@ -206,6 +217,12 @@ def _get_dispatched_request(request_id: int) -> MovieInspectionRequest:
             f"(status: {request.status})."
         )
     return request
+
+
+def _get_dispatched_request(request_id: int) -> MovieInspectionRequest:
+    return _check_dispatched(
+        movie_inspection_requests.get_by_id(request_id), request_id
+    )
 
 
 def build_movie_context(movie: Movie) -> MovieContext:
@@ -260,3 +277,170 @@ def fetch_screening_source(request_id: int, screening_id: int) -> str:
             f"inspeção #{request_id}."
         )
     return run_fetch_screening_source(screening_id)
+
+
+VERDICT_STATUSES = get_args(VerdictStatus)
+
+
+class VerdictResult(BaseModel):
+    """What apply_verdict recorded: the MovieInspection row it wrote, whose
+    status may differ from the one asked for (`fixed` downgraded to
+    `needs_review`, or `error`)."""
+
+    inspection_id: int
+    status: str
+    reasoning: str
+
+
+def _verdict_result(request: MovieInspectionRequest) -> VerdictResult:
+    inspection = request.inspection
+    if inspection is None:
+        raise InspectionRequestError(
+            f"Pedido de inspeção #{request.id} já foi encerrado sem veredito "
+            "registrado."
+        )
+    return VerdictResult(
+        inspection_id=inspection.id,
+        status=inspection.status,
+        reasoning=inspection.reasoning,
+    )
+
+
+def _prefetched_rematch(
+    request: MovieInspectionRequest, status: str, new_tmdb_id: Optional[int]
+) -> Callable[[Movie, int], None]:
+    """A rematch that links the movie to TMDB details fetched now, before
+    apply_verdict takes the request's write lock, so no HTTP call runs while
+    other writers wait on SQLite. Does not commit, and raises the TMDB
+    failure, if there was one, when applied. Fetches only for a `fixed`
+    that looks applicable; if the locked re-read makes it applicable after
+    all (a race with an observation tool), it fetches then."""
+    details, failure = None, None
+    if (
+        status == "fixed"
+        and new_tmdb_id in request.observed_tmdb_id_list
+        and not request.movie_link_changed
+    ):
+        try:
+            details = TMDBClient().get_movie_details(new_tmdb_id)
+        except requests.RequestException as exc:
+            failure = exc
+
+    def rematch(movie: Movie, tmdb_id: int) -> None:
+        if failure is not None:
+            raise failure
+        tmdb_details = (
+            details if details is not None else TMDBClient().get_movie_details(tmdb_id)
+        )
+        apply_tmdb_details(movie, tmdb_id, tmdb_details)
+        db_session.add(movie)
+
+    return rematch
+
+
+def _decide_outcome(
+    request: MovieInspectionRequest,
+    status: VerdictStatus,
+    reasoning: str,
+    new_tmdb_id: Optional[int],
+    rematch: Callable[[Movie, int], None],
+) -> InspectionOutcome:
+    """Applies the verdict to the request's movie without committing, or
+    turns it into an `error` outcome when a `fixed` cannot be applied: the
+    movie's link changed since the request was created, or TMDB failed
+    during the rematch."""
+    movie = request.movie
+    if status == "fixed" and request.movie_link_changed:
+        logger.warning(
+            "Pedido de inspeção #%d – vínculo do filme %d mudou de %s para %s; "
+            "veredito 'fixed' não aplicado",
+            request.id,
+            movie.id,
+            request.checked_tmdb_id,
+            movie.tmdb_id,
+        )
+        return InspectionOutcome(
+            status="error",
+            reasoning=_with_original_reasoning(
+                f"O vínculo TMDB do filme mudou desde a criação do pedido (de "
+                f"{request.checked_tmdb_id} para {movie.tmdb_id}); veredito "
+                "'fixed' não aplicado.",
+                reasoning,
+            ),
+        )
+    try:
+        return resolve_verdict(
+            movie,
+            status,
+            reasoning,
+            new_tmdb_id,
+            request.observed_tmdb_id_list,
+            rematch=rematch,
+        )
+    except requests.RequestException as exc:
+        return InspectionOutcome(
+            status="error",
+            reasoning=_with_original_reasoning(
+                f"Erro do TMDB ao aplicar o tmdb_id={new_tmdb_id}: {exc}.", reasoning
+            ),
+        )
+
+
+def _snapshot_json(snapshot_data: Optional[dict]) -> Optional[str]:
+    return json.dumps(snapshot_data) if snapshot_data else None
+
+
+def _close_with_verdict(
+    request: MovieInspectionRequest,
+    status: VerdictStatus,
+    reasoning: str,
+    new_tmdb_id: Optional[int],
+    rematch: Callable[[Movie, int], None],
+) -> VerdictResult:
+    outcome = _decide_outcome(request, status, reasoning, new_tmdb_id, rematch)
+    inspection = movie_inspections.build(
+        request.movie_id,
+        outcome.status,
+        outcome.reasoning,
+        checked_tmdb_id=request.checked_tmdb_id,
+        previous_snapshot=_snapshot_json(outcome.before_snapshot),
+        new_snapshot=_snapshot_json(outcome.after_snapshot),
+        pipeline_run_id=request.pipeline_run_id,
+    )
+    return _verdict_result(movie_inspection_requests.close_as_done(request, inspection))
+
+
+def apply_verdict(
+    request_id: int,
+    status: str,
+    reasoning: str,
+    new_tmdb_id: Optional[int],
+) -> VerdictResult:
+    """Closes the request with the agent's verdict: applies it (see
+    `resolve_verdict`), records exactly one MovieInspection with the
+    request's checked_tmdb_id and pipeline_run_id, and marks the request
+    `done`, all in one commit under the request's write lock. A request
+    already `done` answers with the row it recorded and writes nothing, so a
+    retried call cannot double-apply."""
+    if status not in VERDICT_STATUSES:
+        raise InspectionRequestError(
+            f"Status '{status}' inválido: use {', '.join(VERDICT_STATUSES)}."
+        )
+    request = movie_inspection_requests.get_by_id(request_id)
+    if request is not None and request.status == "done":
+        return _verdict_result(request)
+    rematch = _prefetched_rematch(
+        _check_dispatched(request, request_id), status, new_tmdb_id
+    )
+    request = movie_inspection_requests.get_for_update(request_id)
+    try:
+        # Re-checked under the lock: a concurrent call may have closed it.
+        if request is not None and request.status == "done":
+            result = _verdict_result(request)
+            db_session.commit()
+            return result
+        _check_dispatched(request, request_id)
+        return _close_with_verdict(request, status, reasoning, new_tmdb_id, rematch)
+    except Exception:
+        db_session.rollback()
+        raise

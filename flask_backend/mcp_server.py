@@ -7,6 +7,7 @@ Run it locally with `uv run python -m flask_backend.mcp_server`.
 """
 
 import hmac
+from typing import Optional
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -86,6 +87,25 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         aceita sessões do filme do pedido (veja get_movie_context)."""
         return run_in_app_context(
             tools.fetch_screening_source, request_id, screening_id
+        )
+
+    @mcp.tool
+    def apply_verdict(
+        request_id: int,
+        status: tools.VerdictStatus,
+        reasoning: str,
+        new_tmdb_id: Optional[int],
+    ) -> tools.VerdictResult:
+        """Encerra o pedido de inspeção com o veredito: `consistent`, `fixed`
+        (troca o vínculo pelo `new_tmdb_id`) ou `needs_review`. `request_id`
+        é obrigatório: é o id do pedido de inspeção recebido no disparo.
+        Em `fixed`, `new_tmdb_id` precisa ter sido observado por
+        search_tmdb_candidates ou get_tmdb_details neste pedido; senão o
+        veredito vira `needs_review`. Nos outros casos, passe `new_tmdb_id`
+        nulo. Devolve a inspeção gravada; chamar de novo num pedido já
+        encerrado devolve o mesmo resultado sem gravar nada."""
+        return run_in_app_context(
+            tools.apply_verdict, request_id, status, reasoning, new_tmdb_id
         )
 
     return mcp
