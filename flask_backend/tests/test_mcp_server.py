@@ -130,6 +130,31 @@ class TestTools:
             }
         ]
 
+    def test_ignores_arguments_the_tool_does_not_declare(self, app):
+        """Orbit's `tool` node sends every input of the node (the execution
+        input, the previous node's output), not just the tool's own
+        arguments."""
+        with app.app_context():
+            request, _ = _create_request_with_screening()
+            request_id = request.id
+
+        result = asyncio.run(
+            _with_client(
+                app,
+                lambda c: c.call_tool(
+                    "get_movie_context",
+                    {
+                        "request_id": request_id,
+                        "movie_id": 1,
+                        "answer_json": {"status": "consistent"},
+                        "selected_edge_id": "e-cond-ok",
+                    },
+                ),
+            )
+        )
+
+        assert result.structured_content["movie_title"] == "Filme de Teste"
+
     @pytest.mark.parametrize(
         "name, arguments",
         [

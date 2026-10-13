@@ -11,6 +11,7 @@ from typing import Optional
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.server.middleware import Middleware as MCPMiddleware
 from flask import Flask
 from starlette.middleware import Middleware
 from starlette.responses import JSONResponse
@@ -42,10 +43,28 @@ class BearerTokenMiddleware:
         return hmac.compare_digest(provided, self.expected)
 
 
+class DropUndeclaredArgumentsMiddleware(MCPMiddleware):
+    """Drops the arguments a tool does not declare before FastMCP validates
+    them. Orbit's `tool` node sends every input of the node (the execution
+    input, the previous node's output), and FastMCP would otherwise refuse
+    the whole call with `unexpected_keyword_argument`."""
+
+    async def on_call_tool(self, context, call_next):
+        params = context.message
+        tool = await context.fastmcp_context.fastmcp.get_tool(params.name)
+        if tool is not None and params.arguments:
+            declared = tool.parameters.get("properties", {})
+            arguments = {k: v for k, v in params.arguments.items() if k in declared}
+            context = context.copy(
+                message=params.model_copy(update={"arguments": arguments})
+            )
+        return await call_next(context)
+
+
 def create_mcp_server(flask_app: Flask) -> FastMCP:
     """Builds the MCP server. Each tool call runs inside `flask_app`'s app
     context, whose teardown removes the thread's db_session."""
-    mcp = FastMCP("cinemaempoa")
+    mcp = FastMCP("cinemaempoa", middleware=[DropUndeclaredArgumentsMiddleware()])
 
     def run_in_app_context(tool, *args):
         with flask_app.app_context():
