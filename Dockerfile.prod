@@ -26,8 +26,8 @@ ENV LC_ALL pt_BR.UTF-8
 ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR.UTF-8
 
-# venv lives outside /app so it survives the bind mount (docker-compose.production.yml
-# and docker-compose.shared.yml both mount the repo over /app at runtime)
+# venv lives outside /app so it survives the bind mount (docker-compose.shared.yml
+# mounts the repo over /app at runtime)
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY --from=builder /opt/venv /opt/venv

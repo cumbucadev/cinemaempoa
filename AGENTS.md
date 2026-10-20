@@ -48,7 +48,7 @@ Other CLI commands (see `flask_backend/commands.py`): `pipeline-health`, `dupe-c
 | CI pipeline | `.github/workflows/ci.yml` |
 | Deployment | `.github/workflows/deploy-server.yml` |
 | Scheduled jobs | `.github/workflows/fetch-movie-metadata.yml`, `fetch-posters.yml`, `import-cinebancarios.yml`, `import-cine-cinco.yml`, `run-spiders.yml`, `update-sitemaps.yml` |
-| Production runtime | `docker-compose.shared.yml` (what deploy uses; includes the `cinemaempoa_mcp` MCP server service), `Dockerfile.prod`; `docker-compose.production.yml` is the standalone variant with its own Traefik and no MCP service |
+| Production runtime | `docker-compose.shared.yml` (what deploy uses; includes the `cinemaempoa_mcp` MCP server service), `Dockerfile.prod` |
 | DB backups | `backup-db.sh` |
 
 ## Key Conventions
