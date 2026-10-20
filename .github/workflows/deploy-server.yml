@@ -62,6 +62,28 @@ jobs:
             fi
             echo "✅ MCP server answering."
 
+            # nginx/default.conf is a single-file bind mount, so the container
+            # only sees the version `git pull` just wrote once it is recreated.
+            echo "🔄 Recreating nginx..."
+            docker compose -f docker-compose.shared.yml up -d --force-recreate nginx
+
+            # Fail the deploy if the public site does not answer through nginx.
+            echo "🔎 Checking the site answers..."
+            site_up=0
+            for attempt in 1 2 3 4 5 6; do
+              sleep 5
+              if curl -fsS -o /dev/null https://cinemaempoa.com.br/; then
+                site_up=1
+                break
+              fi
+            done
+            if [ "$site_up" != 1 ]; then
+              docker compose -f docker-compose.shared.yml logs --tail 50 nginx flask
+              echo "❌ https://cinemaempoa.com.br/ is not answering"
+              exit 1
+            fi
+            echo "✅ Site answering."
+
             echo "📊 Disk usage before cleanup:"
             docker system df
             df -h /
