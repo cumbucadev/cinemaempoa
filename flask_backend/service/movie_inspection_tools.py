@@ -194,9 +194,12 @@ class ScreeningContextData(BaseModel):
 
 class MovieContext(BaseModel):
     """The movie's title, its current TMDB match and what the cinemas showing
-    it published - the same fields as the in-process agent's input."""
+    it published - the in-process agent's input fields, plus the match's
+    `tmdb_id` so a remote agent never mistakes the request or movie id for
+    it."""
 
     movie_title: str
+    tmdb_id: Optional[int]
     tmdb_original_title: Optional[str]
     tmdb_release_year: Optional[int]
     tmdb_original_language: Optional[str]
@@ -228,6 +231,7 @@ def _get_dispatched_request(request_id: int) -> MovieInspectionRequest:
 def build_movie_context(movie: Movie) -> MovieContext:
     return MovieContext(
         movie_title=movie.title,
+        tmdb_id=movie.tmdb_id,
         tmdb_original_title=movie.original_title,
         tmdb_release_year=movie.release_year,
         tmdb_original_language=movie.original_language,

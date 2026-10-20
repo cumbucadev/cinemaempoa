@@ -87,10 +87,13 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
     @mcp.tool
     def get_movie_context(request_id: int) -> tools.MovieContext:
         """Devolve o título do filme do pedido de inspeção, o vínculo TMDB
-        atual (título original, ano, idioma original, diretores, países,
-        gêneros) e as sessões publicadas pelos cinemas (screening_id, cinema,
-        descrição). `request_id` é obrigatório: é o id do pedido de inspeção
-        recebido no disparo."""
+        atual (`tmdb_id`, título original, ano, idioma original, diretores,
+        países, gêneros) e as sessões publicadas pelos cinemas (screening_id,
+        cinema, descrição). `tmdb_id` é o id do vínculo no TMDB, nulo quando
+        o filme não tem vínculo; é o id a passar para get_tmdb_details ao
+        conferir o vínculo atual, nunca o id do filme ou do pedido.
+        `request_id` é obrigatório: é o id do pedido de inspeção recebido no
+        disparo."""
         return run_in_app_context(tools.get_movie_context, request_id)
 
     @mcp.tool

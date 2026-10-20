@@ -430,6 +430,7 @@ class TestGetMovieContext:
 
             assert context.model_dump() == {
                 "movie_title": "Filme de Teste",
+                "tmdb_id": 42,
                 "tmdb_original_title": "A Capela",
                 "tmdb_release_year": 1979,
                 "tmdb_original_language": "fr",
@@ -444,6 +445,12 @@ class TestGetMovieContext:
                     }
                 ],
             }
+
+    def test_reports_a_null_tmdb_id_for_an_unlinked_movie(self, app):
+        with app.app_context():
+            request = movie_inspection_requests.create_for_movie(_create_movie())
+
+            assert tools.get_movie_context(request.id).tmdb_id is None
 
     def test_refuses_an_unknown_request(self, app):
         with app.app_context(), pytest.raises(

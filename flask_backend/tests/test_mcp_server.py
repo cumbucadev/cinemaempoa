@@ -120,6 +120,7 @@ class TestTools:
         )
 
         assert result.structured_content["movie_title"] == "Filme de Teste"
+        assert result.structured_content["tmdb_id"] == 42
         assert result.structured_content["screenings"] == [
             {
                 "screening_id": screening_id,
