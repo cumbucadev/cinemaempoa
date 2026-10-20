@@ -72,13 +72,11 @@ class TestTools:
             "needs_review",
         ]
         assert apply_verdict["reasoning"]["type"] == "string"
-        assert apply_verdict["new_tmdb_id"]["anyOf"] == [
-            {"type": "integer"},
-            {"type": "null"},
-        ]
+        assert apply_verdict["new_tmdb_id"] == {"type": "integer"}
         for tool in tools:
-            assert set(tool.inputSchema["required"]) == set(
-                tool.inputSchema["properties"]
+            optional = {"new_tmdb_id"} if tool.name == "apply_verdict" else set()
+            assert set(tool.inputSchema["required"]) == (
+                set(tool.inputSchema["properties"]) - optional
             )
             assert "`request_id` é obrigatório" in " ".join(tool.description.split())
 
@@ -130,6 +128,36 @@ class TestTools:
             }
         ]
 
+    @pytest.mark.parametrize(
+        "extra", [{}, {"new_tmdb_id": None}], ids=["absent", "null"]
+    )
+    def test_apply_verdict_without_new_tmdb_id(self, app, extra):
+        """Orbit omits `new_tmdb_id` outside `fixed`; an explicit null is
+        read the same way."""
+        with app.app_context():
+            request, _ = _create_request_with_screening()
+            request_id = request.id
+
+        result = asyncio.run(
+            _with_client(
+                app,
+                lambda c: c.call_tool(
+                    "apply_verdict",
+                    {
+                        "request_id": request_id,
+                        "status": "consistent",
+                        "reasoning": "Ok.",
+                        **extra,
+                    },
+                ),
+            )
+        )
+
+        assert result.structured_content["status"] == "consistent"
+        with app.app_context():
+            movie = movie_inspection_requests.get_by_id(request_id).movie
+            assert movie.tmdb_id == 42
+
     def test_ignores_arguments_the_tool_does_not_declare(self, app):
         """Orbit's `tool` node sends every input of the node (the execution
         input, the previous node's output), not just the tool's own
@@ -164,7 +192,7 @@ class TestTools:
             ("fetch_screening_source", {"screening_id": 1}),
             (
                 "apply_verdict",
-                {"status": "consistent", "reasoning": "Ok.", "new_tmdb_id": None},
+                {"status": "consistent", "reasoning": "Ok."},
             ),
         ],
     )

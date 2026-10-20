@@ -7,12 +7,13 @@ Run it locally with `uv run python -m flask_backend.mcp_server`.
 """
 
 import hmac
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import Middleware as MCPMiddleware
 from flask import Flask
+from pydantic import Field, WithJsonSchema
 from starlette.middleware import Middleware
 from starlette.responses import JSONResponse
 
@@ -20,6 +21,16 @@ from flask_backend.env_config import MCP_HOST, MCP_PORT, ORBIT_MCP_TOKEN
 from flask_backend.service import movie_inspection_tools as tools
 
 MCP_PATH = "/mcp"
+
+# Advertised as a plain optional integer: Orbit does not accept the
+# `anyOf: [integer, null]` an `Optional[int]` would produce. Absent means "no
+# new link"; an explicit null is still accepted and read the same way. The
+# default_factory keeps `"default": null` out of the schema.
+OptionalTmdbId = Annotated[
+    Optional[int],
+    WithJsonSchema({"type": "integer"}),
+    Field(default_factory=lambda: None),
+]
 
 
 class BearerTokenMiddleware:
@@ -113,15 +124,15 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         request_id: int,
         status: tools.VerdictStatus,
         reasoning: str,
-        new_tmdb_id: Optional[int],
+        new_tmdb_id: OptionalTmdbId,
     ) -> tools.VerdictResult:
         """Encerra o pedido de inspeção com o veredito: `consistent`, `fixed`
         (troca o vínculo pelo `new_tmdb_id`) ou `needs_review`. `request_id`
         é obrigatório: é o id do pedido de inspeção recebido no disparo.
         Em `fixed`, `new_tmdb_id` precisa ter sido observado por
         search_tmdb_candidates ou get_tmdb_details neste pedido; senão o
-        veredito vira `needs_review`. Nos outros casos, passe `new_tmdb_id`
-        nulo. Devolve a inspeção gravada; chamar de novo num pedido já
+        veredito vira `needs_review`. Nos outros casos, omita `new_tmdb_id`.
+        Devolve a inspeção gravada; chamar de novo num pedido já
         encerrado devolve o mesmo resultado sem gravar nada."""
         return run_in_app_context(
             tools.apply_verdict, request_id, status, reasoning, new_tmdb_id
