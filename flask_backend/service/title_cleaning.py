@@ -61,6 +61,16 @@ TITLE_CLEANING_RULES: List[TitleCleaningRule] = [
         re.compile(r"^\s*Cinema\s*\|\s*", re.IGNORECASE),
     ),
     TitleCleaningRule(
+        "masterclass_suffix",
+        "Sufixo: + masterclass",
+        re.compile(r"\s*\(?\+\s*masterclass\b.*$", re.IGNORECASE),
+    ),
+    TitleCleaningRule(
+        "apresentacao_suffix",
+        "Sufixo: + apresentação",
+        re.compile(r"\s*\(?\+\s*apresenta[çc][ãa]o\b.*$", re.IGNORECASE),
+    ),
+    TitleCleaningRule(
         "fantaspoa",
         "Prefixo: FANTASPOA –",
         re.compile(r"^\s*FA[NS]TASPOA\s*[–—-]\s*", re.IGNORECASE),
@@ -126,22 +136,22 @@ TITLE_CLEANING_RULES: List[TitleCleaningRule] = [
     TitleCleaningRule(
         "debate_suffix",
         "Sufixo: + debate",
-        re.compile(r"\s*\+\s*debate\s*$", re.IGNORECASE),
+        re.compile(r"\s*\(?\+\s*debate\b.*$", re.IGNORECASE),
     ),
     TitleCleaningRule(
         "conversa_suffix",
         "Sufixo: + conversa",
-        re.compile(r"\s*\(?\+\s*conversa\s*\)?\s*$", re.IGNORECASE),
+        re.compile(r"\s*\(?\+\s*conversa\b.*$", re.IGNORECASE),    
     ),
     TitleCleaningRule(
         "sessao_comentada_suffix",
         "Sufixo: + Sessão Comentada",
-        re.compile(r"\s*\+\s*sess[ãa]o comentada\s*$", re.IGNORECASE),
+        re.compile(r"\s*\(?\+\s*sess[ãa]o comentada\b.*$", re.IGNORECASE),
     ),
     TitleCleaningRule(
         "performance_suffix",
         "Sufixo: (+ performance)",
-        re.compile(r"\s*\(?\+\s*performance\s*\)?\s*$", re.IGNORECASE),
+        re.compile(r"\s*\(?\+\s*performance\b.*$", re.IGNORECASE),
     ),
     TitleCleaningRule(
         "year_duration_suffix",
