@@ -109,16 +109,15 @@ def _contains(needle: str, values: Iterable[Optional[str]]) -> bool:
     return any(wanted in normalize(value) for value in values if value)
 
 
-def _period(
-    date_from: Optional[str], date_to: Optional[str]
-) -> tuple[Optional[date], Optional[date]]:
-    start = parse_date(date_from) if _given(date_from) else None
-    end = parse_date(date_to) if _given(date_to) else None
+def _optional_date(text: Optional[str]) -> Optional[date]:
+    return parse_date(text) if _given(text) else None
+
+
+def _check_order(start: Optional[date], end: Optional[date]) -> None:
     if start and end and end < start:
         raise CatalogToolError(
             f"Período inválido: a data final ({end}) é anterior à inicial ({start})."
         )
-    return start, end
 
 
 def _sessions_in_scope(
@@ -126,7 +125,8 @@ def _sessions_in_scope(
 ) -> list[Row]:
     """The published session dates a call counts: those of `cinema`, when
     given, inside the period, when given."""
-    start, end = _period(date_from, date_to)
+    start, end = _optional_date(date_from), _optional_date(date_to)
+    _check_order(start, end)
     cinema_id = resolve_cinema(cinema).id if _given(cinema) else None
     return catalog.session_dates(cinema_id, start, end)
 
@@ -276,4 +276,133 @@ def search_movies(
         total=len(found),
         truncated=len(found) > len(kept),
         movies=kept,
+    )
+
+
+SCHEDULE_MAX_DAYS = 14
+SCHEDULE_MAX_PAIRS = 60
+
+
+class DaySessions(BaseModel):
+    date: date
+    times: list[str]
+
+
+class ScheduledMovie(BaseModel):
+    movie_id: int
+    title: str
+    directors: list[str]
+    genres: list[str]
+    url: Optional[str]
+    sessions: list[DaySessions]
+
+
+class CinemaSchedule(BaseModel):
+    slug: str
+    name: str
+    movies: list[ScheduledMovie]
+
+
+class Schedule(BaseModel):
+    today: date
+    date_from: date
+    date_to: date
+    total: int
+    truncated: bool
+    cinemas: list[CinemaSchedule]
+
+
+def _day_sessions(sessions: Iterable[Row]) -> list[DaySessions]:
+    """The sessions day by day, each day with its known times in order."""
+    times = defaultdict(list)
+    for session in sessions:
+        times[session.date].extend([session.time] if session.time else [])
+    return [DaySessions(date=day, times=sorted(times[day])) for day in sorted(times)]
+
+
+def _first_session(sessions: Iterable[Row]) -> tuple[date, str]:
+    return min((session.date, session.time or "") for session in sessions)
+
+
+def _schedule_pairs(sessions: Iterable[Row]) -> list[tuple[Cinema, Movie, list[Row]]]:
+    """One entry per cinema and movie showing there: cinemas by name, a
+    cinema's movies by their first session."""
+    by_pair = defaultdict(list)
+    for session in sessions:
+        by_pair[session.cinema_id, session.movie_id].append(session)
+    movies = {
+        movie.id: movie
+        for movie in catalog.movies_by_ids({movie_id for _, movie_id in by_pair})
+    }
+    cinemas = list(enumerate(get_all_cinemas()))
+    position = {cinema.id: index for index, cinema in cinemas}
+    by_id = {cinema.id: cinema for _, cinema in cinemas}
+
+    def order(pair):
+        (cinema_id, movie_id), pair_sessions = pair
+        return (
+            position[cinema_id],
+            _first_session(pair_sessions),
+            normalize(movies[movie_id].title),
+            movie_id,
+        )
+
+    return [
+        (by_id[cinema_id], movies[movie_id], pair_sessions)
+        for (cinema_id, movie_id), pair_sessions in sorted(by_pair.items(), key=order)
+    ]
+
+
+def _scheduled_movie(movie: Movie, sessions: list[Row]) -> ScheduledMovie:
+    return ScheduledMovie(
+        movie_id=movie.id,
+        title=movie.title,
+        directors=_names(movie.directors),
+        genres=_names(movie.genres),
+        url=_movie_url(movie),
+        sessions=_day_sessions(sessions),
+    )
+
+
+def _cinema_schedules(
+    pairs: Iterable[tuple[Cinema, Movie, list[Row]]],
+) -> list[CinemaSchedule]:
+    schedules: dict[int, CinemaSchedule] = {}
+    for cinema, movie, sessions in pairs:
+        schedule = schedules.setdefault(
+            cinema.id, CinemaSchedule(slug=cinema.slug, name=cinema.name, movies=[])
+        )
+        schedule.movies.append(_scheduled_movie(movie, sessions))
+    return list(schedules.values())
+
+
+def get_schedule(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    cinema: Optional[str] = None,
+) -> Schedule:
+    """What each cinema shows, day by day, from `date_from` (today when
+    absent) to `date_to` (`date_from` when absent): at most
+    SCHEDULE_MAX_DAYS days and SCHEDULE_MAX_PAIRS cinema × movie pairs."""
+    day = today()
+    start = _optional_date(date_from) or day
+    end = _optional_date(date_to) or start
+    _check_order(start, end)
+    days = (end - start).days + 1
+    if days > SCHEDULE_MAX_DAYS:
+        raise CatalogToolError(
+            f"Período longo demais: get_schedule aceita no máximo "
+            f"{SCHEDULE_MAX_DAYS} dias e foram pedidos {days}. Para períodos "
+            "maiores, use search_movies com shown_from e shown_to."
+        )
+    cinema_id = resolve_cinema(cinema).id if _given(cinema) else None
+    pairs = _schedule_pairs(catalog.session_dates(cinema_id, start, end))
+    kept = pairs[:SCHEDULE_MAX_PAIRS]
+    return Schedule(
+        today=day,
+        date_from=start,
+        date_to=end,
+        total=len(pairs),
+        truncated=len(pairs) > len(kept),
+        cinemas=_cinema_schedules(kept),
     )

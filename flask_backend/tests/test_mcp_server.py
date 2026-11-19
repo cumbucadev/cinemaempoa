@@ -52,6 +52,7 @@ CATALOG_TOOLS = {
         "sort",
         "limit",
     },
+    "get_schedule": {"date_from", "date_to", "cinema"},
 }
 
 
@@ -325,6 +326,38 @@ class TestCatalogTools:
                     "next_showing": None,
                     "cinemas": ["capitolio"],
                     "sessions": 1,
+                }
+            ],
+        }
+
+    def test_get_schedule_end_to_end(self, app):
+        with app.app_context():
+            movie_id = _show("Bacurau", "capitolio", "2026-03-10")
+            _show("Amanhã", "capitolio", "2026-03-11")
+            _show("Rascunho", "capitolio", "2026-03-10", draft=True)
+
+        result = asyncio.run(_with_client(app, lambda c: c.call_tool("get_schedule")))
+
+        assert result.structured_content == {
+            "today": "2026-03-10",
+            "date_from": "2026-03-10",
+            "date_to": "2026-03-10",
+            "total": 1,
+            "truncated": False,
+            "cinemas": [
+                {
+                    "slug": "capitolio",
+                    "name": "Cinemateca Capitólio",
+                    "movies": [
+                        {
+                            "movie_id": movie_id,
+                            "title": "Bacurau",
+                            "directors": [],
+                            "genres": [],
+                            "url": "https://cinemaempoa.com.br/movies/bacurau",
+                            "sessions": [{"date": "2026-03-10", "times": ["19:00"]}],
+                        }
+                    ],
                 }
             ],
         }

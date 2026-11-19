@@ -227,6 +227,46 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
             limit=limit,
         )
 
+    @mcp.tool
+    def get_schedule(
+        date_from: OptionalText,
+        date_to: OptionalText,
+        cinema: OptionalText,
+    ) -> catalog_tools.Schedule:
+        """Devolve a programação: o que cada cinema exibe, dia a dia e com
+        horários, num período de até 14 dias. Use para "o que está passando
+        hoje?", "o que tem no fim de semana na Sala Redenção?", "que horas
+        passa X amanhã?". Para o histórico (o que já passou, quando foi a
+        última vez), para períodos maiores ou para filtrar por diretor,
+        gênero ou país, prefira search_movies.
+
+        Todos os parâmetros são opcionais e se combinam com E:
+        - `date_from`: primeiro dia, AAAA-MM-DD; sem ele, vale hoje;
+        - `date_to`: último dia, AAAA-MM-DD, inclusivo; sem ele, vale o mesmo
+          dia de `date_from`. O período não pode passar de 14 dias;
+        - `cinema`: slug ou nome do cinema (veja list_cinemas), sem
+          diferenciar acentos nem maiúsculas; sem ele, vêm todos os cinemas.
+
+        `today` é a data de hoje em Porto Alegre: use-a para calcular
+        "amanhã" ou "sábado" antes de chamar de novo. `cinemas` vem em ordem
+        de nome e traz só os cinemas com sessão no período; os filmes de cada
+        cinema vêm pela ordem da primeira sessão. Em `sessions`, `times` são
+        os horários do dia; uma lista vazia significa que o cinema não
+        informou o horário, não que não há sessão. `url` é a página do filme
+        no site. `total` é o número de pares cinema × filme no período e
+        `truncated` diz se a lista foi cortada (o corte é em 60 pares):
+        nesse caso, reduza o período ou informe `cinema`.
+
+        Uma lista vazia significa que não há sessão cadastrada nesses dias:
+        a programação futura só existe até onde os cinemas já a divulgaram,
+        e nem todo filme tem diretor ou gênero cadastrado."""
+        return run_in_app_context(
+            catalog_tools.get_schedule,
+            date_from=date_from,
+            date_to=date_to,
+            cinema=cinema,
+        )
+
 
 def create_http_app(flask_app: Flask, token: str):
     """The streamable-HTTP ASGI app, served at MCP_PATH. Refuses to build

@@ -444,3 +444,152 @@ class TestSearchMovies:
             catalog_tools.search_movies(shown_from="ontem")
         with pytest.raises(CatalogToolError, match="Cinema 'x' não encontrado"):
             catalog_tools.search_movies(cinema="x")
+
+
+def programme(schedule):
+    """The schedule as {cinema slug: [movie title, ...]}."""
+    return {
+        cinema.slug: [movie.title for movie in cinema.movies]
+        for cinema in schedule.cinemas
+    }
+
+
+@pytest.mark.usefixtures("setup_cinemas")
+class TestGetSchedule:
+    def test_defaults_to_today(self):
+        show(make_movie("Ontem"), "capitolio", "2026-03-09 19:00")
+        show(make_movie("Hoje"), "capitolio", "2026-03-10 19:00")
+        show(make_movie("Amanhã"), "capitolio", "2026-03-11 19:00")
+
+        schedule = catalog_tools.get_schedule()
+
+        assert (schedule.today, schedule.date_from, schedule.date_to) == (
+            TODAY,
+            TODAY,
+            TODAY,
+        )
+        assert programme(schedule) == {"capitolio": ["Hoje"]}
+
+    def test_date_to_defaults_to_date_from(self):
+        show(make_movie("No Dia"), "capitolio", "2026-03-14")
+        show(make_movie("Depois"), "capitolio", "2026-03-15")
+
+        schedule = catalog_tools.get_schedule(date_from="2026-03-14")
+
+        assert schedule.date_to == date(2026, 3, 14)
+        assert programme(schedule) == {"capitolio": ["No Dia"]}
+
+    def test_lists_each_cinema_with_its_movies_and_their_times(self):
+        movie = make_movie(
+            "Bacurau", directors=["Kleber Mendonça Filho"], genres=["Ação"]
+        )
+        show(
+            movie,
+            "capitolio",
+            "2026-03-11 19:30",
+            "2026-03-10 21:00",
+            "2026-03-10 14:00",
+            "2026-03-10",
+            "2026-03-12",
+        )
+
+        schedule = catalog_tools.get_schedule(
+            date_from="2026-03-10", date_to="2026-03-12"
+        )
+
+        assert (schedule.total, schedule.truncated) == (1, False)
+        assert [cinema.model_dump() for cinema in schedule.cinemas] == [
+            {
+                "slug": "capitolio",
+                "name": "Cinemateca Capitólio",
+                "movies": [
+                    {
+                        "movie_id": movie.id,
+                        "title": "Bacurau",
+                        "directors": ["Kleber Mendonça Filho"],
+                        "genres": ["Ação"],
+                        "url": "https://cinemaempoa.com.br/movies/bacurau",
+                        "sessions": [
+                            {"date": date(2026, 3, 10), "times": ["14:00", "21:00"]},
+                            {"date": date(2026, 3, 11), "times": ["19:30"]},
+                            {"date": date(2026, 3, 12), "times": []},
+                        ],
+                    }
+                ],
+            }
+        ]
+
+    def test_orders_cinemas_by_name_and_movies_by_their_first_session(self):
+        show(make_movie("Tarde"), "sala-redencao", "2026-03-10 16:00")
+        show(make_movie("Noite"), "capitolio", "2026-03-10 20:00")
+        show(make_movie("Amanhã Cedo"), "capitolio", "2026-03-11 10:00")
+        show(make_movie("Matinê"), "capitolio", "2026-03-10 14:00")
+
+        schedule = catalog_tools.get_schedule(
+            date_from="2026-03-10", date_to="2026-03-11"
+        )
+
+        assert list(programme(schedule).items()) == [
+            ("capitolio", ["Matinê", "Noite", "Amanhã Cedo"]),
+            ("sala-redencao", ["Tarde"]),
+        ]
+
+    def test_joins_two_screenings_of_a_movie_at_the_same_cinema(self):
+        movie = make_movie("Duas Vezes")
+        show(movie, "capitolio", "2026-03-10 14:00")
+        show(movie, "capitolio", "2026-03-10 19:00")
+
+        schedule = catalog_tools.get_schedule()
+
+        assert (schedule.total, programme(schedule)) == (
+            1,
+            {"capitolio": ["Duas Vezes"]},
+        )
+        assert schedule.cinemas[0].movies[0].sessions[0].times == ["14:00", "19:00"]
+
+    def test_a_cinema_filter_leaves_the_others_out(self):
+        show(make_movie("No Capitólio"), "capitolio", "2026-03-10")
+        show(make_movie("Na Redenção"), "sala-redencao", "2026-03-10")
+
+        schedule = catalog_tools.get_schedule(cinema="redenção")
+
+        assert programme(schedule) == {"sala-redencao": ["Na Redenção"]}
+
+    def test_drafts_do_not_exist(self):
+        show(make_movie("Rascunho"), "capitolio", "2026-03-10", draft=True)
+
+        schedule = catalog_tools.get_schedule()
+
+        assert (schedule.total, schedule.cinemas) == (0, [])
+
+    def test_accepts_14_days_and_refuses_more(self):
+        catalog_tools.get_schedule(date_from="2026-03-01", date_to="2026-03-14")
+
+        with pytest.raises(CatalogToolError) as error:
+            catalog_tools.get_schedule(date_from="2026-03-01", date_to="2026-03-15")
+
+        assert str(error.value) == (
+            "Período longo demais: get_schedule aceita no máximo 14 dias e "
+            "foram pedidos 15. Para períodos maiores, use search_movies com "
+            "shown_from e shown_to."
+        )
+
+    def test_refuses_an_invalid_date_or_a_period_that_ends_before_it_starts(self):
+        with pytest.raises(CatalogToolError, match="Data inválida: 'sábado'"):
+            catalog_tools.get_schedule(date_from="sábado")
+        with pytest.raises(CatalogToolError, match="Período inválido"):
+            catalog_tools.get_schedule(date_to="2026-03-09")
+
+    def test_cuts_at_60_cinema_movie_pairs(self):
+        for number in range(40):
+            show(make_movie(f"Capitólio {number:02}"), "capitolio", "2026-03-10 19:00")
+        for number in range(25):
+            show(make_movie(f"Redenção {number:02}"), "sala-redencao", "2026-03-10")
+
+        schedule = catalog_tools.get_schedule()
+
+        assert (schedule.total, schedule.truncated) == (65, True)
+        assert [(c.slug, len(c.movies)) for c in schedule.cinemas] == [
+            ("capitolio", 40),
+            ("sala-redencao", 20),
+        ]
