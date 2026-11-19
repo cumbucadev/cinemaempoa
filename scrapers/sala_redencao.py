@@ -1,14 +1,21 @@
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 
 import icalendar
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from zoneinfo import ZoneInfo
 
 from scrapers.http_cache import fetch_page
 from utils import get_formatted_day_str, string_is_day
+
+# (connect, read) seconds: without one, a host that stops answering hangs the
+# whole scraping run.
+REQUEST_TIMEOUT = (10, 30)
 
 
 class SalaRedencao:
@@ -51,7 +58,15 @@ class SalaRedencao:
 
     def _get_page_html(self, file, url):
         """Returns contents from file, or GET from url and save to file"""
-        return fetch_page(file, lambda: requests.get(url))
+        return fetch_page(file, lambda: self._fetch(url))
+
+    def _fetch(self, url) -> requests.Response:
+        """GETs a UFRGS page, retrying with backoff: the site often drops
+        connections mid-handshake."""
+        retry = Retry(total=3, backoff_factor=1, status_forcelist=[502, 503, 504])
+        with requests.Session() as session:
+            session.mount("https://", HTTPAdapter(max_retries=retry))
+            return session.get(url, timeout=REQUEST_TIMEOUT)
 
     def _get_events_blog_post_url(self):
         landing_page_soup = BeautifulSoup(self._get_news_page_html(), "html.parser")
@@ -288,7 +303,10 @@ class SalaRedencao:
 
     def _fetch_google_calendar(self) -> icalendar.Calendar:
         """Fetches and returns the Google Calendar as an icalendar.Calendar instance"""
-        calendar_ics = requests.get(self.google_calendar_ical_url)
+        calendar_ics = requests.get(
+            self.google_calendar_ical_url, timeout=REQUEST_TIMEOUT
+        )
+        calendar_ics.raise_for_status()
         gcal = icalendar.Calendar.from_ical(calendar_ics.content)
         return gcal
 
@@ -375,9 +393,24 @@ class SalaRedencao:
 
         return feats
 
+    def _get_blog_post_features(self):
+        """Features from the UFRGS news posts, or [] when the site can't be
+        reached - it resets the production server's connections, and that
+        must not cost us the Google Calendar's features. The error still
+        goes to stderr so the workflow log shows the source is down."""
+        try:
+            self._get_events_blog_post_url()
+            return self._get_events_blog_post_html()
+        except requests.exceptions.RequestException as e:
+            print(
+                f"Sala Redenção: site da UFRGS inacessível, usando só o "
+                f"Google Calendar ({e})",
+                file=sys.stderr,
+            )
+            return []
+
     def get_daily_features_json(self) -> str:
-        self._get_events_blog_post_url()
-        features = self._get_events_blog_post_html()
+        features = self._get_blog_post_features()
         # try to fetch events from official Google Calendar from Sala Redenção
         gcal = self._fetch_google_calendar()
         gcal_features = self._parse_google_calendar_events(gcal)

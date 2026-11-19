@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 
 import icalendar
+import requests
 
 from scrapers.sala_redencao import SalaRedencao
 
@@ -17,8 +18,8 @@ def _load_gcal_fixture() -> icalendar.Calendar:
 
 class TestSalaRedencao(unittest.TestCase):
     def test_get_events_blog_post_url(self):
-        """`_get_events_blog_post_url` should parse whatever `requests.get`
-        returns into event URLs - no live network call involved here."""
+        """`_get_events_blog_post_url` should parse whatever `_fetch` returns
+        into event URLs - no live network call involved here."""
         news_html = """
         <a class="entire-meta-link" href="https://www.ufrgs.br/difusaocultural/sala-redencao-apresenta-programacao-de-cinema-japones/">Link</a>
         <a class="entire-meta-link" href="https://www.ufrgs.br/difusaocultural/programacao-da-sala-redencao-explora-vanguardas-no-cinema/">Link</a>
@@ -26,8 +27,8 @@ class TestSalaRedencao(unittest.TestCase):
         """
         salaRedencao = SalaRedencao(date="2023-09-13")
         salaRedencao.scrape_dir = tempfile.mkdtemp()
-        with patch("scrapers.sala_redencao.requests.get") as mock_get:
-            mock_get.return_value.text = news_html
+        with patch.object(SalaRedencao, "_fetch") as mock_fetch:
+            mock_fetch.return_value.text = news_html
             salaRedencao._get_events_blog_post_url()
         self.assertIsInstance(salaRedencao.events, list)
         assert len(salaRedencao.events) > 0
@@ -136,6 +137,33 @@ class TestSalaRedencao(unittest.TestCase):
         assert len(features_gcal) > 0
         assert len(features_overall) == len(features_traditional) + len(features_gcal)
         assert features_overall == features_traditional + features_gcal
+
+    def test_get_daily_features_json_when_ufrgs_is_unreachable(self):
+        """The UFRGS site resets the production server's connections, and the
+        Google Calendar is an independent source: losing the first must not
+        cost us the second."""
+        sala_redencao = SalaRedencao("2025-08-21")
+        sala_redencao.scrape_dir = tempfile.mkdtemp()
+
+        with (
+            patch.object(
+                SalaRedencao,
+                "_fetch_google_calendar",
+                return_value=_load_gcal_fixture(),
+            ),
+            patch.object(
+                SalaRedencao,
+                "_fetch",
+                side_effect=requests.exceptions.ConnectionError(
+                    "Connection reset by peer"
+                ),
+            ),
+        ):
+            features = sala_redencao.get_daily_features_json()
+
+        assert features == sala_redencao._parse_google_calendar_events(
+            _load_gcal_fixture()
+        )
 
     def test_get_daily_features_json(self):
         salaRedencao = SalaRedencao(date="2025-08-21")
