@@ -1,7 +1,13 @@
-"""The MCP server the Orbit inspection agent calls: a thin shell over the
-per-request tools in flask_backend/service/movie_inspection_tools.py,
-served over streamable HTTP and guarded by a static bearer token
-(ORBIT_MCP_TOKEN).
+"""The MCP server Orbit's agents call, served over streamable HTTP and
+guarded by a static bearer token (ORBIT_MCP_TOKEN). A thin shell over two
+families of tools:
+
+- the inspection tools in flask_backend/service/movie_inspection_tools.py,
+  each bound to the `request_id` of an inspection request; `apply_verdict`
+  writes to the database;
+- the read-only catalog tools in flask_backend/service/catalog_tools.py, for
+  the conversational agent: what is showing, where and when, and what each
+  cinema has shown.
 
 Run it locally with `uv run python -m flask_backend.mcp_server`.
 """
