@@ -3,6 +3,7 @@ import math
 from flask import Blueprint, g, jsonify, render_template, request
 from werkzeug.exceptions import abort
 
+from flask_backend.constants import CANONICAL_BASE_URL
 from flask_backend.repository.movies import (
     get_all_paginated as get_all_movies_paginated,
     get_by_slug,
@@ -10,7 +11,6 @@ from flask_backend.repository.movies import (
     get_paginated_screenings_with_image,
 )
 from flask_backend.routes.auth import login_required
-from flask_backend.routes.screening import CANONICAL_BASE_URL
 
 bp = Blueprint("movie", __name__)
 

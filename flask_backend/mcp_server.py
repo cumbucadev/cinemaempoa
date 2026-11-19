@@ -19,18 +19,24 @@ from starlette.responses import JSONResponse
 
 from flask_backend.env_config import MCP_HOST, MCP_PORT, ORBIT_MCP_TOKEN
 from flask_backend.service import movie_inspection_tools as tools
+from flask_backend.service.catalog_tools import CatalogToolError
 
 MCP_PATH = "/mcp"
 
-# Advertised as a plain optional integer: Orbit does not accept the
-# `anyOf: [integer, null]` an `Optional[int]` would produce. Absent means "no
-# new link"; an explicit null is still accepted and read the same way. The
-# default_factory keeps `"default": null` out of the schema.
-OptionalTmdbId = Annotated[
-    Optional[int],
-    WithJsonSchema({"type": "integer"}),
-    Field(default_factory=lambda: None),
-]
+
+def _optional(py_type, json_schema: dict):
+    """An optional tool argument advertised with `json_schema` alone: Orbit
+    does not accept the `anyOf: [x, null]` an `Optional[x]` would produce.
+    Absent means "not given"; an explicit null is still accepted and read the
+    same way. The default_factory keeps `"default": null` out of the schema."""
+    return Annotated[
+        Optional[py_type],
+        WithJsonSchema(json_schema),
+        Field(default_factory=lambda: None),
+    ]
+
+
+OptionalTmdbId = _optional(int, {"type": "integer"})
 
 
 class BearerTokenMiddleware:
@@ -77,11 +83,11 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
     context, whose teardown removes the thread's db_session."""
     mcp = FastMCP("cinemaempoa", middleware=[DropUndeclaredArgumentsMiddleware()])
 
-    def run_in_app_context(tool, *args):
+    def run_in_app_context(tool, *args, **kwargs):
         with flask_app.app_context():
             try:
-                return tool(*args)
-            except tools.InspectionRequestError as exc:
+                return tool(*args, **kwargs)
+            except (tools.InspectionRequestError, CatalogToolError) as exc:
                 raise ToolError(str(exc)) from exc
 
     @mcp.tool
