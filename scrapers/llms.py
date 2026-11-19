@@ -115,8 +115,8 @@ class CineCincoExtractorLLM:
         return response.raw.model_dump_json()
 
     def _get_system_prompt(self, year):
-        return f"""You are a cinema programming auditor for "Cine Cinco", a free university cinema run by PUCRS in Porto Alegre, Brazil. You need to collect screening information from the following text, which was extracted from the cinema's programming page.
-The text begins with a page title, a "Programação" heading, and sometimes a themed batch heading (e.g. "COPA DO CINEMA") followed by an intro paragraph - these are NOT movies, ignore them. After that, one block of text follows per movie. The text also ends with a few paragraphs of general information about the Cine Cinco venue (its location, capacity, regular schedule) - these are NOT movies either, ignore them too.
+        return f"""You are a cinema programming auditor for "Cine Cinco", a free university cinema run by PUCRS in Porto Alegre, Brazil. You need to collect screening information from the following text, which was extracted from one event page of the PUCRS cultural agenda.
+The text begins with an "Informações do evento:" block giving the event's date or date range WITH the year (e.g. "04/11/2026 até 27/11/2026") and its venue - this is NOT a movie. Then comes the event's title (e.g. "Cine Cinco | Programação de Novembro") and a line with the category and the post's publication timestamp (e.g. "Cinema 28/10/2026 - 19h38") - these are NOT movies and the publication timestamp is NOT a screening, ignore them. An event is either a single film or a whole programme: a programme has intro paragraphs and themed batch headings (e.g. "Mostra de Cinema Negro") - these are NOT movies either. One block of text follows per movie.
 For each movie, extract the following information:
 1. Title: The name of the movie, usually the first line of its block
 2. Image URL: If available, the URL of the movie's poster image
@@ -124,7 +124,7 @@ For each movie, extract the following information:
 4. Director: The director's name, usually found after "Direção de". This is sometimes ABSENT entirely (e.g. "Sessão Surpresa" entries usually have no director mentioned) - if there is no director for a movie, return an empty string, never guess or invent one.
 5. Classification: The age rating, usually found after "Classificação" (e.g. "Classificação 18 anos", or "Classificação Livre" for a free/unrestricted rating).
 6. Excerpt: The movie's synopsis. Unlike other cinema listings, there is no "Sinopse:" label here - it is simply the unlabeled paragraph of prose that follows the general info/director/classification lines.
-7. Screening Dates: One or more sessions, usually introduced by "Sessão:", in the format "D/M • weekday — HHhMM" (e.g. "1/7 • quarta — 17h"). The day and month are given but the YEAR IS NOT PRESENT IN THE TEXT - always use {year} as the year. Convert each session into the format YYYY-MM-DD HH:MM. A movie may have more than one session listed - return one string per session.
+7. Screening Dates: One or more sessions, usually introduced by "Sessão:", in the format "D/M • weekday — HHhMM" (e.g. "1/7 • quarta — 17h"). The day and month are given but the session has NO YEAR - take it from the event's date range in "Informações do evento" (a range can cross the new year, e.g. "15/12/2026 até 20/01/2027": a session on 10/1 is then in 2027). Only if the text has no date range, use {year}. A session may be followed by remarks (e.g. "Sessão comentada com ...") - these are not part of the date. Convert each session into the format YYYY-MM-DD HH:MM. A movie may have more than one session listed - return one string per session.
 Each movie's block is usually followed by a blank line, and sometimes a trailing "Apoio: ..." sponsor line - ignore the sponsor line, it is not part of the film's info.
 Make sure to:
 - Extract all available information for each movie
