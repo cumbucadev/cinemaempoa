@@ -8,10 +8,10 @@ from datetime import date
 from typing import Iterable, Optional
 
 from sqlalchemy import Row, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 
 from flask_backend.db import db_session
-from flask_backend.models import Movie, Screening, ScreeningDate
+from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
 
 
 def catalog_period() -> tuple[Optional[date], Optional[date]]:
@@ -84,3 +84,16 @@ def movies_by_ids(
     if year_to is not None:
         query = query.filter(Movie.release_year <= year_to)
     return _with_metadata(query).all()
+
+
+def published_screenings(movie_id: int) -> list[Screening]:
+    """The movie's published screenings, ordered by cinema name, with their
+    cinema and dates loaded."""
+    return (
+        db_session.query(Screening)
+        .join(Cinema)
+        .filter(Screening.movie_id == movie_id, Screening.draft.is_(False))
+        .options(contains_eager(Screening.cinema), selectinload(Screening.dates))
+        .order_by(Cinema.name, Screening.id)
+        .all()
+    )

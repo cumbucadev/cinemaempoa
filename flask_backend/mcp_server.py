@@ -267,6 +267,60 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
             cinema=cinema,
         )
 
+    @mcp.tool
+    def list_cinemas() -> catalog_tools.CinemaList:
+        """Lista os cinemas acompanhados pelo site, com endereço, horário de
+        funcionamento e links, e diz a data de hoje e o que o catálogo cobre.
+        Comece por aqui sempre que precisar da data de hoje ("hoje",
+        "amanhã", "no fim de semana") ou transformar o nome de um cinema no
+        `slug` que as outras ferramentas aceitam ("Capitólio" →
+        `capitolio`). Também responde "onde fica a Sala Redenção?" e "quais
+        cinemas vocês acompanham?". Não recebe parâmetros.
+
+        `today` é a data de hoje em Porto Alegre, no formato AAAA-MM-DD,
+        como todas as datas. `catalog_since` e `catalog_until` são a
+        primeira e a última data com sessão cadastrada: o catálogo não sabe
+        de nada antes de `catalog_since`, e depois de hoje só conhece o que
+        os cinemas já divulgaram. `metadata_coverage` diz, entre os
+        `movies_total` filmes do catálogo, quantos têm vínculo com o TMDB
+        (`with_tmdb`), diretor (`with_directors`), gênero (`with_genres`) e
+        país (`with_countries`) cadastrados: os demais não aparecem em
+        buscas por esses campos.
+
+        Em cada cinema, `website` é o site do próprio cinema, `page_url` é a
+        página dele no cinemaempoa e `short_name` é o nome usado no dia a
+        dia. Endereço, horário e Instagram podem vir nulos."""
+        return run_in_app_context(catalog_tools.list_cinemas)
+
+    @mcp.tool
+    def get_movie(movie_id: int) -> catalog_tools.MovieDetails:
+        """Devolve os detalhes de um filme do catálogo e todas as sessões
+        dele, cinema por cinema. Use depois de search_movies ou get_schedule,
+        que informam o `movie_id`, para responder "quando passa de novo?",
+        "onde passou?", "que horas é a sessão?" ou para ler a sinopse
+        publicada pelo cinema. Para procurar um filme pelo nome, use
+        search_movies. `movie_id` é obrigatório.
+
+        `today` é a data de hoje em Porto Alegre; as datas são AAAA-MM-DD.
+        `screenings` tem uma entrada por cinema que exibiu ou vai exibir o
+        filme, em ordem de nome do cinema (um cinema pode aparecer mais de
+        uma vez, se cadastrou o filme em mais de uma ocasião):
+        - `cinema` é o slug e `cinema_name` o nome;
+        - `description` é o texto do cinema sobre a sessão, cortado em 1500
+          caracteres, e `source_url` é a página de origem;
+        - `upcoming` são as datas de hoje em diante, com os horários (lista
+          vazia de `times` significa horário não informado), até 30 datas;
+          `upcoming_total` é o total delas;
+        - `past_first`, `past_last` e `past_count` resumem as datas
+          anteriores a hoje: a primeira, a última e quantas foram.
+
+        Se `upcoming` vier vazio em todos os cinemas, o filme não tem nova
+        sessão divulgada. O histórico vale só para o período coberto pelo
+        catálogo (veja `catalog_since` em list_cinemas), e nem todo filme
+        tem diretor, gênero ou país cadastrado. Um `movie_id` inexistente
+        devolve erro."""
+        return run_in_app_context(catalog_tools.get_movie, movie_id)
+
 
 def create_http_app(flask_app: Flask, token: str):
     """The streamable-HTTP ASGI app, served at MCP_PATH. Refuses to build

@@ -53,6 +53,8 @@ CATALOG_TOOLS = {
         "limit",
     },
     "get_schedule": {"date_from", "date_to", "cinema"},
+    "list_cinemas": set(),
+    "get_movie": set(),
 }
 
 
@@ -361,6 +363,51 @@ class TestCatalogTools:
                 }
             ],
         }
+
+    def test_list_cinemas_end_to_end(self, app):
+        with app.app_context():
+            _show("Bacurau", "capitolio", "2026-03-01", tmdb_id=7)
+
+        result = asyncio.run(_with_client(app, lambda c: c.call_tool("list_cinemas")))
+
+        content = result.structured_content
+        assert (content["today"], content["catalog_since"]) == (
+            "2026-03-10",
+            "2026-03-01",
+        )
+        assert content["metadata_coverage"]["with_tmdb"] == 1
+        assert [cinema["slug"] for cinema in content["cinemas"]] == [
+            "cine-cinco",
+            "cinebancarios",
+            "capitolio",
+            "paulo-amorim",
+            "sala-redencao",
+        ]
+
+    def test_get_movie_end_to_end(self, app):
+        with app.app_context():
+            movie_id = _show("Bacurau", "capitolio", "2026-03-12")
+
+        result = asyncio.run(
+            _with_client(
+                app, lambda c: c.call_tool("get_movie", {"movie_id": movie_id})
+            )
+        )
+
+        assert result.structured_content["title"] == "Bacurau"
+        assert result.structured_content["screenings"] == [
+            {
+                "cinema": "capitolio",
+                "cinema_name": "Cinemateca Capitólio",
+                "description": "Sinopse.",
+                "source_url": None,
+                "upcoming": [{"date": "2026-03-12", "times": ["19:00"]}],
+                "upcoming_total": 1,
+                "past_first": None,
+                "past_last": None,
+                "past_count": 0,
+            }
+        ]
 
     def test_a_catalog_error_comes_back_as_a_tool_error(self, app):
         with pytest.raises(ToolError, match="Cinema 'drive-in' não encontrado"):

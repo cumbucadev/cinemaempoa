@@ -15,7 +15,7 @@ from sqlalchemy import Row
 from zoneinfo import ZoneInfo
 
 from flask_backend.constants import CANONICAL_BASE_URL
-from flask_backend.models import Cinema, Movie
+from flask_backend.models import Cinema, Movie, Screening
 from flask_backend.repository import catalog
 from flask_backend.repository.cinemas import get_all as get_all_cinemas
 
@@ -405,4 +405,116 @@ def get_schedule(
         total=len(pairs),
         truncated=len(pairs) > len(kept),
         cinemas=_cinema_schedules(kept),
+    )
+
+
+class CinemaInfo(BaseModel):
+    slug: str
+    name: str
+    short_name: str
+    address: Optional[str]
+    opening_hours: Optional[str]
+    website: str
+    instagram_url: Optional[str]
+    page_url: str
+
+
+class CinemaList(BaseModel):
+    today: date
+    catalog_since: Optional[date]
+    catalog_until: Optional[date]
+    metadata_coverage: MetadataCoverage
+    cinemas: list[CinemaInfo]
+
+
+def list_cinemas() -> CinemaList:
+    """The cinemas, by name, with today's date and what the catalog covers."""
+    since, until = catalog_period()
+    return CinemaList(
+        today=today(),
+        catalog_since=since,
+        catalog_until=until,
+        metadata_coverage=metadata_coverage(),
+        cinemas=[
+            CinemaInfo(
+                slug=cinema.slug,
+                name=cinema.name,
+                short_name=cinema.short_name,
+                address=cinema.address,
+                opening_hours=cinema.opening_hours,
+                website=cinema.url,
+                instagram_url=cinema.instagram_url,
+                page_url=f"{CANONICAL_BASE_URL}/cinemas/{cinema.slug}",
+            )
+            for cinema in get_all_cinemas()
+        ],
+    )
+
+
+MOVIE_DESCRIPTION_MAX_CHARS = 1500
+MOVIE_UPCOMING_MAX_DATES = 30
+
+
+class MovieScreening(BaseModel):
+    cinema: str
+    cinema_name: str
+    description: str
+    source_url: Optional[str]
+    upcoming: list[DaySessions]
+    upcoming_total: int
+    past_first: Optional[date]
+    past_last: Optional[date]
+    past_count: int
+
+
+class MovieDetails(BaseModel):
+    today: date
+    movie_id: int
+    title: str
+    original_title: Optional[str]
+    release_year: Optional[int]
+    original_language: Optional[str]
+    directors: list[str]
+    genres: list[str]
+    countries: list[str]
+    url: Optional[str]
+    screenings: list[MovieScreening]
+
+
+def _movie_screening(screening: Screening, day: date) -> MovieScreening:
+    upcoming = _day_sessions(d for d in screening.dates if d.date >= day)
+    past = sorted({d.date for d in screening.dates if d.date < day})
+    return MovieScreening(
+        cinema=screening.cinema.slug,
+        cinema_name=screening.cinema.name,
+        description=screening.description[:MOVIE_DESCRIPTION_MAX_CHARS],
+        source_url=screening.url,
+        upcoming=upcoming[:MOVIE_UPCOMING_MAX_DATES],
+        upcoming_total=len(upcoming),
+        past_first=past[0] if past else None,
+        past_last=past[-1] if past else None,
+        past_count=len(past),
+    )
+
+
+def get_movie(movie_id: int) -> MovieDetails:
+    """One movie and each of its published screenings: the cinema's own
+    description, the dates still ahead and a summary of the past ones."""
+    screenings = catalog.published_screenings(movie_id)
+    if not screenings:
+        raise CatalogToolError(f"Filme {movie_id} não encontrado.")
+    day = today()
+    (movie,) = catalog.movies_by_ids([movie_id])
+    return MovieDetails(
+        today=day,
+        movie_id=movie.id,
+        title=movie.title,
+        original_title=movie.original_title,
+        release_year=movie.release_year,
+        original_language=movie.original_language,
+        directors=_names(movie.directors),
+        genres=_names(movie.genres),
+        countries=_names(movie.countries),
+        url=_movie_url(movie),
+        screenings=[_movie_screening(screening, day) for screening in screenings],
     )

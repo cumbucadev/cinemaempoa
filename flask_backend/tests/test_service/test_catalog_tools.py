@@ -593,3 +593,170 @@ class TestGetSchedule:
             ("capitolio", 40),
             ("sala-redencao", 20),
         ]
+
+
+class TestListCinemas:
+    def test_lists_the_cinemas_by_name_with_where_to_find_them(self):
+        make_cinema("sala-redencao", "Sala Redenção")
+        make_cinema(
+            "capitolio",
+            "Cinemateca Capitólio",
+            address="Rua Demétrio Ribeiro, 1085",
+            opening_hours="Terça a domingo",
+            instagram_url="https://instagram.com/cinematecacapitolio",
+        )
+
+        result = catalog_tools.list_cinemas()
+
+        assert [cinema.model_dump() for cinema in result.cinemas] == [
+            {
+                "slug": "capitolio",
+                "name": "Cinemateca Capitólio",
+                "short_name": "Capitólio",
+                "address": "Rua Demétrio Ribeiro, 1085",
+                "opening_hours": "Terça a domingo",
+                "website": "https://capitolio.example",
+                "instagram_url": "https://instagram.com/cinematecacapitolio",
+                "page_url": "https://cinemaempoa.com.br/cinemas/capitolio",
+            },
+            {
+                "slug": "sala-redencao",
+                "name": "Sala Redenção",
+                "short_name": "Sala Redenção",
+                "address": None,
+                "opening_hours": None,
+                "website": "https://sala-redencao.example",
+                "instagram_url": None,
+                "page_url": "https://cinemaempoa.com.br/cinemas/sala-redencao",
+            },
+        ]
+
+    @pytest.mark.usefixtures("setup_cinemas")
+    def test_says_what_the_catalog_covers(self):
+        show(make_movie("Antigo", tmdb_id=1), "capitolio", "2025-01-02")
+        show(make_movie("Futuro"), "cine-cinco", "2026-08-28")
+        show(make_movie("Rascunho"), "capitolio", "2024-01-01", draft=True)
+
+        result = catalog_tools.list_cinemas()
+
+        assert result.today == TODAY
+        assert result.catalog_since == date(2025, 1, 2)
+        assert result.catalog_until == date(2026, 8, 28)
+        assert result.metadata_coverage.model_dump() == {
+            "movies_total": 2,
+            "with_tmdb": 1,
+            "with_directors": 0,
+            "with_genres": 0,
+            "with_countries": 0,
+        }
+
+
+@pytest.mark.usefixtures("setup_cinemas")
+class TestGetMovie:
+    def test_describes_the_movie_and_each_of_its_screenings(self):
+        movie = make_movie(
+            "Acossado",
+            original_title="À bout de souffle",
+            release_year=1960,
+            original_language="fr",
+            directors=["Jean-Luc Godard"],
+            genres=["Drama"],
+            countries=["França"],
+        )
+        show(
+            movie,
+            "sala-redencao",
+            "2026-03-12 19:00",
+            "2026-03-10 16:00",
+            "2026-03-10 14:00",
+            "2026-03-09 19:00",
+            "2026-03-09 16:00",
+            "2025-11-02",
+            description="Mostra Nouvelle Vague.",
+            url="https://sala.example/acossado",
+        )
+        show(movie, "capitolio", "2025-06-01", description="Clássico.")
+
+        result = catalog_tools.get_movie(movie.id)
+
+        assert result.model_dump() == {
+            "today": TODAY,
+            "movie_id": movie.id,
+            "title": "Acossado",
+            "original_title": "À bout de souffle",
+            "release_year": 1960,
+            "original_language": "fr",
+            "directors": ["Jean-Luc Godard"],
+            "genres": ["Drama"],
+            "countries": ["França"],
+            "url": "https://cinemaempoa.com.br/movies/acossado",
+            "screenings": [
+                {
+                    "cinema": "capitolio",
+                    "cinema_name": "Cinemateca Capitólio",
+                    "description": "Clássico.",
+                    "source_url": None,
+                    "upcoming": [],
+                    "upcoming_total": 0,
+                    "past_first": date(2025, 6, 1),
+                    "past_last": date(2025, 6, 1),
+                    "past_count": 1,
+                },
+                {
+                    "cinema": "sala-redencao",
+                    "cinema_name": "Sala Redenção",
+                    "description": "Mostra Nouvelle Vague.",
+                    "source_url": "https://sala.example/acossado",
+                    "upcoming": [
+                        {"date": date(2026, 3, 10), "times": ["14:00", "16:00"]},
+                        {"date": date(2026, 3, 12), "times": ["19:00"]},
+                    ],
+                    "upcoming_total": 2,
+                    "past_first": date(2025, 11, 2),
+                    "past_last": date(2026, 3, 9),
+                    "past_count": 2,
+                },
+            ],
+        }
+
+    def test_a_screening_only_ahead_has_no_past(self):
+        movie = make_movie("Estreia")
+        show(movie, "capitolio", "2026-03-20")
+
+        screening = catalog_tools.get_movie(movie.id).screenings[0]
+
+        assert (screening.past_first, screening.past_last, screening.past_count) == (
+            None,
+            None,
+            0,
+        )
+
+    def test_cuts_upcoming_at_30_dates_and_the_description_at_1500_chars(self):
+        movie = make_movie("Em Cartaz")
+        days = [f"2026-04-{day:02}" for day in range(1, 31)] + ["2026-05-01"]
+        show(movie, "capitolio", *days, description="x" * 2000)
+
+        screening = catalog_tools.get_movie(movie.id).screenings[0]
+
+        assert len(screening.upcoming) == 30
+        assert screening.upcoming[-1].date == date(2026, 4, 30)
+        assert screening.upcoming_total == 31
+        assert screening.description == "x" * 1500
+
+    def test_leaves_draft_screenings_out(self):
+        movie = make_movie("Meio Publicado")
+        show(movie, "capitolio", "2026-03-01")
+        show(movie, "cine-cinco", "2026-03-02", draft=True)
+
+        result = catalog_tools.get_movie(movie.id)
+
+        assert [screening.cinema for screening in result.screenings] == ["capitolio"]
+
+    def test_a_movie_that_is_unknown_or_only_drafted_is_not_found(self):
+        drafted = make_movie("Rascunho")
+        show(drafted, "capitolio", "2026-03-01", draft=True)
+
+        for movie_id in (drafted.id, 9999):
+            with pytest.raises(CatalogToolError) as error:
+                catalog_tools.get_movie(movie_id)
+            assert str(error.value) == f"Filme {movie_id} não encontrado."
