@@ -144,23 +144,33 @@ Você pode ver a implementação (prompts e regras de negócio) no arquivo [./ll
 
 ## Cine Cinco
 
-O site do projeto é <https://www.pucrs.br/cultura/projetos/cine-cinco/>. Diferente
-do CineBancários, essa página é renderizada no servidor (não precisa de
-javascript pra carregar o conteúdo), então o HTML pode ser obtido com uma
-requisição HTTP comum.
+O site do projeto é <https://www.pucrs.br/cultura/projetos/cine-cinco/>, mas
+desde setembro de 2026 ele não traz mais a programação, só links soltos pra
+algumas postagens mensais. A programação é publicada como eventos na agenda do
+Instituto de Cultura da PUCRS, <https://www.pucrs.br/cultura/agenda/>, e é de lá
+que o scraper parte. As páginas são renderizadas no servidor, então uma
+requisição HTTP comum basta (com um `User-Agent` de navegador: sem ele o site
+responde 403).
 
-A programação inteira fica dentro de uma única `div.content`. Cada filme é
-um bloco de texto (título, pôster, direção, informações gerais, sinopse e
-sessão) separado dos outros por uma tag `<hr>`, mas assim como no CineBancários,
-a estrutura interna de cada bloco muda de postagem pra postagem (às vezes tem
-direção, às vezes não; às vezes tem `<a>` em volta do pôster, às vezes não). Por
-isso, também optamos por usar um LLM que consome o texto (sem tags HTML) do
-bloco `div.content` e retorna um JSON estruturado — implementação em [./llms.py](./llms.py),
-classe `CineCincoExtractorLLM`.
+1. **Descoberta.** A agenda lista os eventos do mês corrente, de todas as áreas
+(teatro, música...). Cada `div.item` traz título, início, término e local; um
+evento conta como do Cine Cinco quando o título *ou* o local menciona "Cine
+Cinco". Não dependemos do slug (`cine-cinco-programacao-de-*`), que não segue
+um padrão fixo. O filtro de período do formulário da agenda não funciona numa
+requisição GET, então a programação do mês seguinte só aparece no dia 1º.
+2. **Texto.** De cada evento pegamos a coluna principal (`div.content
+div.col-xs-9`) até os botões de compartilhar — abaixo deles a página lista
+outros eventos — e, antes dela, o quadro "Informações do evento"
+(`div.infos-evento`), que tem o período do evento *com* o ano.
+3. **Extração.** Como no CineBancários, a estrutura de cada bloco de filme muda
+de postagem pra postagem, então um LLM consome o texto e devolve um JSON
+estruturado — [./llms.py](./llms.py), classe `CineCincoExtractorLLM`. O cache
+do LLM é por evento (`cine-cinco/cache/`), então só a página que mudou volta
+pro Gemini.
+4. **Duplicatas.** Um evento pode ser um filme só ou uma programação inteira, e
+a programação mensal repete os filmes que também ganham página própria. Como o
+Cine Cinco tem uma sala só, dois anúncios no mesmo horário são a mesma sessão:
+fica o primeiro (`drop_repeated_sessions`).
 
-Particularidade desse site, comparado ao CineBancários:
-
-- As datas de sessão (`Sessão: 1/7 • quarta — 17h`) não têm ano. Como a
-página não tem um RSS feed com data de publicação, assumimos que o ano da
-sessão é sempre o ano atual no momento da raspagem — uma limitação conhecida
-da v0 perto da virada do ano.
+As datas de sessão (`Sessão: 1/7 • quarta — 17h`) não têm ano; o LLM o tira do
+período do evento, o que também resolve programações que cruzam a virada do ano.
