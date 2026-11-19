@@ -18,8 +18,7 @@ from starlette.middleware import Middleware
 from starlette.responses import JSONResponse
 
 from flask_backend.env_config import MCP_HOST, MCP_PORT, ORBIT_MCP_TOKEN
-from flask_backend.service import movie_inspection_tools as tools
-from flask_backend.service.catalog_tools import CatalogToolError
+from flask_backend.service import catalog_tools, movie_inspection_tools as tools
 
 MCP_PATH = "/mcp"
 
@@ -37,6 +36,8 @@ def _optional(py_type, json_schema: dict):
 
 
 OptionalTmdbId = _optional(int, {"type": "integer"})
+OptionalInt = _optional(int, {"type": "integer"})
+OptionalText = _optional(str, {"type": "string"})  # dates too
 
 
 class BearerTokenMiddleware:
@@ -87,7 +88,10 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
         with flask_app.app_context():
             try:
                 return tool(*args, **kwargs)
-            except (tools.InspectionRequestError, CatalogToolError) as exc:
+            except (
+                tools.InspectionRequestError,
+                catalog_tools.CatalogToolError,
+            ) as exc:
                 raise ToolError(str(exc)) from exc
 
     @mcp.tool
@@ -147,7 +151,81 @@ def create_mcp_server(flask_app: Flask) -> FastMCP:
             tools.apply_verdict, request_id, status, reasoning, new_tmdb_id
         )
 
+    _register_catalog_tools(mcp, run_in_app_context)
     return mcp
+
+
+def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
+    """The read-only catalog tools of the conversational agent."""
+
+    @mcp.tool
+    def search_movies(
+        title: OptionalText,
+        director: OptionalText,
+        genre: OptionalText,
+        country: OptionalText,
+        year_from: OptionalInt,
+        year_to: OptionalInt,
+        cinema: OptionalText,
+        shown_from: OptionalText,
+        shown_to: OptionalText,
+        sort: catalog_tools.MovieSort = "last_shown_desc",
+        limit: int = 10,
+    ) -> catalog_tools.MovieSearchResult:
+        """Busca filmes no catálogo de sessões dos cinemas e diz quando cada
+        um passou ou vai passar. Use para perguntas sobre o histórico e sobre
+        filmes específicos: "já passou algum filme do Tarantino?", "qual foi
+        o último filme de ação no Capitólio?", "que filmes franceses passaram
+        em 2025?". Para a programação de um dia ou de alguns dias, com
+        horários, prefira get_schedule; para os detalhes e horários de um
+        filme já encontrado, get_movie.
+
+        Todos os filtros são opcionais e se combinam com E. Os filtros de
+        texto casam por trecho, sem diferenciar acentos nem maiúsculas:
+        - `title`: trecho do título em português ou do título original;
+        - `director`: trecho do nome de um dos diretores (use
+          search_directors se o nome for ambíguo);
+        - `genre`: trecho do gênero em português ("ação", "drama",
+          "documentário");
+        - `country`: trecho do país de produção em português ("França");
+        - `year_from` / `year_to`: ano de lançamento, inclusivo; com esse
+          filtro, filmes sem ano cadastrado ficam de fora.
+
+        `cinema` (slug ou nome, veja list_cinemas), `shown_from` e `shown_to`
+        (datas AAAA-MM-DD, inclusivas) definem quais sessões contam. O filme
+        só aparece se tiver sessão nesse recorte, e `first_shown`,
+        `last_shown`, `next_showing`, `cinemas` e `sessions` são calculados
+        só sobre ele: com `cinema="capitolio"`, `last_shown` é a última vez
+        no Capitólio e `cinemas` traz só o Capitólio.
+
+        `today` é a data de hoje em Porto Alegre. `last_shown` é a exibição
+        mais recente até hoje (nulo se o filme só tem sessões futuras) e
+        `next_showing` é a próxima, de hoje em diante (nulo se não há).
+        `sort`: `last_shown_desc` (padrão, exibição mais recente primeiro),
+        `first_shown_asc` ou `title`. `limit` vai até 50; `total` é o número
+        de filmes encontrados e `truncated` diz se a lista foi cortada.
+
+        Exemplos: última vez que passou ação no Capitólio →
+        `genre="ação", cinema="capitolio", sort="last_shown_desc", limit=1`;
+        já passou Tarantino? → `director="tarantino"`.
+
+        Uma lista vazia vale só para o período coberto pelo catálogo, que
+        começa em `catalog_since`, e nem todo filme tem diretor, gênero ou
+        país cadastrado."""
+        return run_in_app_context(
+            catalog_tools.search_movies,
+            title=title,
+            director=director,
+            genre=genre,
+            country=country,
+            year_from=year_from,
+            year_to=year_to,
+            cinema=cinema,
+            shown_from=shown_from,
+            shown_to=shown_to,
+            sort=sort,
+            limit=limit,
+        )
 
 
 def create_http_app(flask_app: Flask, token: str):

@@ -6,13 +6,16 @@ message, when a call cannot be answered.
 """
 
 import unicodedata
+from collections import defaultdict
 from datetime import date, datetime
-from typing import Optional
+from typing import Callable, Iterable, Literal, Optional
 
 from pydantic import BaseModel
+from sqlalchemy import Row
 from zoneinfo import ZoneInfo
 
-from flask_backend.models import Cinema
+from flask_backend.constants import CANONICAL_BASE_URL
+from flask_backend.models import Cinema, Movie
 from flask_backend.repository import catalog
 from flask_backend.repository.cinemas import get_all as get_all_cinemas
 
@@ -92,4 +95,185 @@ def metadata_coverage() -> MetadataCoverage:
         with_directors=sum(bool(movie.directors) for movie in movies),
         with_genres=sum(bool(movie.genres) for movie in movies),
         with_countries=sum(bool(movie.countries) for movie in movies),
+    )
+
+
+def _given(text: Optional[str]) -> Optional[str]:
+    """`text`, or None when it is blank: agents often send "" for a filter
+    they do not mean to use."""
+    return text if text and text.strip() else None
+
+
+def _contains(needle: str, values: Iterable[Optional[str]]) -> bool:
+    wanted = normalize(needle)
+    return any(wanted in normalize(value) for value in values if value)
+
+
+def _period(
+    date_from: Optional[str], date_to: Optional[str]
+) -> tuple[Optional[date], Optional[date]]:
+    start = parse_date(date_from) if _given(date_from) else None
+    end = parse_date(date_to) if _given(date_to) else None
+    if start and end and end < start:
+        raise CatalogToolError(
+            f"Período inválido: a data final ({end}) é anterior à inicial ({start})."
+        )
+    return start, end
+
+
+def _sessions_in_scope(
+    cinema: Optional[str], date_from: Optional[str], date_to: Optional[str]
+) -> list[Row]:
+    """The published session dates a call counts: those of `cinema`, when
+    given, inside the period, when given."""
+    start, end = _period(date_from, date_to)
+    cinema_id = resolve_cinema(cinema).id if _given(cinema) else None
+    return catalog.session_dates(cinema_id, start, end)
+
+
+def _by_movie(sessions: Iterable[Row]) -> dict[int, list[Row]]:
+    grouped = defaultdict(list)
+    for session in sessions:
+        grouped[session.movie_id].append(session)
+    return grouped
+
+
+def _cinema_slugs() -> dict[int, str]:
+    return {cinema.id: cinema.slug for cinema in get_all_cinemas()}
+
+
+def _clamp(limit: int, ceiling: int) -> int:
+    return max(1, min(limit, ceiling))
+
+
+def _movie_url(movie: Movie) -> Optional[str]:
+    return f"{CANONICAL_BASE_URL}/movies/{movie.slug}" if movie.slug else None
+
+
+def _names(rows) -> list[str]:
+    return [row.name for row in rows]
+
+
+SEARCH_MOVIES_MAX = 50
+
+MovieSort = Literal["last_shown_desc", "first_shown_asc", "title"]
+
+
+class MovieSummary(BaseModel):
+    movie_id: int
+    title: str
+    original_title: Optional[str]
+    release_year: Optional[int]
+    directors: list[str]
+    genres: list[str]
+    countries: list[str]
+    url: Optional[str]
+    first_shown: date
+    last_shown: Optional[date]
+    next_showing: Optional[date]
+    cinemas: list[str]
+    sessions: int
+
+
+class MovieSearchResult(BaseModel):
+    today: date
+    catalog_since: Optional[date]
+    total: int
+    truncated: bool
+    movies: list[MovieSummary]
+
+
+# What each text filter of search_movies is looked for in.
+_TEXT_FILTERS: dict[str, Callable[[Movie], Iterable[Optional[str]]]] = {
+    "title": lambda movie: (movie.title, movie.original_title),
+    "director": lambda movie: _names(movie.directors),
+    "genre": lambda movie: _names(movie.genres),
+    "country": lambda movie: _names(movie.countries),
+}
+
+
+def _matches(movie: Movie, text_filters: dict[str, Optional[str]]) -> bool:
+    return all(
+        _contains(needle, _TEXT_FILTERS[name](movie))
+        for name, needle in text_filters.items()
+        if _given(needle)
+    )
+
+
+def _movie_summary(
+    movie: Movie, sessions: list[Row], day: date, slugs: dict[int, str]
+) -> MovieSummary:
+    dates = [session.date for session in sessions]
+    return MovieSummary(
+        movie_id=movie.id,
+        title=movie.title,
+        original_title=movie.original_title,
+        release_year=movie.release_year,
+        directors=_names(movie.directors),
+        genres=_names(movie.genres),
+        countries=_names(movie.countries),
+        url=_movie_url(movie),
+        first_shown=min(dates),
+        last_shown=max((d for d in dates if d <= day), default=None),
+        next_showing=min((d for d in dates if d >= day), default=None),
+        cinemas=sorted({slugs[session.cinema_id] for session in sessions}),
+        sessions=len(sessions),
+    )
+
+
+def _by_last_shown(movie: MovieSummary) -> tuple:
+    """Most recently shown first; movies only scheduled ahead go last,
+    soonest first."""
+    if movie.last_shown is None:
+        return (1, movie.next_showing.toordinal(), movie.movie_id)
+    return (0, -movie.last_shown.toordinal(), movie.movie_id)
+
+
+_MOVIE_SORTS: dict[str, Callable[[MovieSummary], tuple]] = {
+    "last_shown_desc": _by_last_shown,
+    "first_shown_asc": lambda movie: (movie.first_shown, movie.movie_id),
+    "title": lambda movie: (normalize(movie.title), movie.movie_id),
+}
+
+
+def search_movies(
+    title: Optional[str] = None,
+    director: Optional[str] = None,
+    genre: Optional[str] = None,
+    country: Optional[str] = None,
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    cinema: Optional[str] = None,
+    shown_from: Optional[str] = None,
+    shown_to: Optional[str] = None,
+    sort: MovieSort = "last_shown_desc",
+    limit: int = 10,
+) -> MovieSearchResult:
+    """The movies matching every given filter. `cinema`, `shown_from` and
+    `shown_to` pick the session dates that count: a movie needs at least one
+    of them, and its dates, cinemas and session count only cover those."""
+    day = today()
+    sessions = _by_movie(_sessions_in_scope(cinema, shown_from, shown_to))
+    slugs = _cinema_slugs()
+    text_filters = {
+        "title": title,
+        "director": director,
+        "genre": genre,
+        "country": country,
+    }
+    found = sorted(
+        (
+            _movie_summary(movie, sessions[movie.id], day, slugs)
+            for movie in catalog.movies_by_ids(sessions, year_from, year_to)
+            if _matches(movie, text_filters)
+        ),
+        key=_MOVIE_SORTS[sort],
+    )
+    kept = found[: _clamp(limit, SEARCH_MOVIES_MAX)]
+    return MovieSearchResult(
+        today=day,
+        catalog_since=catalog_period()[0],
+        total=len(found),
+        truncated=len(found) > len(kept),
+        movies=kept,
     )

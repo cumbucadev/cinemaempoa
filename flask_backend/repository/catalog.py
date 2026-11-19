@@ -5,9 +5,9 @@ nothing here reads the clock.
 """
 
 from datetime import date
-from typing import Optional
+from typing import Iterable, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.orm import selectinload
 
 from flask_backend.db import db_session
@@ -20,23 +20,67 @@ def catalog_period() -> tuple[Optional[date], Optional[date]]:
     since, until = (
         db_session.query(func.min(ScreeningDate.date), func.max(ScreeningDate.date))
         .join(Screening)
-        .filter(Screening.draft == False)  # noqa: E712
+        .filter(Screening.draft.is_(False))
         .one()
     )
     return since, until
+
+
+def session_dates(
+    cinema_id: Optional[int] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+) -> list[Row]:
+    """One `(movie_id, cinema_id, screening_id, date, time)` row per
+    published session date, optionally only those of one cinema and/or
+    inside an inclusive date range."""
+    query = (
+        db_session.query(
+            Screening.movie_id,
+            Screening.cinema_id,
+            ScreeningDate.screening_id,
+            ScreeningDate.date,
+            ScreeningDate.time,
+        )
+        .join(Screening)
+        .filter(Screening.draft.is_(False))
+    )
+    if cinema_id is not None:
+        query = query.filter(Screening.cinema_id == cinema_id)
+    if date_from is not None:
+        query = query.filter(ScreeningDate.date >= date_from)
+    if date_to is not None:
+        query = query.filter(ScreeningDate.date <= date_to)
+    return query.all()
+
+
+def _with_metadata(query):
+    return query.options(
+        selectinload(Movie.directors),
+        selectinload(Movie.genres),
+        selectinload(Movie.countries),
+    )
 
 
 def published_movies() -> list[Movie]:
     """The movies with at least one published screening, with their
     directors, genres and countries loaded."""
     published_ids = select(Screening.movie_id).where(Screening.draft.is_(False))
-    return (
-        db_session.query(Movie)
-        .filter(Movie.id.in_(published_ids))
-        .options(
-            selectinload(Movie.directors),
-            selectinload(Movie.genres),
-            selectinload(Movie.countries),
-        )
-        .all()
-    )
+    return _with_metadata(
+        db_session.query(Movie).filter(Movie.id.in_(published_ids))
+    ).all()
+
+
+def movies_by_ids(
+    movie_ids: Iterable[int],
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+) -> list[Movie]:
+    """Those movies, with their directors, genres and countries loaded.
+    A year bound leaves out the movies without a release year."""
+    query = db_session.query(Movie).filter(Movie.id.in_(list(movie_ids)))
+    if year_from is not None:
+        query = query.filter(Movie.release_year >= year_from)
+    if year_to is not None:
+        query = query.filter(Movie.release_year <= year_to)
+    return _with_metadata(query).all()
