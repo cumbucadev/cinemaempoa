@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date
 from unittest.mock import patch
 
 import httpx
@@ -9,7 +10,7 @@ from starlette.responses import PlainTextResponse
 
 from flask_backend import mcp_server
 from flask_backend.db import db_session
-from flask_backend.models import Cinema, Movie, Screening
+from flask_backend.models import Cinema, Director, Movie, Screening, ScreeningDate
 from flask_backend.repository import movie_inspection_requests
 
 TOKEN = "segredo-de-teste"
@@ -28,6 +29,46 @@ def _create_request_with_screening():
     return movie_inspection_requests.create_for_movie(movie), screening
 
 
+INSPECTION_TOOLS = {
+    "get_movie_context",
+    "search_tmdb_candidates",
+    "get_tmdb_details",
+    "fetch_screening_source",
+    "apply_verdict",
+}
+
+# The catalog tools, each with the arguments it does not require.
+CATALOG_TOOLS = {
+    "search_movies": {
+        "title",
+        "director",
+        "genre",
+        "country",
+        "year_from",
+        "year_to",
+        "cinema",
+        "shown_from",
+        "shown_to",
+        "sort",
+        "limit",
+    },
+    "get_schedule": {"date_from", "date_to", "cinema"},
+    "list_cinemas": set(),
+    "get_movie": set(),
+    "search_directors": {"limit"},
+    "get_catalog_stats": {"cinema", "date_from", "date_to", "limit"},
+}
+
+
+def _keys(schema):
+    """Every key used anywhere inside a JSON schema."""
+    if isinstance(schema, dict):
+        return set(schema) | {k for value in schema.values() for k in _keys(value)}
+    if isinstance(schema, list):
+        return {k for value in schema for k in _keys(value)}
+    return set()
+
+
 def _argument_types(schema):
     return {name: prop.get("type") for name, prop in schema["properties"].items()}
 
@@ -42,13 +83,7 @@ class TestTools:
         tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
 
         schemas = {t.name: t.inputSchema for t in tools}
-        assert schemas.keys() == {
-            "get_movie_context",
-            "search_tmdb_candidates",
-            "get_tmdb_details",
-            "fetch_screening_source",
-            "apply_verdict",
-        }
+        assert schemas.keys() == INSPECTION_TOOLS | CATALOG_TOOLS.keys()
         assert _argument_types(schemas["get_movie_context"]) == {
             "request_id": "integer"
         }
@@ -74,11 +109,43 @@ class TestTools:
         assert apply_verdict["reasoning"]["type"] == "string"
         assert apply_verdict["new_tmdb_id"] == {"type": "integer"}
         for tool in tools:
-            optional = {"new_tmdb_id"} if tool.name == "apply_verdict" else set()
-            assert set(tool.inputSchema["required"]) == (
-                set(tool.inputSchema["properties"]) - optional
-            )
-            assert "`request_id` é obrigatório" in " ".join(tool.description.split())
+            if tool.name in INSPECTION_TOOLS:
+                assert "`request_id` é obrigatório" in " ".join(
+                    tool.description.split()
+                )
+
+    def test_only_the_mandatory_arguments_are_required(self, app):
+        tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
+
+        optional = {"apply_verdict": {"new_tmdb_id"}, **CATALOG_TOOLS}
+        for tool in tools:
+            schema = tool.inputSchema
+            assert set(schema.get("required", [])) == (
+                set(schema["properties"]) - optional.get(tool.name, set())
+            ), tool.name
+
+    def test_no_input_schema_uses_anyof(self, app):
+        """Orbit refuses the `anyOf: [x, null]` an Optional would produce."""
+        tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
+
+        for tool in tools:
+            assert "anyOf" not in _keys(tool.inputSchema), tool.name
+
+    def test_search_movies_advertises_plain_typed_filters(self, app):
+        tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
+
+        properties = {t.name: t.inputSchema for t in tools}["search_movies"][
+            "properties"
+        ]
+        assert properties["director"] == {"type": "string"}
+        assert properties["year_from"] == {"type": "integer"}
+        assert properties["sort"]["enum"] == [
+            "last_shown_desc",
+            "first_shown_asc",
+            "title",
+        ]
+        assert properties["sort"]["default"] == "last_shown_desc"
+        assert properties["limit"]["default"] == 10
 
     def test_an_observation_tool_end_to_end(self, app):
         with app.app_context():
@@ -203,6 +270,210 @@ class TestTools:
                 _with_client(
                     app,
                     lambda c: c.call_tool(name, {"request_id": 999, **arguments}),
+                )
+            )
+
+
+def _show(title, cinema_slug, day, draft=False, **movie_fields):
+    movie = Movie(title=title, slug=title.lower().replace(" ", "-"), **movie_fields)
+    cinema = db_session.query(Cinema).filter(Cinema.slug == cinema_slug).one()
+    db_session.add(movie)
+    db_session.commit()
+    screening = Screening(
+        movie_id=movie.id, cinema_id=cinema.id, description="Sinopse.", draft=draft
+    )
+    screening.dates.append(ScreeningDate(date=date.fromisoformat(day), time="19:00"))
+    db_session.add(screening)
+    db_session.commit()
+    return movie.id
+
+
+@pytest.mark.usefixtures("setup_cinemas")
+class TestCatalogTools:
+    @pytest.fixture(autouse=True)
+    def fixed_today(self, monkeypatch):
+        monkeypatch.setattr(
+            mcp_server.catalog_tools, "today", lambda: date(2026, 3, 10)
+        )
+
+    def test_search_movies_end_to_end(self, app):
+        with app.app_context():
+            movie_id = _show("Bacurau", "capitolio", "2026-03-01")
+            _show("Rascunho", "capitolio", "2026-03-02", draft=True)
+
+        result = asyncio.run(
+            _with_client(
+                app,
+                lambda c: c.call_tool(
+                    "search_movies", {"cinema": "Capitólio", "shown_to": None}
+                ),
+            )
+        )
+
+        assert result.structured_content == {
+            "today": "2026-03-10",
+            "catalog_since": "2026-03-01",
+            "total": 1,
+            "truncated": False,
+            "movies": [
+                {
+                    "movie_id": movie_id,
+                    "title": "Bacurau",
+                    "original_title": None,
+                    "release_year": None,
+                    "directors": [],
+                    "genres": [],
+                    "countries": [],
+                    "url": "https://cinemaempoa.com.br/movies/bacurau",
+                    "first_shown": "2026-03-01",
+                    "last_shown": "2026-03-01",
+                    "next_showing": None,
+                    "cinemas": ["capitolio"],
+                    "sessions": 1,
+                }
+            ],
+        }
+
+    def test_get_schedule_end_to_end(self, app):
+        with app.app_context():
+            movie_id = _show("Bacurau", "capitolio", "2026-03-10")
+            _show("Amanhã", "capitolio", "2026-03-11")
+            _show("Rascunho", "capitolio", "2026-03-10", draft=True)
+
+        result = asyncio.run(_with_client(app, lambda c: c.call_tool("get_schedule")))
+
+        assert result.structured_content == {
+            "today": "2026-03-10",
+            "date_from": "2026-03-10",
+            "date_to": "2026-03-10",
+            "total": 1,
+            "truncated": False,
+            "cinemas": [
+                {
+                    "slug": "capitolio",
+                    "name": "Cinemateca Capitólio",
+                    "movies": [
+                        {
+                            "movie_id": movie_id,
+                            "title": "Bacurau",
+                            "directors": [],
+                            "genres": [],
+                            "url": "https://cinemaempoa.com.br/movies/bacurau",
+                            "sessions": [{"date": "2026-03-10", "times": ["19:00"]}],
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def test_list_cinemas_end_to_end(self, app):
+        with app.app_context():
+            _show("Bacurau", "capitolio", "2026-03-01", tmdb_id=7)
+
+        result = asyncio.run(_with_client(app, lambda c: c.call_tool("list_cinemas")))
+
+        content = result.structured_content
+        assert (content["today"], content["catalog_since"]) == (
+            "2026-03-10",
+            "2026-03-01",
+        )
+        assert content["metadata_coverage"]["with_tmdb"] == 1
+        assert [cinema["slug"] for cinema in content["cinemas"]] == [
+            "cine-cinco",
+            "cinebancarios",
+            "capitolio",
+            "paulo-amorim",
+            "sala-redencao",
+        ]
+
+    def test_get_movie_end_to_end(self, app):
+        with app.app_context():
+            movie_id = _show("Bacurau", "capitolio", "2026-03-12")
+
+        result = asyncio.run(
+            _with_client(
+                app, lambda c: c.call_tool("get_movie", {"movie_id": movie_id})
+            )
+        )
+
+        assert result.structured_content["title"] == "Bacurau"
+        assert result.structured_content["screenings"] == [
+            {
+                "cinema": "capitolio",
+                "cinema_name": "Cinemateca Capitólio",
+                "description": "Sinopse.",
+                "source_url": None,
+                "upcoming": [{"date": "2026-03-12", "times": ["19:00"]}],
+                "upcoming_total": 1,
+                "past_first": None,
+                "past_last": None,
+                "past_count": 0,
+            }
+        ]
+
+    def test_search_directors_end_to_end(self, app):
+        with app.app_context():
+            _show("Cléo", "capitolio", "2026-03-01")
+            movie = db_session.query(Movie).one()
+            movie.directors = [Director(name="Agnès Varda")]
+            db_session.commit()
+
+        result = asyncio.run(
+            _with_client(
+                app, lambda c: c.call_tool("search_directors", {"query": "agnes"})
+            )
+        )
+
+        assert result.structured_content == {
+            "total": 1,
+            "truncated": False,
+            "directors": [
+                {"name": "Agnès Varda", "movie_count": 1, "sample_titles": ["Cléo"]}
+            ],
+        }
+
+    def test_get_catalog_stats_end_to_end(self, app):
+        with app.app_context():
+            _show("Bacurau", "capitolio", "2026-03-01")
+            _show("Rascunho", "capitolio", "2026-03-02", draft=True)
+
+        result = asyncio.run(
+            _with_client(
+                app,
+                lambda c: c.call_tool(
+                    "get_catalog_stats", {"group_by": "cinema", "cinema": "capitolio"}
+                ),
+            )
+        )
+
+        assert result.structured_content == {
+            "group_by": "cinema",
+            "total_groups": 1,
+            "truncated": False,
+            "movies_in_scope": 1,
+            "movies_without_value": None,
+            "groups": [{"key": "capitolio", "movies": 1, "sessions": 1}],
+        }
+
+    def test_get_catalog_stats_advertises_its_groupings(self, app):
+        tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
+
+        schema = {t.name: t.inputSchema for t in tools}["get_catalog_stats"]
+        assert schema["properties"]["group_by"]["enum"] == [
+            "genre",
+            "director",
+            "country",
+            "cinema",
+            "month",
+        ]
+        assert schema["required"] == ["group_by"]
+
+    def test_a_catalog_error_comes_back_as_a_tool_error(self, app):
+        with pytest.raises(ToolError, match="Cinema 'drive-in' não encontrado"):
+            asyncio.run(
+                _with_client(
+                    app,
+                    lambda c: c.call_tool("search_movies", {"cinema": "drive-in"}),
                 )
             )
 

@@ -17,6 +17,7 @@ from flask import (
 from google.genai.errors import APIError
 from werkzeug.exceptions import abort
 
+from flask_backend.constants import CANONICAL_BASE_URL
 from flask_backend.env_config import SESSION_LIFETIME_DAYS
 from flask_backend.models import Screening
 from flask_backend.repository.cinemas import (
@@ -63,11 +64,6 @@ from flask_backend.utils.visitor import (
 )
 
 bp = Blueprint("screening", __name__)
-
-# request-derived _external=True is unreliable behind this app's
-# nginx/traefik setup (no ProxyFix, no Host-header rewrite) — see
-# scripts/sitemap.py for the same workaround in a different context.
-CANONICAL_BASE_URL = "https://cinemaempoa.com.br"
 
 
 def _redirect_to_movie(screening: Screening):

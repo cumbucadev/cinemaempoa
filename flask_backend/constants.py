@@ -15,3 +15,8 @@ CINEMA_COLORS = {
 }
 
 DEFAULT_CINEMA_COLOR = "#6c757d"
+
+# request-derived _external=True is unreliable behind this app's
+# nginx/traefik setup (no ProxyFix, no Host-header rewrite) — see
+# scripts/sitemap.py for the same workaround in a different context.
+CANONICAL_BASE_URL = "https://cinemaempoa.com.br"
