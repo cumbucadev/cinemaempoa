@@ -321,6 +321,81 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
         devolve erro."""
         return run_in_app_context(catalog_tools.get_movie, movie_id)
 
+    @mcp.tool
+    def search_directors(
+        query: str, limit: int = 10
+    ) -> catalog_tools.DirectorSearchResult:
+        """Procura diretores pelo nome entre os que têm filme no catálogo.
+        Use para desfazer ambiguidades antes de search_movies: "Coppola" pode
+        ser Francis Ford, Sofia ou Gia. Para listar os filmes de um diretor,
+        use search_movies com `director`.
+
+        `query` é obrigatório: um trecho do nome, sem diferenciar acentos nem
+        maiúsculas ("agnes" encontra "Agnès Varda"). `limit` é opcional
+        (padrão 10, até 30).
+
+        Cada diretor vem com `name`, `movie_count` (quantos filmes dele têm
+        sessão no catálogo) e `sample_titles` (até 3 títulos, os de exibição
+        mais recente). A ordem é do diretor com mais filmes para o com
+        menos. `total` é o número de diretores encontrados e `truncated` diz
+        se a lista foi cortada.
+
+        Uma lista vazia significa só que nenhum filme do catálogo tem um
+        diretor com esse nome cadastrado: o catálogo cobre o período
+        informado por list_cinemas (`catalog_since`), e nem todo filme tem
+        diretor cadastrado."""
+        return run_in_app_context(catalog_tools.search_directors, query, limit)
+
+    @mcp.tool
+    def get_catalog_stats(
+        group_by: catalog_tools.StatsGroupBy,
+        cinema: OptionalText,
+        date_from: OptionalText,
+        date_to: OptionalText,
+        limit: int = 10,
+    ) -> catalog_tools.CatalogStats:
+        """Conta filmes e sessões do catálogo por grupo. Use para perguntas
+        de quantidade e de ranking: "que gênero mais passa na Sala
+        Redenção?", "quais diretores mais passaram em 2025?", "quantos
+        filmes o Capitólio exibiu em 2025?". Para saber quais são os filmes,
+        use search_movies.
+
+        `group_by` é obrigatório: `genre`, `director`, `country`, `cinema`
+        ou `month`. Os outros parâmetros são opcionais, se combinam com E e
+        definem quais sessões contam:
+        - `cinema`: slug ou nome do cinema (veja list_cinemas), sem
+          diferenciar acentos nem maiúsculas;
+        - `date_from` / `date_to`: período AAAA-MM-DD, inclusivo; sem eles,
+          vale o catálogo inteiro, sessões futuras incluídas (use `today`,
+          de list_cinemas, em `date_to` para contar só o que já passou);
+        - `limit`: quantos grupos devolver (padrão 10, até 50).
+
+        Cada grupo traz `key` (nome do gênero, do diretor ou do país, slug
+        do cinema ou mês `AAAA-MM`), `movies` (filmes distintos) e
+        `sessions` (quantidade de datas de sessão). Um filme com dois
+        gêneros conta nos dois grupos, então a soma de `movies` pode passar
+        de `movies_in_scope`, que é o total de filmes distintos no recorte.
+        A ordem é de `movies` decrescente; com `month`, é cronológica.
+        `total_groups` é o número de grupos antes do corte e `truncated`
+        diz se houve corte.
+
+        Exemplo: quantos filmes o Capitólio exibiu em 2025 →
+        `group_by="cinema", cinema="capitolio", date_from="2025-01-01",
+        date_to="2025-12-31"` e leia `movies`.
+
+        Com `genre`, `director` ou `country`, `movies_without_value` diz
+        quantos filmes do recorte não têm esse dado cadastrado e por isso
+        ficaram fora de todos os grupos. Os números valem só para o período
+        coberto pelo catálogo (veja `catalog_since` em list_cinemas)."""
+        return run_in_app_context(
+            catalog_tools.get_catalog_stats,
+            group_by,
+            cinema=cinema,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+        )
+
 
 def create_http_app(flask_app: Flask, token: str):
     """The streamable-HTTP ASGI app, served at MCP_PATH. Refuses to build

@@ -760,3 +760,221 @@ class TestGetMovie:
             with pytest.raises(CatalogToolError) as error:
                 catalog_tools.get_movie(movie_id)
             assert str(error.value) == f"Filme {movie_id} não encontrado."
+
+
+@pytest.mark.usefixtures("setup_cinemas")
+class TestSearchDirectors:
+    def test_finds_directors_by_part_of_the_name_ignoring_accents(self):
+        show(make_movie("Cléo", directors=["Agnès Varda"]), "capitolio", "2026-03-01")
+        show(make_movie("Outro", directors=["Jean Renoir"]), "capitolio", "2026-03-01")
+
+        result = catalog_tools.search_directors("agnes")
+
+        assert (result.total, result.truncated) == (1, False)
+        assert [d.model_dump() for d in result.directors] == [
+            {"name": "Agnès Varda", "movie_count": 1, "sample_titles": ["Cléo"]}
+        ]
+
+    def test_tells_namesakes_apart_most_shown_first(self):
+        show(
+            make_movie("O Poderoso Chefão", directors=["Francis Ford Coppola"]),
+            "capitolio",
+            "2026-03-01",
+        )
+        for title in ("Encontros e Desencontros", "Priscilla"):
+            movie = make_movie(title, directors=["Sofia Coppola"])
+            show(movie, "capitolio", "2026-03-01", "2026-03-02")
+            show(movie, "cine-cinco", "2026-03-03")
+        show(
+            make_movie("Palo Alto", directors=["Gia Coppola"]),
+            "capitolio",
+            "2026-03-01",
+        )
+
+        result = catalog_tools.search_directors("coppola")
+
+        assert [(d.name, d.movie_count) for d in result.directors] == [
+            ("Sofia Coppola", 2),
+            ("Francis Ford Coppola", 1),
+            ("Gia Coppola", 1),
+        ]
+
+    def test_samples_the_three_most_recently_shown_titles(self):
+        for title, day in [
+            ("Primeiro", "2025-01-01"),
+            ("Segundo", "2025-06-01"),
+            ("Terceiro", "2026-01-01"),
+            ("Quarto", "2026-06-01"),
+        ]:
+            show(make_movie(title, directors=["Agnès Varda"]), "capitolio", day)
+
+        (director,) = catalog_tools.search_directors("varda").directors
+
+        assert director.movie_count == 4
+        assert director.sample_titles == ["Quarto", "Terceiro", "Segundo"]
+
+    def test_only_knows_directors_of_published_movies(self):
+        show(
+            make_movie("Rascunho", directors=["Agnès Varda"]),
+            "capitolio",
+            "2026-03-01",
+            draft=True,
+        )
+        make_movie("Sem Sessão", directors=["Agnès Varda"])
+
+        assert catalog_tools.search_directors("varda").directors == []
+
+    def test_limit_is_capped_at_30(self):
+        for number in range(32):
+            show(
+                make_movie(f"Filme {number}", directors=[f"Diretora {number:02}"]),
+                "capitolio",
+                "2026-03-01",
+            )
+
+        result = catalog_tools.search_directors("diretora", limit=100)
+
+        assert len(result.directors) == 30
+        assert (result.total, result.truncated) == (32, True)
+        assert len(catalog_tools.search_directors("diretora", limit=0).directors) == 1
+
+    def test_refuses_a_blank_query(self):
+        with pytest.raises(CatalogToolError) as error:
+            catalog_tools.search_directors("  ")
+
+        assert str(error.value) == ("Informe em 'query' um trecho do nome do diretor.")
+
+
+def groups(stats):
+    return [(group.key, group.movies, group.sessions) for group in stats.groups]
+
+
+@pytest.mark.usefixtures("setup_cinemas")
+class TestGetCatalogStats:
+    def test_counts_distinct_movies_and_sessions_per_genre(self):
+        show(
+            make_movie("Dois Gêneros", genres=["Drama", "Romance"]),
+            "capitolio",
+            "2026-03-01",
+            "2026-03-02",
+            "2026-03-03",
+        )
+        drama = make_movie("Só Drama", genres=["Drama"])
+        show(drama, "capitolio", "2026-03-01")
+        show(drama, "cine-cinco", "2026-03-05")
+        show(make_movie("Sem Gênero"), "capitolio", "2026-03-01")
+
+        stats = catalog_tools.get_catalog_stats("genre")
+
+        assert groups(stats) == [("Drama", 2, 5), ("Romance", 1, 3)]
+        assert (stats.total_groups, stats.truncated) == (2, False)
+        assert stats.movies_in_scope == 3
+        assert stats.movies_without_value == 1
+
+    def test_groups_by_director_and_by_country(self):
+        show(
+            make_movie(
+                "Coprodução",
+                directors=["Agnès Varda"],
+                countries=["França", "Brasil"],
+            ),
+            "capitolio",
+            "2026-03-01",
+        )
+        show(make_movie("Brasileiro", countries=["Brasil"]), "capitolio", "2026-03-01")
+
+        assert groups(catalog_tools.get_catalog_stats("director")) == [
+            ("Agnès Varda", 1, 1)
+        ]
+        assert catalog_tools.get_catalog_stats("director").movies_without_value == 1
+        assert groups(catalog_tools.get_catalog_stats("country")) == [
+            ("Brasil", 2, 2),
+            ("França", 1, 1),
+        ]
+
+    def test_ties_are_ordered_by_key(self):
+        show(make_movie("A", genres=["Terror"]), "capitolio", "2026-03-01")
+        show(make_movie("B", genres=["Comédia"]), "capitolio", "2026-03-01")
+
+        stats = catalog_tools.get_catalog_stats("genre")
+
+        assert [group.key for group in stats.groups] == ["Comédia", "Terror"]
+
+    def test_counts_what_a_cinema_showed_in_a_period(self):
+        reprise = make_movie("Reprise")
+        show(reprise, "capitolio", "2025-03-01", "2025-03-02", "2026-01-10")
+        show(make_movie("De 2025"), "capitolio", "2025-12-31")
+        show(make_movie("De 2026"), "capitolio", "2026-01-01")
+        show(make_movie("Em Outro Cinema"), "cine-cinco", "2025-05-01")
+
+        stats = catalog_tools.get_catalog_stats(
+            "cinema",
+            cinema="capitólio",
+            date_from="2025-01-01",
+            date_to="2025-12-31",
+        )
+
+        assert groups(stats) == [("capitolio", 2, 3)]
+        assert stats.movies_in_scope == 2
+        assert stats.movies_without_value is None
+
+    def test_groups_by_cinema(self):
+        both = make_movie("Nos Dois")
+        show(both, "capitolio", "2026-03-01")
+        show(both, "cine-cinco", "2026-03-02")
+        show(make_movie("Só no Cinco"), "cine-cinco", "2026-03-03")
+
+        stats = catalog_tools.get_catalog_stats("cinema")
+
+        assert groups(stats) == [("cine-cinco", 2, 2), ("capitolio", 1, 1)]
+        assert stats.movies_in_scope == 2
+
+    def test_months_come_in_chronological_order(self):
+        show(make_movie("Único de Janeiro"), "capitolio", "2026-01-15")
+        show(make_movie("Longo"), "capitolio", "2025-12-30", "2026-02-01")
+        show(make_movie("De Fevereiro"), "capitolio", "2026-02-10", "2026-02-11")
+
+        stats = catalog_tools.get_catalog_stats("month")
+
+        assert groups(stats) == [
+            ("2025-12", 1, 1),
+            ("2026-01", 1, 1),
+            ("2026-02", 2, 3),
+        ]
+        assert stats.movies_without_value is None
+
+    def test_limit_cuts_the_groups_and_says_so(self):
+        for number in range(55):
+            show(
+                make_movie(f"Filme {number}", genres=[f"Gênero {number:02}"]),
+                "capitolio",
+                "2026-03-01",
+            )
+
+        default = catalog_tools.get_catalog_stats("genre")
+        capped = catalog_tools.get_catalog_stats("genre", limit=500)
+
+        assert len(default.groups) == 10
+        assert (default.total_groups, default.truncated) == (55, True)
+        assert len(capped.groups) == 50
+        assert default.movies_in_scope == 55
+
+    def test_drafts_do_not_exist(self):
+        show(
+            make_movie("Rascunho", genres=["Drama"]),
+            "capitolio",
+            "2026-03-01",
+            draft=True,
+        )
+
+        stats = catalog_tools.get_catalog_stats("genre")
+
+        assert (stats.groups, stats.movies_in_scope) == ([], 0)
+
+    def test_refuses_an_invalid_period_or_cinema(self):
+        with pytest.raises(CatalogToolError, match="Período inválido"):
+            catalog_tools.get_catalog_stats(
+                "month", date_from="2026-02-01", date_to="2026-01-01"
+            )
+        with pytest.raises(CatalogToolError, match="Cinema 'x' não encontrado"):
+            catalog_tools.get_catalog_stats("genre", cinema="x")

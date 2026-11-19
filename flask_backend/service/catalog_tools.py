@@ -518,3 +518,153 @@ def get_movie(movie_id: int) -> MovieDetails:
         url=_movie_url(movie),
         screenings=[_movie_screening(screening, day) for screening in screenings],
     )
+
+
+SEARCH_DIRECTORS_MAX = 30
+DIRECTOR_SAMPLE_TITLES = 3
+
+
+class DirectorSummary(BaseModel):
+    name: str
+    movie_count: int
+    sample_titles: list[str]
+
+
+class DirectorSearchResult(BaseModel):
+    total: int
+    truncated: bool
+    directors: list[DirectorSummary]
+
+
+def _director_summary(name: str, movies: list[Movie], last_date: dict[int, date]):
+    latest_first = sorted(
+        movies, key=lambda movie: (-last_date[movie.id].toordinal(), movie.id)
+    )
+    return DirectorSummary(
+        name=name,
+        movie_count=len(movies),
+        sample_titles=[movie.title for movie in latest_first[:DIRECTOR_SAMPLE_TITLES]],
+    )
+
+
+def search_directors(query: str, limit: int = 10) -> DirectorSearchResult:
+    """The directors whose name contains `query`, among those with a movie
+    in a published screening: the ones with the most movies first."""
+    if not _given(query):
+        raise CatalogToolError("Informe em 'query' um trecho do nome do diretor.")
+    sessions = _by_movie(catalog.session_dates())
+    last_date = {
+        movie_id: max(session.date for session in movie_sessions)
+        for movie_id, movie_sessions in sessions.items()
+    }
+    filmographies = defaultdict(list)
+    for movie in catalog.movies_by_ids(sessions):
+        for director in movie.directors:
+            if _contains(query, [director.name]):
+                filmographies[director.id, director.name].append(movie)
+    found = sorted(
+        (
+            _director_summary(name, movies, last_date)
+            for (_, name), movies in filmographies.items()
+        ),
+        key=lambda director: (-director.movie_count, normalize(director.name)),
+    )
+    kept = found[: _clamp(limit, SEARCH_DIRECTORS_MAX)]
+    return DirectorSearchResult(
+        total=len(found), truncated=len(found) > len(kept), directors=kept
+    )
+
+
+CATALOG_STATS_MAX = 50
+
+StatsGroupBy = Literal["genre", "director", "country", "cinema", "month"]
+
+
+class StatsGroup(BaseModel):
+    key: str
+    movies: int
+    sessions: int
+
+
+class CatalogStats(BaseModel):
+    group_by: StatsGroupBy
+    total_groups: int
+    truncated: bool
+    movies_in_scope: int
+    movies_without_value: Optional[int]
+    groups: list[StatsGroup]
+
+
+# The metadata a movie may lack, by the group_by that counts it.
+_MOVIE_VALUES: dict[str, Callable[[Movie], list[str]]] = {
+    "genre": lambda movie: _names(movie.genres),
+    "director": lambda movie: _names(movie.directors),
+    "country": lambda movie: _names(movie.countries),
+}
+
+
+def _session_keys(group_by: str, slugs: dict[int, str]) -> Callable[[Movie, Row], set]:
+    """The groups one session date of a movie counts in."""
+    if group_by == "cinema":
+        return lambda _movie, session: {slugs[session.cinema_id]}
+    if group_by == "month":
+        return lambda _movie, session: {session.date.strftime("%Y-%m")}
+    return lambda movie, _session: set(_MOVIE_VALUES[group_by](movie))
+
+
+def _stats_groups(
+    sessions: Iterable[Row], movies: dict[int, Movie], keys_of
+) -> list[StatsGroup]:
+    movie_ids = defaultdict(set)
+    session_count = defaultdict(int)
+    for session in sessions:
+        for key in keys_of(movies[session.movie_id], session):
+            movie_ids[key].add(session.movie_id)
+            session_count[key] += 1
+    return [
+        StatsGroup(key=key, movies=len(movie_ids[key]), sessions=session_count[key])
+        for key in movie_ids
+    ]
+
+
+def _without_value(group_by: str, movies: Iterable[Movie]) -> Optional[int]:
+    values_of = _MOVIE_VALUES.get(group_by)
+    if values_of is None:
+        return None
+    return sum(not values_of(movie) for movie in movies)
+
+
+def _stats_order(group_by: str) -> Callable[[StatsGroup], tuple]:
+    if group_by == "month":
+        return lambda group: (group.key,)
+    return lambda group: (-group.movies, group.key)
+
+
+def get_catalog_stats(
+    group_by: StatsGroupBy,
+    cinema: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 10,
+) -> CatalogStats:
+    """How many distinct movies and session dates each genre, director,
+    country, cinema or month has, counting only the session dates of
+    `cinema`, when given, inside the period, when given."""
+    sessions = _sessions_in_scope(cinema, date_from, date_to)
+    movies = {
+        movie.id: movie
+        for movie in catalog.movies_by_ids({session.movie_id for session in sessions})
+    }
+    found = sorted(
+        _stats_groups(sessions, movies, _session_keys(group_by, _cinema_slugs())),
+        key=_stats_order(group_by),
+    )
+    kept = found[: _clamp(limit, CATALOG_STATS_MAX)]
+    return CatalogStats(
+        group_by=group_by,
+        total_groups=len(found),
+        truncated=len(found) > len(kept),
+        movies_in_scope=len(movies),
+        movies_without_value=_without_value(group_by, movies.values()),
+        groups=kept,
+    )

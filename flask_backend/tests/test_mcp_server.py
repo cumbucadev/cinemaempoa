@@ -10,7 +10,7 @@ from starlette.responses import PlainTextResponse
 
 from flask_backend import mcp_server
 from flask_backend.db import db_session
-from flask_backend.models import Cinema, Movie, Screening, ScreeningDate
+from flask_backend.models import Cinema, Director, Movie, Screening, ScreeningDate
 from flask_backend.repository import movie_inspection_requests
 
 TOKEN = "segredo-de-teste"
@@ -55,6 +55,8 @@ CATALOG_TOOLS = {
     "get_schedule": {"date_from", "date_to", "cinema"},
     "list_cinemas": set(),
     "get_movie": set(),
+    "search_directors": {"limit"},
+    "get_catalog_stats": {"cinema", "date_from", "date_to", "limit"},
 }
 
 
@@ -408,6 +410,63 @@ class TestCatalogTools:
                 "past_count": 0,
             }
         ]
+
+    def test_search_directors_end_to_end(self, app):
+        with app.app_context():
+            _show("Cléo", "capitolio", "2026-03-01")
+            movie = db_session.query(Movie).one()
+            movie.directors = [Director(name="Agnès Varda")]
+            db_session.commit()
+
+        result = asyncio.run(
+            _with_client(
+                app, lambda c: c.call_tool("search_directors", {"query": "agnes"})
+            )
+        )
+
+        assert result.structured_content == {
+            "total": 1,
+            "truncated": False,
+            "directors": [
+                {"name": "Agnès Varda", "movie_count": 1, "sample_titles": ["Cléo"]}
+            ],
+        }
+
+    def test_get_catalog_stats_end_to_end(self, app):
+        with app.app_context():
+            _show("Bacurau", "capitolio", "2026-03-01")
+            _show("Rascunho", "capitolio", "2026-03-02", draft=True)
+
+        result = asyncio.run(
+            _with_client(
+                app,
+                lambda c: c.call_tool(
+                    "get_catalog_stats", {"group_by": "cinema", "cinema": "capitolio"}
+                ),
+            )
+        )
+
+        assert result.structured_content == {
+            "group_by": "cinema",
+            "total_groups": 1,
+            "truncated": False,
+            "movies_in_scope": 1,
+            "movies_without_value": None,
+            "groups": [{"key": "capitolio", "movies": 1, "sessions": 1}],
+        }
+
+    def test_get_catalog_stats_advertises_its_groupings(self, app):
+        tools = asyncio.run(_with_client(app, lambda c: c.list_tools()))
+
+        schema = {t.name: t.inputSchema for t in tools}["get_catalog_stats"]
+        assert schema["properties"]["group_by"]["enum"] == [
+            "genre",
+            "director",
+            "country",
+            "cinema",
+            "month",
+        ]
+        assert schema["required"] == ["group_by"]
 
     def test_a_catalog_error_comes_back_as_a_tool_error(self, app):
         with pytest.raises(ToolError, match="Cinema 'drive-in' não encontrado"):
