@@ -197,7 +197,8 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
         - `year_from` / `year_to`: ano de lançamento, inclusivo; com esse
           filtro, filmes sem ano cadastrado ficam de fora.
 
-        `cinema` (slug ou nome, veja list_cinemas), `shown_from` e `shown_to`
+        `cinema` (slug, nome ou trecho do nome, sem diferenciar acentos nem
+        maiúsculas; veja list_cinemas), `shown_from` e `shown_to`
         (datas AAAA-MM-DD, inclusivas) definem quais sessões contam. O filme
         só aparece se tiver sessão nesse recorte, e `first_shown`,
         `last_shown`, `next_showing`, `cinemas` e `sessions` são calculados
@@ -250,8 +251,9 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
         - `date_from`: primeiro dia, AAAA-MM-DD; sem ele, vale hoje;
         - `date_to`: último dia, AAAA-MM-DD, inclusivo; sem ele, vale o mesmo
           dia de `date_from`. O período não pode passar de 14 dias;
-        - `cinema`: slug ou nome do cinema (veja list_cinemas), sem
-          diferenciar acentos nem maiúsculas; sem ele, vêm todos os cinemas.
+        - `cinema`: slug, nome ou trecho do nome do cinema (veja
+          list_cinemas), sem diferenciar acentos nem maiúsculas; sem ele,
+          vêm todos os cinemas.
 
         `today` é a data de hoje em Porto Alegre: use-a para calcular
         "amanhã" ou "sábado" antes de chamar de novo. `cinemas` vem em ordem
@@ -263,9 +265,11 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
         `truncated` diz se a lista foi cortada (o corte é em 60 pares):
         nesse caso, reduza o período ou informe `cinema`.
 
-        Uma lista vazia significa que não há sessão cadastrada nesses dias:
-        a programação futura só existe até onde os cinemas já a divulgaram,
-        e nem todo filme tem diretor ou gênero cadastrado."""
+        Uma lista vazia significa que não há sessão cadastrada nesses dias.
+        Isso vale só para o período coberto pelo catálogo, que começa em
+        `catalog_since` (veja list_cinemas); a programação futura só existe
+        até onde os cinemas já a divulgaram. Nem todo filme tem diretor ou
+        gênero cadastrado."""
         return run_in_app_context(
             catalog_tools.get_schedule,
             date_from=date_from,
@@ -281,7 +285,9 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
         "amanhã", "no fim de semana") ou transformar o nome de um cinema no
         `slug` que as outras ferramentas aceitam ("Capitólio" →
         `capitolio`). Também responde "onde fica a Sala Redenção?" e "quais
-        cinemas vocês acompanham?". Não recebe parâmetros.
+        cinemas vocês acompanham?". Para saber o que está passando, use
+        get_schedule; para o histórico de filmes, search_movies. Não recebe
+        parâmetros.
 
         `today` é a data de hoje em Porto Alegre, no formato AAAA-MM-DD,
         como todas as datas. `catalog_since` e `catalog_until` são a
@@ -369,8 +375,8 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
         `group_by` é obrigatório: `genre`, `director`, `country`, `cinema`
         ou `month`. Os outros parâmetros são opcionais, se combinam com E e
         definem quais sessões contam:
-        - `cinema`: slug ou nome do cinema (veja list_cinemas), sem
-          diferenciar acentos nem maiúsculas;
+        - `cinema`: slug, nome ou trecho do nome do cinema (veja
+          list_cinemas), sem diferenciar acentos nem maiúsculas;
         - `date_from` / `date_to`: período AAAA-MM-DD, inclusivo; sem eles,
           vale o catálogo inteiro, sessões futuras incluídas (use `today`,
           de list_cinemas, em `date_to` para contar só o que já passou);
@@ -391,8 +397,9 @@ def _register_catalog_tools(mcp: FastMCP, run_in_app_context) -> None:
 
         Com `genre`, `director` ou `country`, `movies_without_value` diz
         quantos filmes do recorte não têm esse dado cadastrado e por isso
-        ficaram fora de todos os grupos. Os números valem só para o período
-        coberto pelo catálogo (veja `catalog_since` em list_cinemas)."""
+        ficaram fora de todos os grupos: nem todo filme tem diretor, gênero
+        ou país cadastrado. Os números valem só para o período coberto pelo
+        catálogo (veja `catalog_since` em list_cinemas)."""
         return run_in_app_context(
             catalog_tools.get_catalog_stats,
             group_by,

@@ -536,7 +536,9 @@ class DirectorSearchResult(BaseModel):
     directors: list[DirectorSummary]
 
 
-def _director_summary(name: str, movies: list[Movie], last_date: dict[int, date]):
+def _director_summary(
+    name: str, movies: list[Movie], last_date: dict[int, date]
+) -> DirectorSummary:
     latest_first = sorted(
         movies, key=lambda movie: (-last_date[movie.id].toordinal(), movie.id)
     )
