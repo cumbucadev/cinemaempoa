@@ -1,7 +1,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from google.genai.errors import ClientError as GoogleGenAIClientError
+from google.genai.errors import (
+    ClientError as GoogleGenAIClientError,
+    ServerError as GoogleGenAIServerError,
+)
 
 from flask_backend.service.gemini_models import GEMINI_MODEL_PRIORITY
 from scrapers.llms import CineBancariosExtractorLLM, CineCincoExtractorLLM
@@ -67,6 +70,39 @@ class TestExtractScreeningsFromText:
 
         assert result == '{"movies": []}'
         assert mock_build.call_args_list[0].args == (GEMINI_MODEL_PRIORITY[0],)
+        assert mock_build.call_args_list[1].args == (GEMINI_MODEL_PRIORITY[1],)
+
+    def test_high_demand_503_on_first_model_falls_back_to_second(self):
+        extractor = _make_extractor()
+        mock_response = MagicMock()
+        mock_response.raw.model_dump_json.return_value = '{"movies": []}'
+        first_llm = MagicMock()
+        first_llm.as_structured_llm.return_value.chat.side_effect = (
+            GoogleGenAIServerError(
+                code=503,
+                response_json={
+                    "error": {
+                        "code": 503,
+                        "message": "This model is currently experiencing high demand.",
+                        "status": "UNAVAILABLE",
+                    }
+                },
+            )
+        )
+        second_llm = MagicMock()
+        second_llm.as_structured_llm.return_value.chat.return_value = mock_response
+
+        with (
+            patch(
+                "scrapers.llms._build_llm", side_effect=[first_llm, second_llm]
+            ) as mock_build,
+            patch("scrapers.llms.Settings"),
+        ):
+            result = extractor.extract_screenings_from_text(
+                "Mon, 09 Mar 2026 18:48:00 +0000", "some blog text"
+            )
+
+        assert result == '{"movies": []}'
         assert mock_build.call_args_list[1].args == (GEMINI_MODEL_PRIORITY[1],)
 
     def test_rate_limit_on_every_model_returns_none(self):

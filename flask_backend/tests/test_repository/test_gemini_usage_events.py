@@ -59,6 +59,19 @@ class TestCountSince:
         with app.app_context():
             assert gemini_usage_events.count_since("model-a", datetime(2026, 8, 5)) == 0
 
+    def test_skips_server_unavailable_attempts(self, app):
+        with app.app_context():
+            base = datetime(2026, 8, 5, 12, 0, 0)
+            gemini_usage_events.create("model-a", base, "success")
+            gemini_usage_events.create(
+                "model-a", base, "rate_limited", quota_metric="requests_per_minute"
+            )
+            gemini_usage_events.create(
+                "model-a", base, "rate_limited", quota_metric="server_unavailable"
+            )
+
+            assert gemini_usage_events.count_since("model-a", base) == 2
+
 
 class TestMostRecent:
     def test_returns_the_latest_event_for_the_model(self, app):

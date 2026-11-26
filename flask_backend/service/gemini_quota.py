@@ -1,7 +1,8 @@
 """Tracks Gemini API usage per model so gemini_models.call_with_fallback can
 skip models it already knows are exhausted, instead of discovering that on
 every single call. Classifies 429 responses by which quota was hit (per-minute
-vs per-day), and records each attempt's outcome so future availability checks
+vs per-day) and transient 5xx responses (the model is overloaded, e.g. "503
+UNAVAILABLE: high demand") as a short server-side outage, and records each attempt's outcome so future availability checks
 can proactively count recent usage or react to an explicit cooldown.
 """
 
@@ -10,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from google.genai.errors import ClientError
+from google.genai.errors import ClientError, ServerError
 from zoneinfo import ZoneInfo
 
 from flask_backend.repository import gemini_usage_events
@@ -20,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RateLimitInfo:
-    quota_metric: str  # "requests_per_minute" | "requests_per_day" | "unknown"
+    # "requests_per_minute" | "requests_per_day" | "unknown" | "server_unavailable"
+    quota_metric: str
     retry_delay_seconds: Optional[float]
 
 
@@ -59,12 +61,25 @@ def _extract_retry_delay(response_json: dict) -> Optional[float]:
     return None
 
 
+# 500 INTERNAL, 503 UNAVAILABLE ("high demand") and 504 DEADLINE_EXCEEDED are
+# what Google returns when a model is overloaded; they clear up within minutes.
+TRANSIENT_SERVER_ERROR_CODES = frozenset({500, 503, 504})
+
+
 def classify_gemini_rate_limit(exc: Exception) -> Optional[RateLimitInfo]:
-    """Returns None if exc isn't a 429. Otherwise classifies which quota was
-    hit from the QuotaFailure violation's quotaId, and extracts Google's
-    suggested retryDelay - but only for requests_per_minute violations; see
-    the "Why not trust retryDelay uniformly" note in the design spec for why
+    """Returns None if exc is neither a 429 nor a transient 5xx, so the
+    caller re-raises it. A 500/503/504 is classified as server_unavailable:
+    the model is overloaded on Google's side, not out of our quota, so
+    call_with_fallback should move on to the next model and only briefly
+    skip this one. For a 429, classifies which quota was hit from the
+    QuotaFailure violation's quotaId, and extracts Google's suggested
+    retryDelay - but only for requests_per_minute violations; see the "Why
+    not trust retryDelay uniformly" note in the design spec for why
     requests_per_day (and unknown) violations ignore it."""
+    if isinstance(exc, ServerError) and exc.code in TRANSIENT_SERVER_ERROR_CODES:
+        return RateLimitInfo(
+            quota_metric="server_unavailable", retry_delay_seconds=None
+        )
     if not (isinstance(exc, ClientError) and exc.code == 429):
         return None
 
@@ -81,6 +96,10 @@ def classify_gemini_rate_limit(exc: Exception) -> Optional[RateLimitInfo]:
 
 PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
 DEFAULT_RPM_COOLDOWN_SECONDS = 60
+# How long to skip a model after a transient 5xx. Short on purpose: unlike a
+# per-day 429, an overloaded model usually recovers within a minute or two,
+# and the scrapers wait this long before their second pass over the models.
+SERVER_UNAVAILABLE_COOLDOWN_SECONDS = 60
 
 # Hand-maintained. A model with no entry, or a missing "rpm"/"rpd" key, is
 # treated as unlimited for that dimension. Values are the free-tier limits
@@ -191,6 +210,10 @@ def record_attempt(
                     rate_limit_info.retry_delay_seconds or DEFAULT_RPM_COOLDOWN_SECONDS
                 )
                 unavailable_until = now + timedelta(seconds=delay)
+            elif quota_metric == "server_unavailable":
+                unavailable_until = now + timedelta(
+                    seconds=SERVER_UNAVAILABLE_COOLDOWN_SECONDS
+                )
             else:  # "requests_per_day" or "unknown" - treated the same, conservatively
                 unavailable_until = _next_pacific_midnight_utc(now)
 

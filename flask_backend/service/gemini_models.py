@@ -1,7 +1,11 @@
+import logging
+import time
 from typing import Callable, Optional, TypeVar
 
 from flask_backend.service import gemini_quota
 from flask_backend.service.gemini_quota import RateLimitInfo
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -55,5 +59,48 @@ def call_with_fallback(
             "(quota pre-check skipped every one; none were called)"
         )
     raise AllGeminiModelsExhausted(
-        f"All {len(models)} Gemini models rate-limited (last error: {last_error})"
+        f"All {len(models)} Gemini models rate-limited or unavailable "
+        f"(last error: {last_error})"
     ) from last_error
+
+
+def _seconds_until_next_cooldown_ends(models: list[str]) -> Optional[float]:
+    """The soonest still-running cooldown among `models`. Unlike
+    gemini_quota.seconds_until_available over the whole list, a cooldown
+    that already ended (a stale row from an earlier day, whose model is
+    now skipped by the RPM/RPD count instead) can't win with a negative
+    value and trigger a pointless immediate retry."""
+    pending = [
+        seconds
+        for seconds in (gemini_quota.seconds_until_available([m]) for m in models)
+        if seconds is not None and seconds > 0
+    ]
+    return min(pending) if pending else None
+
+
+def call_with_fallback_waiting(
+    build_and_call: Callable[[str], T],
+    classify_rate_limit: Callable[[Exception], Optional[RateLimitInfo]],
+    max_wait_seconds: float,
+    models: list[str] = GEMINI_MODEL_PRIORITY,
+) -> T:
+    """call_with_fallback, plus a second pass over `models` when the first
+    one exhausts them all but the soonest model is expected back within
+    max_wait_seconds - typically every model answered 503 "high demand", or
+    hit only its per-minute quota. Sleeps until then and tries once more;
+    a longer or unknown recovery time (e.g. every model out of its daily
+    quota) re-raises AllGeminiModelsExhausted right away. Meant for batch
+    jobs like the scrapers, not for web requests that can't afford to
+    block for a minute."""
+    try:
+        return call_with_fallback(build_and_call, classify_rate_limit, models)
+    except AllGeminiModelsExhausted:
+        wait_seconds = _seconds_until_next_cooldown_ends(models)
+        if wait_seconds is None or wait_seconds > max_wait_seconds:
+            raise
+    logger.warning(
+        "All Gemini models temporarily unavailable; retrying in %.0fs",
+        wait_seconds,
+    )
+    time.sleep(wait_seconds)
+    return call_with_fallback(build_and_call, classify_rate_limit, models)

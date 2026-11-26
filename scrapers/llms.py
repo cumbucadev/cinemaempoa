@@ -8,9 +8,15 @@ from llama_index.core.llms import ChatMessage
 from flask_backend.env_config import GEMINI_API_KEY
 from flask_backend.service.gemini_models import (
     AllGeminiModelsExhausted,
-    call_with_fallback,
+    call_with_fallback_waiting,
 )
 from flask_backend.service.gemini_quota import classify_gemini_rate_limit
+
+# How long a scraper may block waiting for a Gemini model to come back (a 503
+# "high demand" or a per-minute 429 on every model) before giving up and
+# falling back to the last cached extraction. The import workflows allow 10
+# minutes for the whole run.
+LLM_MAX_WAIT_SECONDS = 90
 
 
 class Movie(BaseModel):
@@ -54,9 +60,11 @@ class CineBancariosExtractorLLM:
             return llm.as_structured_llm(Movies).chat(messages)
 
         try:
-            response = call_with_fallback(call, classify_gemini_rate_limit)
+            response = call_with_fallback_waiting(
+                call, classify_gemini_rate_limit, LLM_MAX_WAIT_SECONDS
+            )
         except AllGeminiModelsExhausted:
-            print("All Gemini models rate-limited. Exiting...", file=sys.stderr)
+            print("All Gemini models unavailable. Exiting...", file=sys.stderr)
             return
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -105,9 +113,11 @@ class CineCincoExtractorLLM:
             return llm.as_structured_llm(Movies).chat(messages)
 
         try:
-            response = call_with_fallback(call, classify_gemini_rate_limit)
+            response = call_with_fallback_waiting(
+                call, classify_gemini_rate_limit, LLM_MAX_WAIT_SECONDS
+            )
         except AllGeminiModelsExhausted:
-            print("All Gemini models rate-limited. Exiting...", file=sys.stderr)
+            print("All Gemini models unavailable. Exiting...", file=sys.stderr)
             return
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)

@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from google.genai.errors import ClientError
+import pytest
+from google.genai.errors import ClientError, ServerError
 
 from flask_backend.repository import gemini_usage_events
 from flask_backend.service.gemini_quota import (
@@ -108,6 +109,30 @@ class TestClassifyGeminiRateLimit:
         result = classify_gemini_rate_limit(exc)
 
         assert result == RateLimitInfo(quota_metric="unknown", retry_delay_seconds=None)
+
+    @pytest.mark.parametrize("code", [500, 503, 504])
+    def test_classifies_transient_server_errors_as_server_unavailable(self, code):
+        # The shape Google returned in the failed import-cinebancarios run.
+        exc = ServerError(
+            code=code,
+            response_json={
+                "error": {
+                    "code": code,
+                    "message": "This model is currently experiencing high demand.",
+                    "status": "UNAVAILABLE",
+                }
+            },
+        )
+
+        result = classify_gemini_rate_limit(exc)
+
+        assert result == RateLimitInfo(
+            quota_metric="server_unavailable", retry_delay_seconds=None
+        )
+
+    def test_returns_none_for_other_server_errors(self):
+        exc = ServerError(code=501, response_json={})
+        assert classify_gemini_rate_limit(exc) is None
 
 
 FROZEN_NOW = datetime(2026, 8, 5, 18, 0, 0)  # 18:00 UTC = 11:00 Pacific (PDT, UTC-7)
@@ -397,6 +422,47 @@ class TestRecordAttempt:
 
             event = gemini_usage_events.most_recent("gemini-2.5-flash")
             assert event.unavailable_until == datetime(2026, 8, 6, 7, 0, 0)
+
+    def test_server_unavailable_cooldown_is_short(self, app):
+        from flask_backend.service.gemini_quota import (
+            SERVER_UNAVAILABLE_COOLDOWN_SECONDS,
+        )
+
+        with app.app_context(), patch(
+            "flask_backend.service.gemini_quota._utcnow_naive", return_value=FROZEN_NOW
+        ):
+            record_attempt(
+                "gemini-2.5-flash",
+                "rate_limited",
+                RateLimitInfo(
+                    quota_metric="server_unavailable", retry_delay_seconds=None
+                ),
+            )
+
+            event = gemini_usage_events.most_recent("gemini-2.5-flash")
+            assert event.quota_metric == "server_unavailable"
+            assert event.unavailable_until == FROZEN_NOW + timedelta(
+                seconds=SERVER_UNAVAILABLE_COOLDOWN_SECONDS
+            )
+
+    def test_server_unavailable_attempts_do_not_count_toward_the_daily_limit(self, app):
+        with app.app_context(), patch(
+            "flask_backend.service.gemini_quota.GEMINI_MODEL_LIMITS",
+            {"test-model": {"rpd": 2}},
+        ), patch(
+            "flask_backend.service.gemini_quota._utcnow_naive",
+            return_value=FROZEN_NOW + timedelta(minutes=5),
+        ):
+            for _ in range(2):
+                gemini_usage_events.create(
+                    "test-model",
+                    FROZEN_NOW,
+                    "rate_limited",
+                    quota_metric="server_unavailable",
+                    unavailable_until=FROZEN_NOW + timedelta(seconds=60),
+                )
+
+            assert is_available("test-model") is True
 
     def test_record_attempt_swallows_db_error(self, app):
         with app.app_context(), patch(

@@ -5,6 +5,8 @@ to decide whether a model is currently available."""
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import or_
+
 from flask_backend.db import db_session
 from flask_backend.models import GeminiUsageEvent
 
@@ -30,11 +32,21 @@ def create(
 
 
 def count_since(model_id: str, since: datetime) -> int:
+    """Counts attempts that may have used up the model's RPM/RPD quota. A
+    server_unavailable attempt (a transient 5xx) is left out: Google turned
+    it away for lack of capacity, so counting it would burn the 20 daily
+    requests of a flash model on days Google is overloaded. If Google does
+    count it after all, the worst case is a real 429, which the fallback
+    already handles."""
     return (
         db_session.query(GeminiUsageEvent)
         .filter(
             GeminiUsageEvent.model_id == model_id,
             GeminiUsageEvent.occurred_at >= since,
+            or_(
+                GeminiUsageEvent.quota_metric.is_(None),
+                GeminiUsageEvent.quota_metric != "server_unavailable",
+            ),
         )
         .count()
     )

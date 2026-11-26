@@ -1,12 +1,15 @@
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
+from google.genai.errors import ServerError
 
 from flask_backend.service.gemini_models import (
     AllGeminiModelsExhausted,
     call_with_fallback,
+    call_with_fallback_waiting,
 )
-from flask_backend.service.gemini_quota import RateLimitInfo
+from flask_backend.service.gemini_quota import RateLimitInfo, classify_gemini_rate_limit
 
 RATE_LIMITED = RateLimitInfo(quota_metric="unknown", retry_delay_seconds=None)
 
@@ -192,6 +195,165 @@ class TestCallWithFallback:
                 )
             assert calls == []
             assert exc_info2.value.__cause__ is None
+
+
+def _high_demand_503():
+    return ServerError(
+        code=503,
+        response_json={
+            "error": {
+                "code": 503,
+                "message": "This model is currently experiencing high demand.",
+                "status": "UNAVAILABLE",
+            }
+        },
+    )
+
+
+class TestServerUnavailableFallback:
+    def test_a_real_503_falls_back_to_the_next_model(self, app):
+        with app.app_context():
+            calls = []
+
+            def build_and_call(model_id):
+                calls.append(model_id)
+                if model_id == "model-a":
+                    raise _high_demand_503()
+                return "ok"
+
+            result = call_with_fallback(
+                build_and_call,
+                classify_gemini_rate_limit,
+                models=["model-a", "model-b"],
+            )
+
+            assert result == "ok"
+            assert calls == ["model-a", "model-b"]
+
+    def test_a_503_only_briefly_skips_the_model(self, app):
+        from flask_backend.service import gemini_quota
+
+        now = datetime(2026, 8, 5, 18, 0, 0)
+        with app.app_context():
+            with patch(
+                "flask_backend.service.gemini_quota._utcnow_naive", return_value=now
+            ):
+
+                def overloaded(model_id):
+                    raise _high_demand_503()
+
+                with pytest.raises(AllGeminiModelsExhausted):
+                    call_with_fallback(
+                        overloaded, classify_gemini_rate_limit, models=["model-a"]
+                    )
+                assert gemini_quota.is_available("model-a") is False
+
+            with patch(
+                "flask_backend.service.gemini_quota._utcnow_naive",
+                return_value=now + timedelta(minutes=2),
+            ):
+                assert gemini_quota.is_available("model-a") is True
+
+
+class TestCallWithFallbackWaiting:
+    def test_returns_first_pass_result_without_waiting(self, app):
+        with app.app_context(), patch(
+            "flask_backend.service.gemini_models.time.sleep"
+        ) as sleep:
+            result = call_with_fallback_waiting(
+                lambda _model_id: "ok",
+                classify_gemini_rate_limit,
+                max_wait_seconds=90,
+                models=["model-a"],
+            )
+
+            assert result == "ok"
+            sleep.assert_not_called()
+
+    def test_waits_for_the_cooldown_and_retries_when_every_model_503s(self, app):
+        with app.app_context():
+            calls = []
+
+            def build_and_call(model_id):
+                calls.append(model_id)
+                if len(calls) <= 2:
+                    raise _high_demand_503()
+                return "ok"
+
+            # Sleeping "passes" the 60s cooldown by moving the clock forward.
+            clock = {"now": datetime(2026, 8, 5, 18, 0, 0)}
+
+            def fake_sleep(seconds):
+                clock["now"] += timedelta(seconds=seconds)
+
+            with (
+                patch(
+                    "flask_backend.service.gemini_quota._utcnow_naive",
+                    side_effect=lambda: clock["now"],
+                ),
+                patch(
+                    "flask_backend.service.gemini_models.time.sleep",
+                    side_effect=fake_sleep,
+                ) as sleep,
+            ):
+                result = call_with_fallback_waiting(
+                    build_and_call,
+                    classify_gemini_rate_limit,
+                    max_wait_seconds=90,
+                    models=["model-a", "model-b"],
+                )
+
+            assert result == "ok"
+            assert calls == ["model-a", "model-b", "model-a"]
+            sleep.assert_called_once_with(60)
+
+    def test_reraises_without_waiting_when_recovery_is_too_far(self, app):
+        with app.app_context(), patch(
+            "flask_backend.service.gemini_models.time.sleep"
+        ) as sleep:
+
+            def build_and_call(model_id):
+                raise ValueError("daily quota")
+
+            with pytest.raises(AllGeminiModelsExhausted):
+                call_with_fallback_waiting(
+                    build_and_call,
+                    lambda _exc: RATE_LIMITED,  # "unknown": cooldown until midnight
+                    max_wait_seconds=90,
+                    models=["model-a"],
+                )
+
+            sleep.assert_not_called()
+
+    def test_reraises_without_waiting_when_only_stale_cooldowns_exist(self, app):
+        from flask_backend.repository import gemini_usage_events
+
+        now = datetime(2026, 8, 5, 18, 0, 0)
+        with (
+            app.app_context(),
+            patch("flask_backend.service.gemini_quota._utcnow_naive", return_value=now),
+            patch(
+                "flask_backend.service.gemini_quota.is_available", return_value=False
+            ),
+            patch("flask_backend.service.gemini_models.time.sleep") as sleep,
+        ):
+            gemini_usage_events.create(
+                "model-a",
+                now - timedelta(days=1),
+                "rate_limited",
+                quota_metric="requests_per_minute",
+                unavailable_until=now - timedelta(days=1) + timedelta(seconds=60),
+            )
+
+            with pytest.raises(AllGeminiModelsExhausted):
+                call_with_fallback_waiting(
+                    lambda _model_id: "never called",
+                    classify_gemini_rate_limit,
+                    max_wait_seconds=90,
+                    models=["model-a"],
+                )
+
+            sleep.assert_not_called()
 
 
 class TestGeminiModelPriority:
