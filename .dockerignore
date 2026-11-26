@@ -1,6 +1,6 @@
-.venv
-.git
-*.sqlite
-__pycache__
-.pytest_cache
-.ruff_cache
+# Both Dockerfiles only COPY the dependency manifests: the code is bind-mounted
+# over /app at runtime. Keep the build context to those files so posters,
+# scraped JSON and databases are never sent to the builder.
+*
+!pyproject.toml
+!uv.lock

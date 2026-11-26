@@ -33,8 +33,9 @@ jobs:
             docker builder prune -af
             echo "✅ Pre-build cleanup complete."
 
+            # One image serves both flask and cinemaempoa_mcp.
             echo "🔄 Building Docker image..."
-            docker compose -f docker-compose.shared.yml build flask cinemaempoa_mcp
+            docker compose -f docker-compose.shared.yml build flask
 
             echo "🔄 Running database migrations..."
             docker compose -f docker-compose.shared.yml run --rm flask flask --app flask_backend db-upgrade

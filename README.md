@@ -188,7 +188,7 @@ Os arquivos usados para o deployment são:
 
 - .env (deve ser criado a partir do example.env).
 - docker-compose.shared.yml (atrás do Traefik compartilhado da máquina, rede `traefik_proxy`)
-- Dockerfile.prod
+- Dockerfile.prod (só instala as dependências; o código chega pelo volume `.:/app`)
 
 A cada novo merge no branch principal, o workflow em `.github/workflows/deploy-server.yml`
 faz o processo de atualização do servidor.

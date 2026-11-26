@@ -1,6 +1,8 @@
 services:
   flask:
     container_name: cinemaempoa_flask
+    # Built once here and reused by cinemaempoa_mcp.
+    image: cinemaempoa-app
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -18,13 +20,11 @@ services:
         max-file: "3"
 
   # MCP server the Orbit inspection agent calls (flask_backend/mcp_server.py).
-  # Same image and SQLite volume as `flask`; Traefik routes
+  # Same image (built by `flask`) and SQLite volume as `flask`; Traefik routes
   # https://cinemaempoa.com.br/mcp straight here, bypassing nginx.
   cinemaempoa_mcp:
     container_name: cinemaempoa_mcp
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
+    image: cinemaempoa-app
     command: ["python", "-m", "flask_backend.mcp_server"]
     volumes:
       - .:/app

@@ -26,12 +26,11 @@ ENV LC_ALL pt_BR.UTF-8
 ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR.UTF-8
 
-# venv lives outside /app so it survives the bind mount (docker-compose.shared.yml
-# mounts the repo over /app at runtime)
+# venv lives outside /app so it survives the bind mount. The image carries no
+# app code: docker-compose.shared.yml mounts the checkout over /app at runtime.
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY --from=builder /opt/venv /opt/venv
-COPY . .
 
 EXPOSE 8080
 CMD ["gunicorn", "flask_backend:create_app()", "--workers", "4", "--bind", "0.0.0.0:8080", "--timeout", "120"]
