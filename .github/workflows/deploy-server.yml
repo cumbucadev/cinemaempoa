@@ -25,8 +25,12 @@ jobs:
             cd cinemaempoa
             git pull
 
-            echo "🧹 Pruning stale images before build..."
+            # The full `docker system prune` at the end only runs when the deploy
+            # succeeds (set -e), so a failed deploy leaves its build cache behind
+            # and the next one starts with less disk. Clear both up front.
+            echo "🧹 Pruning stale images and build cache before build..."
             docker image prune -af
+            docker builder prune -af
             echo "✅ Pre-build cleanup complete."
 
             echo "🔄 Building Docker image..."

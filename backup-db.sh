@@ -36,6 +36,8 @@ SCHEMA_ONLY=(users)
 
 DRIVE_URL="https://drive.google.com/drive/u/0/folders/1f9qFHb2Fxdg_EGg3Vq4W-leDaGed9kXk"
 BACKUPS_DIR="/home/ubuntu/cinemaempoa_db_backups/"
+# Every backup also lives on Google Drive, so only recent ones are kept locally.
+LOCAL_RETENTION_DAYS=14
 
 echo "Creating $TARGET_DB from $SOURCE_DB";
 
@@ -79,3 +81,6 @@ if [ $? != "0" ]; then
 	echo "Couldn't move $TARGET_DB over to $BACKUPS_DIR. Removing file"
 	rm "$TARGET_DB"
 fi
+
+echo "Removing local backups older than $LOCAL_RETENTION_DAYS days"
+find "$BACKUPS_DIR" -maxdepth 1 -name '*.sqlite' -mtime +"$LOCAL_RETENTION_DAYS" -print -delete

@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
+    restart: unless-stopped
     volumes:
       - .:/app
     expose:
@@ -52,6 +53,7 @@ services:
   nginx:
     image: nginx:stable-alpine
     container_name: cinemaempoa_nginx
+    restart: unless-stopped
     volumes:
       - .:/app
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
